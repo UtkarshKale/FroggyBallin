@@ -15,6 +15,7 @@ import { Pickups } from './entities/Pickups.js';
 import { makeBoss } from './entities/Bosses.js';
 import { Recorder } from './loop/Recorder.js';
 import { Ghost } from './loop/Ghost.js';
+import { Webs } from './world/Webs.js';
 import { LEVELS, SURVIVAL_LEVEL, BOSSRUSH_LEVEL } from './levels/levels.js';
 import { Hud } from './ui/Hud.js';
 import { Screens } from './ui/Screens.js';
@@ -55,6 +56,7 @@ export class Game {
     this.input = new Input(this.canvas);
     this.projectiles = new Projectiles(this);
     this.pickups = new Pickups(this);
+    this.webs = new Webs(this);
     this.recorder = new Recorder();
     this.hud = new Hud(this.uiRoot);
     this.screens = new Screens(this.uiRoot, this);
@@ -97,12 +99,13 @@ export class Game {
     for (const e of this.enemies) { this.world.scene.remove(e.root); e.overhead && e.overhead.remove(); }
     this.enemies = [];
     this.waves = [];
-    if (this.boss) { this.boss.clearMarker?.(); this.world.scene.remove(this.boss.root); this.boss.rings?.forEach((r) => r.vis && this.world.scene.remove(r.vis)); }
+    if (this.boss) { this.boss.clearMarker?.(); this.boss.clearAll?.(); this.world.scene.remove(this.boss.root); this.boss.rings?.forEach((r) => r.vis && this.world.scene.remove(r.vis)); }
     this.boss = null;
     if (this.ghost) this.world.scene.remove(this.ghost.root);
     this.ghost = null;
     this.projectiles.clear();
     this.pickups.clear();
+    this.webs.clear();
     this.fx.clear();
     this.hud.setBoss(null);
     this.snailT = 0;
@@ -130,6 +133,7 @@ export class Game {
     this.sfx.intensity = 0;
 
     this.player.reset(level.start.x, level.start.y);
+    for (const [wx, wy, wr] of level.webs || []) this.webs.add(wx, wy, wr, Infinity);
     this.recorder.reset();
     const cam = this.world.cam;
     cam.yaw = Math.atan2(-level.start.y || 0.01, -level.start.x || 0.01);
@@ -177,7 +181,7 @@ export class Game {
     this.input.requestLock();
     this.clock.getDelta();
     if (this.mode === 'survival') this.hud.banner('SURVIVE', 'Slash, parry, eat. How long can you last?', '#7dff7d');
-    else if (this.mode === 'bossrush') this.hud.banner('BOSS RUSH', 'Four bosses. No loops. Break their posture!', '#ff7a7a', 3);
+    else if (this.mode === 'bossrush') this.hud.banner('BOSS RUSH', 'Five bosses. No loops. Break their posture!', '#ff7a7a', 3);
     else if (this.ghost) this.hud.banner(`ITERATION ${this.loopNo}`, 'Kill your past self, beat the boss, reach the goal first!', '#66ddff', 2.4);
     else this.hud.banner('FIRST RUN', 'Clear the level to record your ghost', '#7dff7d', 2.2);
     this.sfx.play('ui');
@@ -239,7 +243,7 @@ export class Game {
       d.pb = best;
       this.pb = best;
       Object.assign(d, this.mode === 'bossrush'
-        ? { win: true, title: 'BOSS RUSH CLEARED', why: 'All four bosses defeated.' }
+        ? { win: true, title: 'BOSS RUSH CLEARED', why: 'All five bosses defeated.' }
         : { win: true, title: 'ITERATION CLEARED', why: this.ghost ? 'You beat your past self.' : 'Run recorded. Your ghost awaits in the next iteration.' });
       this.sfx.play('win');
     } else if (reason === 'ghost') {
@@ -550,7 +554,7 @@ export class Game {
   }
 
   separate() {
-    const items = [this.player, ...this.enemies];
+    const items = [this.player, ...this.enemies.filter((e) => !e.latched)];
     if (this.boss && this.boss.active && !this.boss.dead) items.push(this.boss);
     for (let i = 0; i < items.length; i++) {
       for (let j = i + 1; j < items.length; j++) {
@@ -569,7 +573,14 @@ export class Game {
       }
     }
     this.world.resolve(this.player);
-    for (const e of this.enemies) this.world.resolve(e);
+    for (const e of this.enemies) if (!e.latched) this.world.resolve(e);
+  }
+
+  // Leeches latched on the frog slow it down.
+  leechSlow() {
+    let n = 0;
+    for (const e of this.enemies) if (e.latched) n++;
+    return n ? Math.max(CFG.LEECH.minSlow, 1 - CFG.LEECH.slowEach * n) : 1;
   }
 
   // ------------------------------------------------------------ main loop
@@ -671,6 +682,7 @@ export class Game {
     if (this.state !== 'PLAYING') return;
     this.projectiles.update(dt, es);
     this.pickups.update(dt);
+    this.webs.update(dt);
     this.separate();
     this.enemies = this.enemies.filter((e) => !e.dead);
     this.fx.update(dt);
@@ -710,6 +722,8 @@ export class Game {
       s.spawnT = Math.max(0.45, 2.4 - s.t * 0.012);
       const pool = ['gnat', 'gnat', 'ant'];
       if (s.t > 25) pool.push('juicebug');
+      if (s.t > 35) pool.push('leech', 'spiderling');
+      if (s.t > 55) pool.push('bomber');
       if (s.t > 40) pool.push('wasp');
       if (s.t > 70) pool.push('shellback');
       if (s.t > 100) pool.push('wasp', 'ant');

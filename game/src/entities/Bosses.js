@@ -497,6 +497,7 @@ export class StagBeetleKing extends Boss {
 }
 
 export function makeBoss(type, game, x, y) {
+  if (type === 'spider') return new SpiderMatriarch(game, x, y);
   if (type === 'stag') return new StagBeetleKing(game, x, y);
   if (type === 'mantis') return new MantisDuelist(game, x, y);
   if (type === 'moth') return new ChronoMoth(game, x, y);
@@ -875,5 +876,264 @@ export class ChronoMoth extends Boss {
   sync() {
     this.root.position.set(this.x, this.y, this.z);
     this.root.rotation.z = this.yaw;
+  }
+}
+
+// ---------------------------------------------------------------- Spider Matriarch
+// Web volleys (parryable), sticky web traps that slow, drops from the ceiling onto a ground marker,
+// and in phase 2 she hatches spiderlings.
+export class SpiderMatriarch extends Boss {
+  constructor(game, x, y) {
+    super(game, { name: 'SPIDER MATRIARCH', title: 'Weaver of the Mirewood', hp: 850, r: 64, posture: 150 });
+    this.x = x; this.y = y; this.z = 0;
+    const g = new THREE.Group();
+    g.add(blob(0x2a1838, 58, 1.25, 1.05, 0.9, -62, 0, 70));
+    g.add(blob(0xd4243a, 14, 1, 0.8, 0.4, -70, 0, 120));
+    g.add(blob(0xd4243a, 10, 1, 0.8, 0.4, -40, 0, 116));
+    g.add(blob(0x3a2450, 36, 1.1, 1, 0.8, 10, 0, 56));
+    g.add(blob(0x1c1024, 22, 1, 1, 0.9, 50, 0, 58));
+    for (const [ey, ez, s] of [[8, 70, 4.5], [-8, 70, 4.5], [16, 64, 3], [-16, 64, 3], [5, 78, 2.4], [-5, 78, 2.4]]) g.add(blob(0xff2244, s, 1, 1, 1, 68, ey, ez));
+    for (const s of [1, -1]) {
+      const fang = new THREE.Mesh(new THREE.ConeGeometry(4, 18, 6), stdMat(0xe8e0d0));
+      fang.position.set(70, s * 7, 42); fang.rotation.x = Math.PI;
+      g.add(fang);
+    }
+    this.legs = [];
+    for (const s of [1, -1]) for (let i = 0; i < 4; i++) {
+      const hip = new THREE.Group();
+      hip.position.set(30 - i * 18, s * 26, 58);
+      hip.rotation.z = s * (0.5 + i * 0.25) - (i - 1.5) * 0.35 * s;
+      const upper = new THREE.Mesh(new THREE.CylinderGeometry(5, 4, 70, 6), stdMat(0x24142e));
+      upper.rotation.x = -s * 1.0; upper.position.set(0, s * 30, 22);
+      const knee = new THREE.Group(); knee.position.set(0, s * 58, 42);
+      const lower = new THREE.Mesh(new THREE.CylinderGeometry(4, 2, 80, 6), stdMat(0x1a0e22));
+      lower.rotation.x = s * 0.45; lower.position.set(0, s * 14, -36);
+      knee.add(lower);
+      hip.add(upper, knee);
+      hip.userData = { s, ph: i * 1.7 + (s > 0 ? 0 : Math.PI), z0: hip.rotation.z };
+      g.add(hip);
+      this.legs.push(hip);
+    }
+    this.body = g;
+    this.silk = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1, 5), new THREE.MeshBasicMaterial({ color: 0xeef0ff, transparent: true, opacity: 0.7 }));
+    this.silk.rotation.x = Math.PI / 2;
+    this.silk.visible = false;
+    game.world.scene.add(this.silk);
+    const root = new THREE.Group();
+    root.add(g);
+    this.finishBuild(root);
+    this.traps = [];
+    this.sync();
+  }
+
+  entrance(p) {
+    const k = clamp(p, 0, 1);
+    this.z = lerp(900, 0, ease(Math.min(1, k * 1.3)));
+    this.yaw = Math.PI * 0.25 + Math.sin(k * 6) * 0.3;
+    this.t += 0.016;
+    this.animLegs(0.016, 0.3);
+    this.sync();
+  }
+
+  animLegs(dt, amt) {
+    this.legs.forEach((h) => { h.rotation.z = h.userData.z0 + Math.sin(this.t * 14 + h.userData.ph) * amt * h.userData.s; h.rotation.y = Math.cos(this.t * 14 + h.userData.ph) * amt * 0.5; });
+  }
+
+  update(dt) {
+    if (this.dead) return;
+    const g = this.g, p = g.player;
+    this.t += dt;
+    this.flashT = Math.max(0, this.flashT - dt);
+    this.burnTick(dt);
+    if (this.dead) return;
+    this.telegraph = false;
+    const dx = p.x - this.x, dy = p.y - this.y;
+    const d = Math.hypot(dx, dy);
+    const ang = Math.atan2(dy, dx);
+    const ph2 = this.phase === 2;
+    this.st += this.stDt(dt);
+    this.updateTraps(dt);
+    let legAmt = 0.08;
+
+    switch (this.state) {
+      case 'move': {
+        this.yaw = lerpAngle(this.yaw, ang, 1 - Math.exp(-6 * dt));
+        const sp = ph2 ? 240 : 185;
+        // Skitter: keep mid range and strafe in bursts
+        const side = Math.sign(Math.sin(this.t * 0.9)) || 1;
+        let mx = 0, my = 0;
+        if (d > 360) { mx = Math.cos(ang); my = Math.sin(ang); }
+        else if (d < 220) { mx = -Math.cos(ang); my = -Math.sin(ang); }
+        else { mx = Math.cos(ang + Math.PI / 2) * side; my = Math.sin(ang + Math.PI / 2) * side; }
+        this.x += mx * sp * dt; this.y += my * sp * dt;
+        this.z = lerp(this.z, 0, 1 - Math.exp(-10 * dt));
+        legAmt = 0.35;
+        this.cd -= dt;
+        if (this.cd <= 0) this.pickAttack(d);
+        break;
+      }
+      case 'volley': {
+        this.yaw = lerpAngle(this.yaw, ang, 1 - Math.exp(-8 * dt));
+        this.telegraph = this.st < 0.6;
+        this.body.rotation.y = this.telegraph ? -0.25 : 0;
+        if (!this.fired && this.st >= 0.6) {
+          this.fired = true;
+          const n = ph2 ? 7 : 5, spread = ph2 ? 1.0 : 0.8;
+          for (let i = 0; i < n; i++) {
+            const a = ang + (i / (n - 1) - 0.5) * spread;
+            g.projectiles.spawn({ x: this.x + Math.cos(this.yaw) * 80, y: this.y + Math.sin(this.yaw) * 80, z: 50, angle: a, speed: ph2 ? 430 : 370, dmg: 12, team: 'bug', radius: 11, color: 0xf0f0ff, owner: this, fromBoss: true, tag: 'web' });
+          }
+          g.sfx.play('web');
+        }
+        if (this.st >= 1.0) this.endAttack();
+        break;
+      }
+      case 'trap': {
+        this.yaw = lerpAngle(this.yaw, ang, 1 - Math.exp(-8 * dt));
+        this.telegraph = this.st < 0.5;
+        if (!this.fired && this.st >= 0.5) {
+          this.fired = true;
+          // Lob web globs around the frog; each lands as a sticky patch.
+          const n = ph2 ? 4 : 3;
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * TAU + Math.random();
+            const r = i === 0 ? 0 : 140 + Math.random() * 60;
+            const tx = p.x + p.vx * 0.4 + Math.cos(a) * r, ty = p.y + p.vy * 0.4 + Math.sin(a) * r;
+            this.traps.push({ x: tx, y: ty, t: 0.7, m: g.fx.marker(tx, ty, CFG.WEB.r, 0xccccff) });
+          }
+          g.sfx.play('web');
+        }
+        if (this.st >= 0.9) this.endAttack();
+        break;
+      }
+      case 'ascend': {
+        // Climbs up her silk thread out of reach.
+        this.telegraph = true;
+        this.z = lerp(this.z, 900, 1 - Math.exp(-5 * dt));
+        if (this.st >= 0.6) { this.state = 'dropMark'; this.st = 0; }
+        break;
+      }
+      case 'dropMark': {
+        const lockAt = ph2 ? 0.65 : 0.9;
+        if (!this.marker) this.marker = g.fx.marker(p.x, p.y, 135, 0xaa44ff);
+        if (this.st < lockAt) { this.mx = p.x; this.my = p.y; this.x = lerp(this.x, p.x, 1 - Math.exp(-6 * dt)); this.y = lerp(this.y, p.y, 1 - Math.exp(-6 * dt)); this.marker.m.position.set(this.mx, this.my, 2); }
+        this.telegraph = true;
+        if (this.st >= lockAt + 0.35) { this.state = 'dropFall'; this.st = 0; this.sx = this.x; this.sy = this.y; this.sz = this.z; g.sfx.play('buzz'); }
+        break;
+      }
+      case 'dropFall': {
+        const k = clamp(this.st / 0.25, 0, 1);
+        this.x = lerp(this.sx, this.mx, k); this.y = lerp(this.sy, this.my, k); this.z = lerp(this.sz, 0, k * k);
+        if (k >= 1) this.impact();
+        break;
+      }
+      case 'dropRecover': {
+        if (this.st > 0.7) this.endAttack();
+        break;
+      }
+      case 'brood': {
+        this.telegraph = this.st < 0.7;
+        this.body.rotation.y = this.telegraph ? 0.2 : 0;
+        if (!this.fired && this.st >= 0.7) {
+          this.fired = true;
+          for (let i = 0; i < 4; i++) {
+            const a = this.yaw + Math.PI + (i - 1.5) * 0.5;
+            g.spawnEnemy('spiderling', this.x + Math.cos(a) * 110, this.y + Math.sin(a) * 110);
+          }
+          g.hud.flash('Spiderlings hatching!', '#d8b0ff');
+          g.sfx.play('buzz');
+          g.fx.ring(this.x, this.y, 10, 0xaa66ff, 20, 200, 0.5);
+        }
+        if (this.st >= 1.2) this.endAttack();
+        break;
+      }
+      case 'stunned': {
+        this.stunT -= dt;
+        this.z = lerp(this.z, 0, 1 - Math.exp(-12 * dt));
+        this.body.rotation.x = lerp(this.body.rotation.x, 0.35, 1 - Math.exp(-10 * dt));
+        legAmt = 0.6;
+        if (this.stunT <= 0) { this.stunned = false; this.state = 'move'; this.cd = 1.0; this.st = 0; }
+        break;
+      }
+      default: break;
+    }
+    if (this.state !== 'stunned') this.body.rotation.x = lerp(this.body.rotation.x, 0, 1 - Math.exp(-10 * dt));
+    if (this.state !== 'volley' && this.state !== 'brood') this.body.rotation.y = lerp(this.body.rotation.y, 0, 1 - Math.exp(-10 * dt));
+    this.animLegs(dt, legAmt);
+    if (this.state !== 'ascend' && this.state !== 'dropMark' && this.state !== 'dropFall') g.world.resolve(this);
+    this.sync();
+    this.flashSync();
+  }
+
+  updateTraps(dt) {
+    for (let i = this.traps.length - 1; i >= 0; i--) {
+      const tr = this.traps[i];
+      tr.t -= dt;
+      if (tr.t <= 0) {
+        tr.m.remove();
+        this.g.webs.add(tr.x, tr.y);
+        this.g.fx.burst(tr.x, tr.y, 6, 0xeef0ff, 8, 120, 0.3, 2);
+        this.traps.splice(i, 1);
+      }
+    }
+  }
+
+  pickAttack(d) {
+    const g = this.g;
+    this.st = 0; this.fired = false;
+    const r = Math.random();
+    const spiders = g.enemies.filter((e) => e.type === 'spiderling').length;
+    if (this.phase === 2 && spiders < 4 && r < 0.25) this.state = 'brood';
+    else if (r < 0.5) this.state = 'volley';
+    else if (r < 0.72) this.state = 'trap';
+    else { this.state = 'ascend'; g.hud.flash('She climbs... watch the ground!', '#d8b0ff'); }
+    g.sfx.play('warn');
+  }
+
+  endAttack() {
+    this.clearMarker();
+    this.state = 'move'; this.st = 0;
+    this.cd = (this.phase === 2 ? 1.2 : 2.0) * CFG.BOSS.cdMult;
+  }
+
+  impact() {
+    const g = this.g, p = g.player;
+    this.clearMarker();
+    this.x = this.mx; this.y = this.my; this.z = 0;
+    g.fx.ring(this.x, this.y, 5, 0xaa44ff, 20, 160, 0.4);
+    g.fx.burst(this.x, this.y, 20, 0xd8b0ff, 22, 300, 0.5, 4);
+    g.fx.addShake(14);
+    g.sfx.play('slam');
+    g.webs.add(this.x, this.y, CFG.WEB.r * 1.3);
+    const d = Math.hypot(p.x - this.x, p.y - this.y);
+    if (d < 135 + p.radius && p.z < 60) {
+      const res = p.takeHit(26, this, { parryable: true });
+      if (res === 'perfect') { this.stun(3); return; }
+    }
+    this.state = 'dropRecover'; this.st = 0;
+  }
+
+  clearAll() {
+    this.traps.forEach((tr) => tr.m.remove());
+    this.traps.length = 0;
+    this.g.world.scene.remove(this.silk);
+  }
+
+  die() {
+    this.clearAll();
+    super.die();
+  }
+
+  sync() {
+    this.root.position.set(this.x, this.y, this.z);
+    this.root.rotation.z = this.yaw;
+    // Silk thread from the canopy while she is off the ground
+    const up = this.z > 20;
+    this.silk.visible = up && !this.dead;
+    if (up) {
+      const top = 1400, len = top - (this.z + 120);
+      this.silk.scale.set(1, Math.max(1, len), 1);
+      this.silk.position.set(this.x - 60 * Math.cos(this.yaw), this.y - 60 * Math.sin(this.yaw), this.z + 120 + len / 2);
+    }
   }
 }

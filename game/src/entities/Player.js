@@ -89,6 +89,7 @@ export class Player {
     this.parryGrace = 0;
     this.parryStreak = 0;
     this.streakT = 0;
+    this.webbedT = 0;
     this.jumps = 0;
     this.flashT = 0;
     this.moving = false;
@@ -230,6 +231,7 @@ export class Player {
     for (const k of Object.keys(this.pu)) if (k !== 'shell') this.pu[k] = Math.max(0, this.pu[k] - dt);
     this.iframes = Math.max(0, this.iframes - dt);
     this.parryGrace = Math.max(0, this.parryGrace - dt);
+    this.webbedT = Math.max(0, this.webbedT - dt);
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
     this.parryCd = Math.max(0, this.parryCd - dt);
     this.shootCd = Math.max(0, this.shootCd - dt);
@@ -323,6 +325,10 @@ export class Player {
     if (this.parryT >= 0) speed *= 0.6;
     if (this.tongue) speed *= 0.6;
     if (this.aiming) speed *= 0.5;
+    // Webs (ground patches + web shots) and latched leeches slow the frog
+    if (this.z <= 0) speed *= g.webs.slowAt(this.x, this.y);
+    if (this.webbedT > 0) speed *= CFG.WEB.shotSlow;
+    speed *= g.leechSlow();
     let tvx = locked ? 0 : mx * speed, tvy = locked ? 0 : my * speed;
     if (this.dashT > 0) {
       this.dashT -= dt;
@@ -498,7 +504,7 @@ export class Player {
       const d = Math.hypot(e.x - this.x, e.y - this.y);
       if (d > range + e.radius) continue;
       const a = Math.atan2(e.y - this.y, e.x - this.x);
-      if (Math.abs(angDiff(tg.yaw, a)) > CFG.TONGUE.halfArc * (d < 90 ? 2 : 1)) continue;
+      if (!e.latched && Math.abs(angDiff(tg.yaw, a)) > CFG.TONGUE.halfArc * (d < 90 ? 2 : 1)) continue;
       cands.push({ e, d, a });
     }
     cands.sort((a, b) => (Number(b.e.eatable) - Number(a.e.eatable)) || (a.d - b.d));

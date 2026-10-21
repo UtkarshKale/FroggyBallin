@@ -12,6 +12,9 @@ export const ENEMY_TYPES = {
   shellback: { hp: 64, r: 24, speed: 80,  fly: false, edible: false, heal: 15, posture: 80, shell: true, big: true },
   ant:       { hp: 28, r: 20, speed: 120, fly: false, edible: false, heal: 12, posture: 40 },
   echo:      { hp: 18, r: 12, speed: 190, fly: true,  edible: false, heal: 5,  posture: 12 },
+  bomber:    { hp: 22, r: 18, speed: 115, fly: false, edible: false, heal: 8,  posture: 20 },
+  leech:     { hp: 16, r: 13, speed: 85,  fly: false, edible: true,  heal: 12, posture: 14 },
+  spiderling:{ hp: 8,  r: 10, speed: 235, fly: false, edible: true,  heal: 6,  posture: 10 },
 };
 
 function wing(color, size, x, y, z) {
@@ -27,6 +30,7 @@ function wing(color, size, x, y, z) {
 
 function buildBug(type) {
   const g = new THREE.Group();
+  const root = new THREE.Group();
   const wings = [];
   switch (type) {
     case 'echo':
@@ -69,10 +73,44 @@ function buildBug(type) {
       plate.position.set(20, 0, 16);
       g.add(plate);
       break;
+    case 'bomber': {
+      g.add(blob(0x8a1c1c, 17, 1.15, 1, 0.85, -2, 0, 16));
+      g.add(blob(0xd83a2a, 13, 1.05, 0.95, 0.6, -2, 0, 22));
+      g.add(blob(0x1a1010, 7, 1, 1, 1, 18, 0, 12));
+      g.add(blob(0xffee55, 1.8, 1, 1, 1, 24, 3, 14));
+      g.add(blob(0xffee55, 1.8, 1, 1, 1, 24, -3, 14));
+      const fuse = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 12, 5), stdMat(0x333333));
+      fuse.rotation.x = Math.PI / 2; fuse.position.set(-4, 0, 36);
+      const spark = new THREE.Mesh(new THREE.SphereGeometry(3.5, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffcc33 }));
+      spark.position.set(-4, 0, 43);
+      g.add(fuse, spark);
+      root.userData.spark = spark;
+      break;
+    }
+    case 'leech':
+      for (let i = 0; i < 4; i++) g.add(blob(i % 2 ? 0x3e4a22 : 0x2c3618, 9 - i, 1.2, 0.9, 0.7, 8 - i * 9, 0, 7));
+      g.add(blob(0xaa2233, 4, 1, 1, 1, 16, 0, 7));
+      break;
+    case 'spiderling': {
+      g.add(blob(0x1c1424, 9, 1.2, 1, 0.8, -4, 0, 10));
+      g.add(blob(0x2a1a30, 6, 1, 1, 1, 7, 0, 9));
+      g.add(blob(0xff3344, 1.5, 1, 1, 1, 12, 2, 11));
+      g.add(blob(0xff3344, 1.5, 1, 1, 1, 12, -2, 11));
+      const legs = [];
+      for (const s of [1, -1]) for (let i = 0; i < 4; i++) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.7, 16, 4), stdMat(0x120c18));
+        leg.position.set(4 - i * 4, s * 9, 6);
+        leg.rotation.x = s * 1.0;
+        leg.userData.ph = i * 1.6 + (s > 0 ? 0 : Math.PI);
+        g.add(leg);
+        legs.push(leg);
+      }
+      root.userData.legs = legs;
+      break;
+    }
     default: break;
   }
   wings.forEach((w) => g.add(w));
-  const root = new THREE.Group();
   root.add(g);
   root.userData.wings = wings;
   return root;
@@ -110,6 +148,10 @@ export class Enemy {
     this.shotCd = 1 + Math.random() * 2;
     this.root = type === 'ant' ? (makeModel('enemy', 40) || buildFallbackAnt()) : buildBug(type);
     this.wings = this.root.userData.wings || [];
+    this.spark = this.root.userData.spark || null;
+    this.legs = this.root.userData.legs || null;
+    this.latched = false;
+    this.launch = null;
     this.flashList = collectFlash(this.root);
     game.world.scene.add(this.root);
     this.overhead = new Overhead(game.world.scene);
@@ -127,6 +169,15 @@ export class Enemy {
   get eatable() { return this.edible || this.broken > 0 || this.hp / this.maxHp <= 0.3; }
 
   onParried() {
+    if (this.dead) return;
+    if (this.type === 'bomber') {
+      // Parried bombers get batted away and blow up on other bugs.
+      const p = this.g.player;
+      this.launch = { ang: Math.atan2(this.y - p.y, this.x - p.x), t: 0 };
+      this.atk = null;
+      this.g.hud.flash('RETURN TO SENDER!', '#ffaa33');
+      return;
+    }
     this.stagger = Math.max(this.stagger, 1.0);
     this.atk = null;
     this.atkCd = 1.3;
@@ -153,6 +204,8 @@ export class Enemy {
     this.atkCd -= dt;
     tickPosture(this, dt, CFG.POSTURE.regen);
     if (this.broken > 0) { this.stagger = Math.max(this.stagger, 0.05); this.atk = null; }
+    if (this.latched) { this._latchStep(dt, p); this.sync(); return; }
+    if (this.launch) { this._launchStep(dt); if (!this.dead) { g.world.resolve(this); this.sync(); } return; }
     // knock decay
     this.x += this.kx * dt; this.y += this.ky * dt;
     this.kx *= Math.exp(-8 * dt); this.ky *= Math.exp(-8 * dt);
@@ -161,10 +214,59 @@ export class Enemy {
       this.stagger -= dt;
     } else if (!p.dead) {
       this.ai(dt, p);
+      if (this.dead) return;
     }
     g.world.resolve(this);
     this.wings.forEach((w) => { w.rotation.x = w.userData.side * Math.sin(this.t * 55) * 0.6; });
+    if (this.legs) this.legs.forEach((l) => { l.rotation.y = Math.sin(this.t * 22 + l.userData.ph) * 0.5; });
     this.sync();
+  }
+
+  // Leech stuck to the frog: rides along, drains HP and slows it. Slash it or eat it.
+  _latchStep(dt, p) {
+    if (p.dead) { this.latched = false; return; }
+    const a = this.latchA + p.yaw;
+    this.x = p.x + Math.cos(a) * (p.radius + 4);
+    this.y = p.y + Math.sin(a) * (p.radius + 4);
+    this.yaw = a + Math.PI;
+    p._damage(CFG.LEECH.drain * dt);
+    if (Math.random() < dt * 4) this.g.fx.burst(this.x, this.y, 20, 0xaa2233, 1, 50, 0.3, 2);
+  }
+
+  _launchStep(dt) {
+    const L = this.launch, g = this.g, B = CFG.BOMBER;
+    L.t += dt;
+    this.hitWall = false;
+    this._go(L.ang, B.launchSpeed, dt);
+    this.yaw += 20 * dt;
+    if (Math.random() < 0.7) g.fx.burst(this.x, this.y, 20, 0xffaa33, 1, 40, 0.25, 2.5, 0);
+    const near = (t) => t && !t.dead && t !== this && Math.hypot(t.x - this.x, t.y - this.y) < t.radius + this.radius;
+    const hit = g.enemies.some(near) || near(g.boss && g.boss.active ? g.boss : null) || near(g.ghost);
+    if (hit || L.t >= B.launchTime || g.world.blocked(this.x, this.y, this.radius)) this.die('player');
+  }
+
+  // Explosion when a bomber dies. 'player' blasts hurt bugs/bosses/ghost; 'bug' blasts hurt the frog.
+  _boom(team) {
+    const g = this.g, B = CFG.BOMBER, R = B.radius;
+    g.fx.ring(this.x, this.y, 6, 0xff7a1a, 10, R, 0.35);
+    g.fx.disc(this.x, this.y, 8, 0xffcc66, 10, R * 0.8, 0.2, 0.7);
+    g.fx.burst(this.x, this.y, 20, 0xff7a1a, 26, 320, 0.5, 4, 200);
+    g.fx.streaks(this.x, this.y, 20, 0xffcc66, 10, 120, 0.25);
+    g.fx.addShake(12);
+    g.sfx.play('boom');
+    if (team === 'player') {
+      const tg = [...g.enemies];
+      if (g.boss && g.boss.active) tg.push(g.boss);
+      if (g.ghost && !g.ghost.dead) tg.push(g.ghost);
+      for (const t of tg) {
+        if (t === this || t.dead || Math.hypot(t.x - this.x, t.y - this.y) > R + t.radius) continue;
+        g.damageTarget(t, B.bugDmg, { team: 'player' });
+        g.addPosture(t, 30);
+      }
+    } else if (team === 'bug' && !this.skipP) {
+      const p = g.player;
+      if (Math.hypot(p.x - this.x, p.y - this.y) < R + p.radius && p.z < 60) p.takeHit(B.dmg, this, { parryable: false });
+    }
   }
 
   _face(ang, rate = 8, dt = 0.016) { this.yaw = lerpAngle(this.yaw, ang, 1 - Math.exp(-rate * dt)); }
@@ -176,6 +278,7 @@ export class Enemy {
     const ang = Math.atan2(dy, dx);
     switch (this.type) {
       case 'echo':
+      case 'spiderling':
       case 'gnat': {
         this._face(ang, 10, dt);
         const wob = Math.sin(this.t * 6 + this.x) * 0.5;
@@ -228,6 +331,47 @@ export class Enemy {
         }
         break;
       }
+      case 'bomber': {
+        const B = CFG.BOMBER;
+        if (!this.atk) {
+          this._face(ang, 7, dt);
+          this._go(ang, this.speed, dt);
+          if (d < 180 && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0 }; this.g.sfx.play('fuse'); }
+        } else if (this.atk.k === 'wind') {
+          // Fuse burning: stands still, spark flickers, then hops at the frog.
+          this.atk.t += dt;
+          this._face(ang, 10, dt);
+          if (Math.random() < dt * 20) this.g.fx.burst(this.x, this.y, 44, 0xffcc33, 1, 60, 0.2, 1.5, 0);
+          if (this.atk.t >= B.fuse) this.atk = { k: 'hop', t: 0, yaw: ang, hit: false };
+        } else {
+          this.atk.t += dt;
+          this._go(this.atk.yaw, B.hopSpeed, dt);
+          if (!this.atk.hit && d < this.radius + p.radius + 10) {
+            this.atk.hit = true;
+            const res = p.takeHit(B.dmg, this, { parryable: true });
+            if (res === 'perfect') break;
+            this.skipP = true;
+            this.die('bug');
+            break;
+          }
+          if (this.atk.t >= B.hopTime) this.die('bug');
+        }
+        break;
+      }
+      case 'leech': {
+        this._face(ang, 5, dt);
+        this._go(ang + Math.sin(this.t * 5) * 0.4, this.speed, dt);
+        if (d < this.radius + p.radius + 8 && this.atkCd <= 0) {
+          this.atkCd = 1.0;
+          const res = p.takeHit(CFG.LEECH.latchDmg, this, { parryable: true });
+          if (res === 'hit') {
+            this.latched = true;
+            this.latchA = ang + Math.PI - p.yaw;
+            this.g.hud.flash('LEECH! Slash it or eat it (E)', '#ff7a9a');
+          }
+        }
+        break;
+      }
       case 'ant':
       default: {
         if (!this.atk) {
@@ -254,7 +398,11 @@ export class Enemy {
   }
 
   sync() {
-    const zz = this.fly ? 34 + Math.sin(this.t * 6 + this.x * 0.01) * 4 : 0;
+    let zz = this.fly ? 34 + Math.sin(this.t * 6 + this.x * 0.01) * 4 : 0;
+    if (this.latched) zz = 16;
+    else if (this.launch) zz = 30 + Math.sin(this.launch.t * 10) * 10;
+    else if (this.atk && this.atk.k === 'hop') zz = Math.sin(Math.min(1, this.atk.t / CFG.BOMBER.hopTime) * Math.PI) * 50;
+    if (this.spark) { const on = this.atk && this.atk.k === 'wind'; this.spark.visible = !on || Math.floor(this.t * 16) % 2 === 0; this.spark.scale.setScalar(on ? 1.6 : 1); }
     this.root.position.set(this.x, this.y, zz);
     this.root.rotation.z = this.yaw;
     // Hit wobble + spawn pop
@@ -276,6 +424,7 @@ export class Enemy {
   eaten() {
     if (this.dead) return;
     this.dead = true;
+    this.latched = false;
     const g = this.g;
     this.overhead.remove();
     g.fx.dissolve(this.root, 0.25, g.player.x, g.player.y);
@@ -289,12 +438,14 @@ export class Enemy {
 
   die(team) {
     if (this.dead) return;
+    if (this.type === 'bomber' && !this.boomed) { this.boomed = true; this.dead = true; this._boom(team); this.dead = false; }
     this.dead = true;
+    this.latched = false;
     const g = this.g;
     this.overhead.remove();
     this.root.scale.setScalar(1);
     g.fx.dissolve(this.root, 0.45, null, null, 14);
-    const col = { gnat: 0x333344, juicebug: 0x7dff6a, wasp: 0xffd400, shellback: 0x4a5acc, ant: 0x884422 }[this.type] || 0xffffff;
+    const col = { gnat: 0x333344, juicebug: 0x7dff6a, wasp: 0xffd400, shellback: 0x4a5acc, ant: 0x884422, bomber: 0xd83a2a, leech: 0x3e4a22, spiderling: 0x2a1a30 }[this.type] || 0xffffff;
     g.fx.burst(this.x, this.y, 30, col, 14, 240, 0.5, 3.5);
     // juicy droplets that arc out and splash down
     g.fx.burst(this.x, this.y, 24, this.type === 'juicebug' ? 0x9dff8a : 0xc8f0ff, 10, 230, 0.75, 2.4, 760);

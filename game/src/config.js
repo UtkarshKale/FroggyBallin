@@ -35,6 +35,10 @@ export const CFG = {
   // Style meter (D..S): rewards hits, kills, parries, deathblows; decays when idle, drops when hurt.
   STYLE: { hit: 4, kill: 12, parry: 30, deathblow: 35, counter: 20, eat: 10, hurt: -60, decay: 16, idle: 2.0, comboWindow: 2.5, max: 460,
     ranks: [[0, 'D', '#9aa'], [50, 'C', '#7dff7d'], [120, 'B', '#66ddff'], [220, 'A', '#ffd23f'], [340, 'S', '#ff5a8a']] },
+  // New bugs + Mirewood hazards
+  BOMBER: { fuse: 1.0, hopSpeed: 420, hopTime: 0.4, radius: 120, dmg: 18, launchSpeed: 640, launchTime: 0.5, bugDmg: 45 },
+  LEECH: { drain: 3, slowEach: 0.2, minSlow: 0.5, latchDmg: 4 },
+  WEB: { r: 95, life: 9, slow: 0.45, shotSlow: 0.6, shotSlowTime: 1.2 },
   SAMPLE_DT: 0.05,
 
   KEYS: {

@@ -114,7 +114,10 @@ export class Projectiles {
     if (this._touch(p, g.player)) {
       const res = g.player.takeHit(p.dmg, p.owner || p, { parryable: true, proj: p });
       if (res === 'perfect') this.reflect(p, 'player', p.owner && !p.owner.dead ? p.owner : null);
-      else this._remove(p);
+      else {
+        if (p.tag === 'web' && res === 'hit') { g.player.webbedT = CFG.WEB.shotSlowTime; g.hud.flash('Webbed!', '#d8d8ff'); }
+        this._remove(p);
+      }
       return;
     }
     if (g.ghost && this._touch(p, g.ghost)) {

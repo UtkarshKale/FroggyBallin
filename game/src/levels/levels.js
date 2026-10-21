@@ -29,7 +29,7 @@ export const LEVELS = [
     goal: { x: -720, y: 720 },
     zones: [
       { x: 360, y: -360, r: 450, spawns: [['gnat', 8], ['wasp', 2], ['ant', 4], ['juicebug', 2]], pickups: [['ammo', 30, 30], ['firefly', -60, 40]] },
-      { x: -40, y: 0, r: 480, spawns: [['gnat', 6], ['wasp', 3], ['shellback', 2], ['ant', 4], ['juicebug', 2]], pickups: [['ammo', 0, 80], ['shell', 70, -40], ['snail', -90, 20]] },
+      { x: -40, y: 0, r: 480, spawns: [['gnat', 6], ['wasp', 3], ['shellback', 2], ['ant', 4], ['bomber', 2], ['juicebug', 2]], pickups: [['ammo', 0, 80], ['shell', 70, -40], ['snail', -90, 20]] },
     ],
     bossZone: { x: -464, y: 464, r: 460 },
     boss: { type: 'stag', x: -496, y: 496 },
@@ -45,7 +45,7 @@ export const LEVELS = [
     start: { x: -720, y: 720 },
     goal: { x: 720, y: -720 },
     zones: [
-      { x: -360, y: 360, r: 450, spawns: [['gnat', 8], ['wasp', 3], ['ant', 4], ['juicebug', 2]], pickups: [['ammo', 30, 30], ['golden', -70, 40]] },
+      { x: -360, y: 360, r: 450, spawns: [['gnat', 8], ['wasp', 3], ['ant', 4], ['leech', 3], ['juicebug', 2]], pickups: [['ammo', 30, 30], ['golden', -70, 40]] },
       { x: 0, y: 0, r: 500, spawns: [['gnat', 6], ['wasp', 3], ['shellback', 2], ['ant', 5], ['juicebug', 2]], pickups: [['ammo', 0, 80], ['over', 70, -40], ['shell', -90, 20]] },
     ],
     bossZone: { x: 464, y: -464, r: 460 },
@@ -63,10 +63,29 @@ export const LEVELS = [
     goal: { x: 0, y: 760 },
     zones: [
       { x: -240, y: -360, r: 450, spawns: [['gnat', 10], ['wasp', 3], ['ant', 5], ['shellback', 1], ['juicebug', 2]], pickups: [['ammo', 30, 30], ['firefly', -60, 40]] },
-      { x: 200, y: 0, r: 500, spawns: [['gnat', 8], ['wasp', 4], ['shellback', 2], ['ant', 5], ['juicebug', 3]], pickups: [['ammo', 0, 80], ['dragon', 70, -40], ['golden', -90, 20]] },
+      { x: 200, y: 0, r: 500, spawns: [['gnat', 8], ['wasp', 4], ['shellback', 2], ['ant', 5], ['bomber', 2], ['leech', 2], ['juicebug', 3]], pickups: [['ammo', 0, 80], ['dragon', 70, -40], ['golden', -90, 20]] },
     ],
     bossZone: { x: 0, y: 480, r: 460 },
     boss: { type: 'moth', x: 0, y: 520 },
+  },
+  {
+    id: 'mirewood',
+    name: 'Mirewood Web',
+    blurb: 'A drowned forest strung with silk. Mind the sticky ground.',
+    seed: 5150,
+    half: 950,
+    houses: 5,
+    theme: { c1: '#24302a', c2: '#3a4a34', sky: 0x1b2420, skirt: 0x101812, post: 0x5d5a7a, prop: 0xd8d8ff },
+    start: { x: 720, y: 720 },
+    goal: { x: -720, y: -720 },
+    // Permanent web patches (x, y, radius) that slow the frog
+    webs: [[420, 180, 90], [160, 460, 80], [-120, 120, 100], [-380, -160, 90], [60, -300, 80]],
+    zones: [
+      { x: 380, y: 400, r: 450, spawns: [['spiderling', 6], ['leech', 3], ['gnat', 4], ['bomber', 2], ['juicebug', 2]], pickups: [['ammo', 30, 30], ['dragon', -60, 40]] },
+      { x: 0, y: 0, r: 500, spawns: [['spiderling', 6], ['leech', 3], ['bomber', 3], ['wasp', 2], ['ant', 3], ['juicebug', 2]], pickups: [['ammo', 0, 80], ['over', 70, -40], ['shell', -90, 20]] },
+    ],
+    bossZone: { x: -464, y: -464, r: 460 },
+    boss: { type: 'spider', x: -496, y: -496 },
   },
 ];
 
@@ -85,6 +104,7 @@ export const BOSSRUSH_LEVEL = {
     { type: 'hornet', x: 0, y: 280 },
     { type: 'stag', x: 0, y: 280 },
     { type: 'mantis', x: 0, y: 280 },
+    { type: 'spider', x: 0, y: 280 },
     { type: 'moth', x: 0, y: 280 },
   ],
 };

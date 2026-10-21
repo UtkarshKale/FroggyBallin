@@ -83,6 +83,9 @@ class SfxEngine {
       case 'equip': this.tone({ f: 500, d: 0.05, type: 'square', v: 0.08 }); this.tone({ f: 800, d: 0.06, type: 'square', v: 0.08, delay: 0.05 }); this.noise({ d: 0.05, v: 0.1, hp: 3000, delay: 0.1 }); break;
       case 'rewind': for (let i = 0; i < 8; i++) this.tone({ f: 1400 - i * 150, f2: 1200 - i * 150, d: 0.08, type: 'triangle', v: 0.1, delay: i * 0.045 }); break;
       case 'rank': [660, 880, 1320].forEach((f, i) => this.tone({ f, d: 0.09, type: 'triangle', v: 0.1, delay: i * 0.05 })); break;
+      case 'fuse': this.noise({ d: 0.9, v: 0.06, hp: 3500 }); this.tone({ f: 900, f2: 1400, d: 0.9, type: 'square', v: 0.025 }); break;
+      case 'boom': this.noise({ d: 0.55, v: 0.4, lp: 500 }); this.tone({ f: 90, f2: 28, d: 0.5, type: 'sine', v: 0.45 }); this.noise({ d: 0.12, v: 0.2, hp: 2500 }); break;
+      case 'web': this.tone({ f: 1300, f2: 500, d: 0.16, type: 'sine', v: 0.12 }); this.noise({ d: 0.12, v: 0.12, hp: 2000 }); break;
       case 'ui': this.tone({ f: 700, d: 0.05, type: 'square', v: 0.08 }); break;
       case 'warn': this.tone({ f: 440, d: 0.08, type: 'square', v: 0.07 }); break;
       default: break;
