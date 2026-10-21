@@ -9,8 +9,9 @@ export const CFG = {
     dmg: [18, 18, 35],
     range: [105, 105, 125],
     halfArc: [1.2, 1.2, 1.7],
-    dur: [0.26, 0.26, 0.4],
+    dur: [0.22, 0.22, 0.34],
     hitAt: 0.45,
+    cancelAt: 0.7, // a buffered slash may start the next combo step after this fraction of the swing
     comboWindow: 0.45,
     critMult: 3,
     knock: 46,
@@ -24,7 +25,11 @@ export const CFG = {
   PLAYER_POSTURE: { max: 100, regen: 18, delay: 1.0, blockMult: 1.6, blockAdd: 4, hitMult: 0.6, perfectRelief: 25, brokenTime: 1.4 },
   CAMERA: { dist: 270, gunDist: 230, aimDist: 185, fov: 55, gunFov: 50, aimFov: 40, shoulder: 38 },
   TONGUE: { range: 200, cost: 25, regen: 35, regenDelay: 0.4, dur: 0.3, resolveAt: 0.12, halfArc: 0.45 },
-  DODGE: { dur: 0.22, speedMult: 3.2, iframes: 0.3, cooldown: 0.8 },
+  DODGE: { dur: 0.22, speedMult: 3.2, iframes: 0.3, cooldown: 0.55, roll: 0.07 },
+  // Zones spawn in quick waves: the next wave arrives after waveGap s or when few bugs are left.
+  ZONE: { firstWave: 0.6, waveGap: 3.5, clearLeft: 3 },
+  // Phase 2 bosses run their attack timers faster; all boss cooldowns are scaled by cdMult.
+  BOSS: { ph2Speed: 1.3, cdMult: 0.8, preludeDur: 4.2 },
   GHOST: { hp: 150, echoEvery: 4, echoRange: 900, echoDmg: 10 },
   POWERUP: { duration: 12, snail: 6, dropChance: 0.12 },
   SAMPLE_DT: 0.05,

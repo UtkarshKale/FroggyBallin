@@ -15,10 +15,10 @@ export class Screens {
     window.addEventListener('keydown', (e) => {
       if (this.cut && (e.code === 'Space' || e.code === 'Enter')) this.cut.next();
       else if (this.cut && e.code === 'Escape') this.cut.skip();
-      else if (this.prel && (e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape')) this.prel.skip();
+      else if (this.prel && !e.repeat && this.prel.ready()) this.prel.skip();
     });
     window.addEventListener('mousedown', (e) => {
-      if (this.prel && e.button === 0) this.prel.skip();
+      if (this.prel && this.prel.ready()) this.prel.skip();
     });
   }
 
@@ -153,9 +153,9 @@ export class Screens {
     const title = mk('prelude-title');
     title.innerHTML = `<h1>${boss.name}</h1><h2>${boss.title}</h2>`;
     const skipEl = mk('skip panel-shadow');
-    skipEl.textContent = 'Space / click to skip';
+    skipEl.textContent = 'Press any key to skip';
     requestAnimationFrame(() => { top.classList.add('on'); bot.classList.add('on'); });
-    const slam = setTimeout(() => title.classList.add('slam'), 2400);
+    const slam = setTimeout(() => title.classList.add('slam'), 1700);
     let finished = false;
     const finish = () => {
       if (finished) return;
@@ -167,7 +167,9 @@ export class Screens {
       this.prel = null;
       onDone();
     };
-    this.prel = { skip: finish };
+    // Ignore the movement key that was already held when the prelude started.
+    const t0 = performance.now();
+    this.prel = { skip: finish, ready: () => performance.now() - t0 > 400 };
     return this.prel;
   }
 }

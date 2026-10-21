@@ -55,6 +55,8 @@ class Boss {
     this.clearMarker();
     this.g.hud.flash('STUNNED - ATTACK!', '#ffee55');
   }
+  // Attack-state timer step: phase 2 telegraphs and recoveries play out faster.
+  stDt(dt) { return this.phase === 2 && this.state !== 'move' && this.state !== 'stunned' ? dt * CFG.BOSS.ph2Speed : dt; }
   clearMarker() { if (this.marker) { this.marker.remove(); this.marker = null; } }
   flashSync() {
     if (this.flashT > 0) setFlash(this.flashList, 0xffffff);
@@ -153,7 +155,7 @@ export class HornetQueen extends Boss {
     const d = Math.hypot(dx, dy);
     const ang = Math.atan2(dy, dx);
     const ph2 = this.phase === 2;
-    this.st += dt;
+    this.st += this.stDt(dt);
 
     switch (this.state) {
       case 'move': {
@@ -253,7 +255,7 @@ export class HornetQueen extends Boss {
     this.clearMarker();
     this.state = 'move';
     this.st = 0;
-    this.cd = this.phase === 2 ? 1.3 : 2.2;
+    this.cd = (this.phase === 2 ? 1.3 : 2.2) * CFG.BOSS.cdMult;
   }
 
   impact() {
@@ -345,7 +347,7 @@ export class StagBeetleKing extends Boss {
     const d = Math.hypot(dx, dy);
     const ang = Math.atan2(dy, dx);
     const ph2 = this.phase === 2;
-    this.st += dt;
+    this.st += this.stDt(dt);
     this.updateRings(dt);
 
     switch (this.state) {
@@ -451,7 +453,7 @@ export class StagBeetleKing extends Boss {
     this.clearMarker();
     this.state = 'move';
     this.st = 0;
-    this.cd = this.phase === 2 ? 1.1 : 2.0;
+    this.cd = (this.phase === 2 ? 1.1 : 2.0) * CFG.BOSS.cdMult;
   }
 
   updateRings(dt) {
@@ -562,7 +564,7 @@ export class MantisDuelist extends Boss {
     const d = Math.hypot(dx, dy);
     const ang = Math.atan2(dy, dx);
     const ph2 = this.phase === 2;
-    this.st += dt;
+    this.st += this.stDt(dt);
 
     switch (this.state) {
       case 'move': {
@@ -674,7 +676,7 @@ export class MantisDuelist extends Boss {
 
   endAttack() {
     this.state = 'move'; this.st = 0; this.cs = null;
-    this.cd = this.phase === 2 ? 0.9 : 1.5;
+    this.cd = (this.phase === 2 ? 0.9 : 1.5) * CFG.BOSS.cdMult;
   }
 
   sync() {
@@ -744,7 +746,7 @@ export class ChronoMoth extends Boss {
     const d = Math.hypot(dx, dy);
     const ang = Math.atan2(dy, dx);
     const ph2 = this.phase === 2;
-    this.st += dt;
+    this.st += this.stDt(dt);
 
     switch (this.state) {
       case 'move': {
@@ -844,7 +846,7 @@ export class ChronoMoth extends Boss {
   endAttack() {
     this.clearMarker();
     this.state = 'move'; this.st = 0;
-    this.cd = this.phase === 2 ? 1.3 : 2.1;
+    this.cd = (this.phase === 2 ? 1.3 : 2.1) * CFG.BOSS.cdMult;
   }
 
   impact() {

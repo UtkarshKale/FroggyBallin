@@ -283,6 +283,8 @@ export class Player {
     if (!locked) {
       if (!gunMode) {
         if (input.mPressed(0)) this.slashBuf = 0.22;
+        // Shorter recovery: a buffered slash cancels the tail of the current swing.
+        if (this.slashBuf > 0 && this.swing && this.swing.hit && this.swing.t >= CFG.SWORD.dur[this.swing.step] * CFG.SWORD.cancelAt) { this.swing = null; this.comboT = 0; }
         if (this.slashBuf > 0 && !this.swing && this.parryT < 0 && !this.tongue && this.dashT <= 0) this._startSwing(aimYaw);
         if (input.mPressed(2) && this.parryCd <= 0 && !this.tongue) this._startParry(aimYaw);
       } else if (input.mDown(0)) {

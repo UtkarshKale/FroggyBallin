@@ -93,6 +93,7 @@ export class Game {
   cleanup() {
     for (const e of this.enemies) { this.world.scene.remove(e.root); e.overhead && e.overhead.remove(); }
     this.enemies = [];
+    this.waves = [];
     if (this.boss) { this.boss.clearMarker?.(); this.world.scene.remove(this.boss.root); this.boss.rings?.forEach((r) => r.vis && this.world.scene.remove(r.vis)); }
     this.boss = null;
     if (this.ghost) this.world.scene.remove(this.ghost.root);
@@ -173,8 +174,8 @@ export class Game {
     this.clock.getDelta();
     if (this.mode === 'survival') this.hud.banner('SURVIVE', 'Slash, parry, eat. How long can you last?', '#7dff7d');
     else if (this.mode === 'bossrush') this.hud.banner('BOSS RUSH', 'Four bosses. No loops. Break their posture!', '#ff7a7a', 3);
-    else if (this.ghost) this.hud.banner(`ITERATION ${this.loopNo}`, 'Kill your past self, beat the boss, reach the goal first!', '#66ddff', 3.2);
-    else this.hud.banner('FIRST RUN', 'Clear the level to record your ghost', '#7dff7d', 3);
+    else if (this.ghost) this.hud.banner(`ITERATION ${this.loopNo}`, 'Kill your past self, beat the boss, reach the goal first!', '#66ddff', 2.4);
+    else this.hud.banner('FIRST RUN', 'Clear the level to record your ghost', '#7dff7d', 2.2);
     this.sfx.play('ui');
   }
 
@@ -451,20 +452,41 @@ export class Game {
     const z = lv.zones[i];
     this.zoneDone[i] = true;
     const rng = new Rng(lv.seed * 7 + i);
-    for (const [type, n] of z.spawns) {
-      for (let k = 0; k < n; k++) {
-        let x = z.x, y = z.y;
-        for (let tries = 0; tries < 10; tries++) {
-          const a = rng.range(0, Math.PI * 2), r = rng.range(80, z.r * 0.85);
-          x = z.x + Math.cos(a) * r; y = z.y + Math.sin(a) * r;
-          if (!this.world.blocked(x, y, 30) && Math.hypot(x - this.player.x, y - this.player.y) > 260) break;
-        }
-        this.spawnEnemy(type, x, y);
-      }
-    }
+    // Interleave types so each wave is a mix, then send them in quick waves.
+    const list = [];
+    const left = z.spawns.map(([t, n]) => [t, n]);
+    while (left.some((s) => s[1] > 0)) for (const s of left) if (s[1] > 0) { list.push(s[0]); s[1]--; }
+    const first = Math.ceil(list.length * CFG.ZONE.firstWave);
+    this.spawnWave(z, list.slice(0, first), rng);
+    if (list.length > first) this.waves.push({ z, list: list.slice(first), rng, t: CFG.ZONE.waveGap });
     for (const [t, dx, dy] of z.pickups || []) this.pickups.spawn(t, z.x + dx, z.y + dy);
     this.hud.flash('Swarm incoming!', '#ffdd55');
     this.sfx.play('buzz');
+  }
+
+  spawnWave(z, types, rng) {
+    for (const type of types) {
+      let x = z.x, y = z.y;
+      for (let tries = 0; tries < 10; tries++) {
+        const a = rng.range(0, Math.PI * 2), r = rng.range(80, z.r * 0.85);
+        x = z.x + Math.cos(a) * r; y = z.y + Math.sin(a) * r;
+        if (!this.world.blocked(x, y, 30) && Math.hypot(x - this.player.x, y - this.player.y) > 260) break;
+      }
+      this.spawnEnemy(type, x, y);
+    }
+  }
+
+  updateWaves(dt) {
+    for (let i = this.waves.length - 1; i >= 0; i--) {
+      const w = this.waves[i];
+      w.t -= dt;
+      if (w.t <= 0 || this.enemies.length <= CFG.ZONE.clearLeft) {
+        this.waves.splice(i, 1);
+        this.spawnWave(w.z, w.list, w.rng);
+        this.hud.flash('Next wave!', '#ffdd55');
+        this.sfx.play('buzz');
+      }
+    }
   }
 
   startPrelude(type, bx, by) {
@@ -472,7 +494,7 @@ export class Game {
     this.boss = makeBoss(type, this, bx, by);
     this.state = 'PRELUDE';
     this.hud.show(false);
-    this.pre = { t: 0, dur: 5.2, a0: Math.atan2(this.player.y - by, this.player.x - bx) };
+    this.pre = { t: 0, dur: CFG.BOSS.preludeDur, a0: Math.atan2(this.player.y - by, this.player.x - bx) };
     this.sfx.play('boss');
     this.screens.preludeStart(this.boss, () => {
       this.boss.active = true;
@@ -594,6 +616,7 @@ export class Game {
       this.startPrelude(lv.boss.type, lv.boss.x, lv.boss.y);
       return;
     }
+    this.updateWaves(dt);
     if (this.mode === 'survival') this.survivalUpdate(dt);
     if (this.mode === 'bossrush') this.rushUpdate(dt);
 
