@@ -124,7 +124,7 @@ export class Game {
     Keybinds.apply();
     this.hud.refreshHelp && this.hud.refreshHelp();
     CFG.CAMERA.fov = S.fov; CFG.CAMERA.gunFov = S.fov - 5; CFG.CAMERA.aimFov = S.fov - 15;
-    CFG.CAMERA.dist = S.camDist; CFG.CAMERA.gunDist = S.camDist * 0.85; CFG.CAMERA.aimDist = S.camDist * 0.69;
+    CFG.CAMERA.dist = S.camDist; CFG.CAMERA.gunDist = S.camDist * 1.1; CFG.CAMERA.aimDist = S.camDist * 0.87;
     this.sfx.setVolumes({ master: S.master, sfx: S.sfx, music: S.music });
     this.screens.applySettings();
     this.hud.root.classList.toggle('worldnums', !!S.hud3d);
@@ -523,6 +523,40 @@ export class Game {
     if (reason === 'broken') { this.hud.banner('ULT BROKEN!', 'The boss staggers', '#ffd23f', 2); this.hud.screenFlash(); }
   }
 
+  // Free-aim point under the crosshair (screen centre): nearest target near the view ray, else the bullet plane.
+  updateAim() {
+    const cam = this.world.camera;
+    this._ray = this._ray || new THREE.Ray();
+    this._ray.origin.copy(cam.position);
+    cam.getWorldDirection(this._ray.direction);
+    const r = this._ray, z = CFG.GUN.bulletZ;
+    const pt = this.aimPoint || (this.aimPoint = new THREE.Vector3());
+    let best = null, bd = Infinity;
+    const tv = new THREE.Vector3();
+    const cands = [...this.enemies];
+    if (this.boss && this.boss.active && !this.boss.dead) cands.push(this.boss);
+    if (this.ghost && !this.ghost.dead) cands.push(this.ghost);
+    for (const t of cands) {
+      if (t.dead) continue;
+      tv.set(t.x, t.y, (t.z || 0) + Math.min(40, t.radius));
+      const along = tv.clone().sub(r.origin).dot(r.direction);
+      if (along < 60) continue;
+      const d = r.distanceToPoint(tv);
+      if (d < t.radius * 1.2 + 8 && along < bd) { bd = along; best = t; }
+    }
+    if (best) { pt.set(best.x, best.y, z); this.aimTarget = best; return; }
+    this.aimTarget = null;
+    // No target: aim along the camera's heading from the frog; camera pitch sets the distance (clamped).
+    const p = this.player, G = CFG.GUN;
+    const dz = r.direction.z;
+    const t = Math.abs(dz) > 1e-4 ? (z - r.origin.z) / dz : -1;
+    let dist = G.aimMax;
+    if (t > 0) { const hx = r.origin.x + r.direction.x * t, hy = r.origin.y + r.direction.y * t; dist = Math.hypot(hx - p.x, hy - p.y); }
+    dist = clamp(dist, G.aimMin, G.aimMax);
+    const h = Math.hypot(r.direction.x, r.direction.y) || 1;
+    pt.set(p.x + (r.direction.x / h) * dist, p.y + (r.direction.y / h) * dist, z);
+  }
+
   fovPunch(a) { this.punchAmt = a; this.punchT = CFG.PARRY.punchTime; }
 
   // Perfect parry juice at the contact point: sparks, speed lines, shockwave, zoom punch, edge dim, layered clang.
@@ -558,6 +592,7 @@ export class Game {
     const gun = pl.weapon === 'gun';
     cam.dist += ((pl.aiming ? C.aimDist : gun ? C.gunDist : C.dist) - cam.dist) * kd;
     cam.shoulder += ((gun ? C.shoulder : 0) - cam.shoulder) * kd;
+    cam.lift = (cam.lift || 0) + ((gun ? C.gunLift : 0) - (cam.lift || 0)) * kd;
     this.baseFov += ((pl.aiming ? C.aimFov : gun ? C.gunFov : C.fov) - this.baseFov) * kd;
     let dip = 0;
     if (this.punchT > 0) {
@@ -654,10 +689,10 @@ export class Game {
     else { t.broken = CFG.POSTURE.brokenTime; t.stagger = t.broken; t.atk = null; }
   }
 
-  swordStrike({ team, x, y, yaw, step, src }) {
+  swordStrike({ team, x, y, yaw, step, src, mult = 1 }) {
     const S = CFG.SWORD;
     const range = S.range[step], half = S.halfArc[step];
-    let dmg = S.dmg[step] * (team === 'player' && this.playerUlt ? CFG.ULT.mult : 1);
+    let dmg = S.dmg[step] * mult * (team === 'player' && this.playerUlt ? CFG.ULT.mult : 1);
     const crit = team === 'player' && src.counterT > 0;
     const rip = crit && src.riposteT > 0;
     if (crit) {
@@ -884,6 +919,7 @@ export class Game {
 
     const pl = this.player;
     this.camFov(raw);
+    this.updateAim();
     pl.update(dt, inp, cam);
     if (this.state !== 'PLAYING') return;
     // Camera roll leaning into dodges

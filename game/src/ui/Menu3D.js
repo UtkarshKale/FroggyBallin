@@ -481,7 +481,7 @@ export class Menu3D {
 
 const howto = () => { const K = CFG.KEYS, n = keyName; return `Beat a level and your run becomes a ghost that replays everything and hunts you. Kill it, beat the boss and reach the goal first.
 *${n(K.forward)}${n(K.left)}${n(K.back)}${n(K.right)} move, ${n(K.jump)} jump, ${n(K.dodge)} dodge, mouse aim (click to lock).
-*${n(K.slash)} sword combo, ${n(K.parry)} parry just before a hit. ${n(K.weapon)} / ${n(K.sword)} / ${n(K.gun)} swap sword and gun (gun: ${n(K.slash)} fire, hold ${n(K.parry)} to aim). ${n(K.shoot)} quick action.
+*${n(K.slash)} sword combo, ${n(K.parry)} parry just before a hit. ${n(K.weapon)} / ${n(K.sword)} / ${n(K.gun)} swap sword and gun (gun: ${n(K.slash)} fire, hold ${n(K.parry)} to aim). ${n(K.shoot)} quick sword flurry from any weapon.
 *${n(K.tongue)} tongue (eat pink-marked bugs to heal), ${n(K.ult)} ultimate when the meter is full, ${n(K.pause)} pause, ${n(K.mute)} mute.
 Yellow flash = normal attack, parry it. Red glyph = perilous: can't be parried, dodge it (or jump shockwaves). Orange glyph = dodge through it to open a RIPOSTE: slash right away for a guaranteed crit.
 Posture: fill a bar to break the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.`; };

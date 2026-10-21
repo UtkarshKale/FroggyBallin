@@ -92,7 +92,7 @@ export class Projectiles {
       p.dmg = Math.min(p.dmg, 12);
       return true;
     }
-    if (!p.reflected && p.owner === g.player) g.stats.hits++;
+    if (!p.reflected && p.owner === g.player) { g.stats.hits++; g.hud.hitConfirm(false); }
     g.damageTarget(t, p.dmg, { team: 'player', burn: p.burn, from: p });
     if (p.reflected) g.addPosture(t, CFG.POSTURE.reflectHit);
     this._remove(p);

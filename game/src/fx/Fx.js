@@ -119,6 +119,20 @@ export class Fx {
     }
   }
 
+  // Bullet tracer: a thin glowing line from the muzzle along the shot.
+  tracer(x0, y0, z0, x1, y1, z1, color = 0xffee88, life = 0.09) {
+    const d = new THREE.Vector3(x1 - x0, y1 - y0, z1 - z0);
+    const len = d.length() || 1;
+    d.normalize();
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending });
+    const m = new THREE.Mesh(boxGeo, mat);
+    m.quaternion.setFromUnitVectors(X_AXIS, d);
+    m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+    m.scale.set(len, 1.6, 1.6);
+    this.scene.add(m);
+    this.streakList.push({ m, mat, d, x: x0, y: y0, z: z0, len, life, max: life, tracer: true });
+  }
+
   // Single short-lived glowing dot (sword trails).
   dot(x, y, z, color, size = 3, life = 0.15) {
     if (this.parts.length > 350) return;
@@ -186,6 +200,7 @@ export class Fx {
       s.life -= dt;
       if (s.life <= 0) { this.scene.remove(s.m); s.mat.dispose(); this.streakList.splice(i, 1); continue; }
       const k = 1 - s.life / s.max;
+      if (s.tracer) { s.mat.opacity = 1 - k; s.m.scale.y = s.m.scale.z = 1.6 * (1 - k * 0.6); continue; }
       const L = s.len * (1 - (1 - k) * (1 - k));
       const th = 3 * (1 - k) + 0.5;
       s.m.scale.set(Math.max(1, L * 0.7), th, th);

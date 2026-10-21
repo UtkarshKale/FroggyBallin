@@ -359,3 +359,6 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 .banner { top: 40%; }
 .toast { top: 74%; }
 .bossbar { top: 104px; }
+
+.crosshair { transition: left .03s linear, top .03s linear; }
+.crosshair.lock::before, .crosshair.lock::after { background: #ff3344; box-shadow: 0 0 6px #ff3344; }

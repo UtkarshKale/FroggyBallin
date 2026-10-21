@@ -182,8 +182,19 @@ export class World {
     const fx = Math.cos(c.yaw), fy = Math.sin(c.yaw);
     const cp = Math.cos(c.pitch), sp = Math.sin(c.pitch);
     const rx = Math.sin(c.yaw), ry = -Math.cos(c.yaw);
-    const tx = target.x + rx * c.shoulder, ty = target.y + ry * c.shoulder, tz = lookZ + (target.z || 0) * 0.5;
-    const want = new THREE.Vector3(tx - fx * c.dist * cp, ty - fy * c.dist * cp, tz + c.dist * sp);
+    const tx = target.x + rx * c.shoulder, ty = target.y + ry * c.shoulder, tz = lookZ + (c.lift || 0) + (target.z || 0) * 0.5;
+    let dist = c.dist;
+    // Occlusion: pull the camera in front of houses that would block the frog.
+    for (const o of this.obstacles) {
+      const ux = -fx * cp, uy = -fy * cp; // camera direction from target (XY part)
+      const ox = o.x - tx, oy = o.y - ty;
+      const along = ox * ux + oy * uy;
+      if (along <= 0 || along > dist) continue;
+      const perp = Math.abs(ox * uy - oy * ux);
+      const r = o.r + 14;
+      if (perp < r) dist = Math.min(dist, Math.max(80, along - Math.sqrt(r * r - perp * perp)));
+    }
+    const want = new THREE.Vector3(tx - fx * dist * cp, ty - fy * dist * cp, tz + dist * sp);
     // Keep camera over the arena floor.
     want.z = Math.max(want.z, 25);
     if (!c.init) { c.pos.copy(want); c.init = true; }

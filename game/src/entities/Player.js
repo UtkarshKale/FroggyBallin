@@ -40,19 +40,37 @@ export class Player {
     const grip = new THREE.Mesh(new THREE.BoxGeometry(14, 4, 4), stdMat(0x6d4c41));
     this.pivot.add(blade, guard, grip, this.bladeGlow, this.tip);
     this.root.add(this.pivot);
-    // Gun (holstered on the left hip, raised in gun mode).
+    // Gun: held in the right hand at the end of an arm that swings toward the aim point.
+    // Holstered on the left hip in sword mode; the sword goes on the back while the gun is out.
+    this.arm = new THREE.Group();
+    this.armMesh = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 4, 20, 8), stdMat(0x3f9a44));
+    this.armMesh.rotation.z = Math.PI / 2; this.armMesh.position.x = 9;
+    this.arm.add(this.armMesh);
     this.gun = new THREE.Group();
     this.gunMat = stdMat(0x444a55, { metalness: 0.6 });
-    const barrel = new THREE.Mesh(new THREE.BoxGeometry(26, 6, 7), this.gunMat);
-    barrel.position.x = 13;
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(7, 5, 12), stdMat(0x6d4c41));
-    handle.position.set(2, 0, -7);
-    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(7, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffdd66, transparent: true, opacity: 0.9 }));
-    muzzle.position.x = 30;
+    const dark = stdMat(0x18181c, { metalness: 0.5 }), accent = stdMat(0xffd23f, { emissive: 0x443300 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(26, 8, 10), this.gunMat); body.position.set(10, 0, 1);
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(24, 8.4, 2), accent); stripe.position.set(10, 0, 3);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.8, 18, 10), dark); barrel.rotation.z = Math.PI / 2; barrel.position.set(30, 0, 2);
+    const gGrip = new THREE.Mesh(new THREE.BoxGeometry(6, 6, 13), dark); gGrip.position.set(1, 0, -7); gGrip.rotation.y = 0.28;
+    const rear = new THREE.Mesh(new THREE.BoxGeometry(2, 5, 3), dark); rear.position.set(-1, 0, 7.5);
+    const front = new THREE.Mesh(new THREE.BoxGeometry(2, 1.5, 3.5), new THREE.MeshBasicMaterial({ color: 0x66ffcc })); front.position.set(36, 0, 6);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(3.4, 0.9, 6, 14), new THREE.MeshBasicMaterial({ color: 0x66ddff })); ring.rotation.y = Math.PI / 2; ring.position.set(39.5, 0, 2);
+    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(8, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffdd66, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+    muzzle.position.set(44, 0, 2);
     muzzle.visible = false;
     this.muzzle = muzzle;
-    this.gun.add(barrel, handle, muzzle);
-    this.root.add(this.gun);
+    this.muzzlePt = new THREE.Object3D(); this.muzzlePt.position.set(42, 0, 2);
+    // ammo readout on the gun
+    const ac = document.createElement('canvas'); ac.width = 128; ac.height = 48;
+    this.ammoTex = { c: ac, ctx: ac.getContext('2d'), tex: new THREE.CanvasTexture(ac), key: '' };
+    this.ammoTex.tex.colorSpace = THREE.SRGBColorSpace;
+    this.ammoSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.ammoTex.tex, transparent: true, depthTest: false }));
+    this.ammoSpr.scale.set(20, 7.5, 1); this.ammoSpr.position.set(12, 0, 13); this.ammoSpr.renderOrder = 9;
+    this.gun.add(body, stripe, barrel, gGrip, rear, front, ring, muzzle, this.muzzlePt, this.ammoSpr);
+    this.gun.position.set(20, 0, 0);
+    this.arm.add(this.gun);
+    this.root.add(this.arm);
     // Parry shield disc
     this.parryDisc = new THREE.Mesh(
       new THREE.CircleGeometry(30, 24),
@@ -139,6 +157,11 @@ export class Player {
     this.moving = false;
     this.faceHold = 0;
     this.weapon = 'sword';
+    this.equipT = 0;
+    this.flurry = null;
+    this.flurryCd = 0;
+    this.gunKick = 0;
+    this.armYaw = 0; this.armPitch = 0;
     this.aiming = false;
     this.muzzleT = 0;
     this.posture = 0;
@@ -324,6 +347,9 @@ export class Player {
     this.slashBuf = Math.max(0, this.slashBuf - dt);
     this.faceHold = Math.max(0, this.faceHold - dt);
     this.muzzleT = Math.max(0, this.muzzleT - dt);
+    this.equipT = Math.max(0, this.equipT - dt);
+    this.flurryCd = Math.max(0, this.flurryCd - dt);
+    this.gunKick *= Math.exp(-14 * dt);
     if (this.parryT >= 0) {
       this.parryT += dt;
       if (this.parryT > this.blockLen) this.parryT = -1;
@@ -362,8 +388,9 @@ export class Player {
       let want = this.weapon === 'sword' ? 'gun' : 'sword';
       if (input.pressed(K.sword)) want = 'sword';
       if (input.pressed(K.gun)) want = 'gun';
-      if (want !== this.weapon) {
+      if (want !== this.weapon && !this.flurry) {
         this.weapon = want;
+        this.equipT = CFG.GUN.equipTime;
         this.swing = null; this.parryT = -1; this.slashBuf = 0;
         g.sfx.play('equip');
         g.hud.flash(want === 'gun' ? 'GUN EQUIPPED: LMB fire, hold RMB to aim' : 'SWORD EQUIPPED', '#fff');
@@ -380,12 +407,14 @@ export class Player {
         if (this.slashBuf > 0 && this.swing && this.swing.hit && this.swing.t >= CFG.SWORD.dur[this.swing.step] * CFG.SWORD.cancelAt) { this.swing = null; this.comboT = 0; }
         if (this.slashBuf > 0 && !this.swing && this.parryT < 0 && !this.tongue && this.dashT <= 0) this._startSwing(aimYaw);
         if (input.pressed(K.parry) && this.parryCd <= 0 && !this.tongue) this._startParry(aimYaw);
-      } else if (input.down(K.slash)) {
+      } else if (input.down(K.slash) && this.equipT < CFG.GUN.equipTime * 0.5 && !this.flurry) {
         this._shoot(aimYaw);
       }
-      if (input.pressed(K.shoot)) this._shoot(aimYaw);
+      // F: quick sword flurry from any weapon
+      if (input.pressed(K.shoot) && this.flurryCd <= 0 && !this.flurry && !this.tongue) this._startFlurry(aimYaw);
       if (input.pressed(K.tongue)) this._startTongue(aimYaw);
       if (input.pressed(K.dodge) && this.dodgeCd <= 0 && this.dashT <= 0) {
+        if (this.flurry) this._endFlurry(); // flurry cancels into dodge
         this.dashT = CFG.DODGE.dur;
         this.dodgeCd = CFG.DODGE.cooldown * (this.pu.dragon > 0 ? 0.6 : 1);
         this.iframes = CFG.DODGE.iframes;
@@ -408,6 +437,7 @@ export class Player {
     if (this.tongue) speed *= 0.6;
     if (this.aiming) speed *= 0.5;
     if (this.ultOn) speed *= CFG.ULT.moveMult;
+    if (this.flurry) speed *= CFG.FLURRY.speedMult;
     // Webs (ground patches + web shots) and latched leeches slow the frog
     if (this.z <= 0) speed *= g.webs.slowAt(this.x, this.y);
     if (this.webbedT > 0) speed *= CFG.WEB.shotSlow;
@@ -443,11 +473,14 @@ export class Player {
     }
 
     // Facing: gun mode always faces the crosshair (third-person shooter style)
-    const busy = this.swing || this.parryT >= 0 || this.tongue || this.faceHold > 0 || gunMode;
-    if (busy) this.yaw = lerpAngle(this.yaw, aimYaw, 1 - Math.exp(-30 * dt));
+    const busy = this.swing || this.parryT >= 0 || this.tongue || this.faceHold > 0 || gunMode || this.flurry;
+    // Gun mode: the body turns toward the free-aim point at a tunable rate while the legs keep strafing.
+    const faceTo = gunMode && g.aimPoint ? Math.atan2(g.aimPoint.y - this.y, g.aimPoint.x - this.x) : aimYaw;
+    if (busy) this.yaw = lerpAngle(this.yaw, faceTo, 1 - Math.exp(-(gunMode ? CFG.GUN.turnRate : 30) * dt));
     else if (this.moving) this.yaw = lerpAngle(this.yaw, Math.atan2(my, mx), 1 - Math.exp(-16 * dt));
 
     this._updateSwing(dt);
+    this._updateFlurry(dt);
     this._updateTongue(dt);
     this._updateGear(dt);
     this.sync();
@@ -503,6 +536,40 @@ export class Player {
     if (sw.t >= dur) { this.swing = null; this.comboT = 0; }
   }
 
+  _startFlurry(aimYaw) {
+    this.flurry = { n: 0, t: 0, prev: this.weapon, yaw: aimYaw };
+    this.weapon = 'sword';
+    this.swing = null; this.parryT = -1;
+    this.yaw = aimYaw;
+    this.g.sfx.play('slash');
+  }
+
+  _updateFlurry(dt) {
+    const f = this.flurry;
+    if (!f) return;
+    const F = CFG.FLURRY;
+    f.t += dt * (this.ultOn ? CFG.ULT.atkSpeed : 1);
+    if (f.n < F.hits && f.t >= f.n * F.gap) {
+      const step = f.n % 2;
+      this.swing = { step, t: CFG.SWORD.dur[step] * 0.2, hit: true, yaw: this.yaw, flurry: true };
+      this.g.swordStrike({ team: 'player', x: this.x, y: this.y, yaw: this.yaw, step, src: this, mult: F.dmg });
+      this.g.recorder.event('s', step);
+      if (f.n > 0) this.g.sfx.play('slash');
+      f.n++;
+      if (f.n >= F.hits) { f.end = f.t + F.gap; }
+    }
+    if (f.end && f.t >= f.end) this._endFlurry();
+  }
+
+  _endFlurry() {
+    const f = this.flurry;
+    if (!f) return;
+    this.flurry = null;
+    this.swing = null;
+    this.flurryCd = CFG.FLURRY.cooldown;
+    if (f.prev === 'gun') { this.weapon = 'gun'; this.equipT = CFG.GUN.equipTime * 0.6; }
+  }
+
   _startParry(aimYaw) {
     this.parryT = 0;
     this.parryCd = CFG.PARRY.cooldown / (this.ultOn ? CFG.ULT.atkSpeed : 1);
@@ -520,7 +587,11 @@ export class Player {
     if (!ult) this.ammo--;
     this.shootCd = CFG.GUN.cooldown / (ult ? CFG.ULT.atkSpeed : 1);
     const aimed = this.aiming;
-    // Aim assist toward the nearest target in the crosshair cone (tighter when aiming down sights).
+    // Free aim: from the muzzle toward the point under the crosshair (Game.aimPoint), with aim assist on top.
+    this.root.updateMatrixWorld(true);
+    const mz = this.muzzlePt.getWorldPosition(new THREE.Vector3());
+    const ap = g.aimPoint;
+    if (ap) aimYaw = Math.atan2(ap.y - mz.y, ap.x - mz.x);
     let ang = aimYaw, best = (aimed ? CFG.GUN.aimCone : CFG.GUN.assistCone) * Settings.get('aimAssist');
     const targets = [...g.enemies];
     if (g.boss && g.boss.active) targets.push(g.boss);
@@ -531,11 +602,16 @@ export class Player {
       const d = Math.abs(angDiff(aimYaw, a));
       if (d < best) { best = d; ang = a; }
     }
-    this.yaw = ang;
+    ang += (Math.random() - 0.5) * 2 * (aimed ? CFG.GUN.aimSpread : CFG.GUN.spread);
     this.faceHold = 0.3;
     const fire = this.pu.fire > 0;
+    const range = ap ? Math.hypot(ap.x - mz.x, ap.y - mz.y) : 400;
+    g.fx.tracer(mz.x, mz.y, mz.z, mz.x + Math.cos(ang) * Math.min(range, 520), mz.y + Math.sin(ang) * Math.min(range, 520), CFG.GUN.bulletZ, fire ? 0xff9a3a : 0xffee88);
+    // recoil + shell sparks ejected to the right
+    this.gunKick = CFG.GUN.recoil;
+    g.fx.burst(mz.x - Math.cos(ang) * 30 + Math.sin(ang) * 6, mz.y - Math.sin(ang) * 30 - Math.cos(ang) * 6, mz.z, 0xffcc55, 3, 90, 0.35, 1.4, 500);
     g.projectiles.spawn({
-      x: this.x + Math.cos(ang) * 34, y: this.y + Math.sin(ang) * 34, z: 26,
+      x: mz.x, y: mz.y, z: CFG.GUN.bulletZ,
       angle: ang, speed: CFG.GUN.speed * (aimed ? CFG.GUN.aimSpeedMult : 1),
       dmg: CFG.GUN.dmg * (fire ? 1.4 : 1) * (aimed ? CFG.GUN.aimMult : 1) * (ult ? CFG.ULT.mult : 1), team: 'player', radius: CFG.GUN.radius,
       color: fire ? 0xff7a1a : 0xffee66, owner: this, burn: fire,
@@ -543,9 +619,10 @@ export class Player {
     g.stats.shots++;
     g.sfx.play('shoot');
     g.recorder.event('g', +ang.toFixed(3));
-    g.fx.burst(this.x + Math.cos(ang) * 36, this.y + Math.sin(ang) * 36, 26, 0xffdd55, 4, 100, 0.15, 2);
+    g.fx.burst(mz.x, mz.y, mz.z, 0xffdd55, 5, 120, 0.15, 2);
     g.fx.addShake(aimed ? 1 : 2.5);
-    this.muzzleT = 0.05;
+    this.muzzleT = 0.06;
+    if (this.ammo <= 3 && !ult) g.hud.flash(this.ammo ? `LOW AMMO: ${this.ammo}` : 'OUT OF AMMO', '#ffcc66');
   }
 
   _startTongue(aimYaw) {
@@ -638,7 +715,10 @@ export class Player {
   _updateGear(dt) {
     const gunMode = this.weapon === 'gun';
     const p = this.pivot;
-    p.visible = !gunMode;
+    p.visible = true;
+    const eq = this.equipT > 0 ? 1 - this.equipT / CFG.GUN.equipTime : 1; // 0 -> 1 while drawing
+    // sword: in the right hand in sword mode, on the back while the gun is out
+    if (gunMode) p.position.set(-14, 6, 30); else p.position.set(6, -16, 24);
     const sw = this.swing;
     if (sw) {
       // Anticipation (wind back past the start), fast swing with overshoot, then follow-through settle.
@@ -653,18 +733,48 @@ export class Player {
       else p.rotation.set(0, 0, a);
     } else if (this.parryT >= 0) {
       p.rotation.set(0, -0.9, 0);
+    } else if (gunMode) {
+      p.rotation.set(0.5, 2.2, 0.4); // slung across the back
     } else {
-      p.rotation.set(0, 0.9, -0.5);
+      p.rotation.set(0, 0.9, -0.5 + (1 - eq) * 6.28); // draw flourish
     }
     // Gun: raised in front in gun mode, holstered on the hip otherwise
+    const A = this.arm;
     if (gunMode) {
-      this.gun.position.set(10, -8, 26);
-      this.gun.rotation.set(0, this.aiming ? -0.02 : 0.05, 0);
-      this.gun.scale.setScalar(1.15);
+      // hold pose: arm from the right shoulder, swinging toward the aim point (yaw + pitch), recoil kick back
+      const ap = this.g.aimPoint;
+      let wy = 0, wp = 0;
+      if (ap) {
+        wy = clamp(angDiff(this.yaw, Math.atan2(ap.y - this.y, ap.x - this.x)), -0.9, 0.9);
+        wp = clamp(Math.atan2((ap.z ?? CFG.GUN.bulletZ) - 30, Math.max(40, Math.hypot(ap.x - this.x, ap.y - this.y))), -0.5, 0.6);
+      }
+      const k = 1 - Math.exp(-CFG.GUN.armTurn * dt);
+      this.armYaw += (wy - this.armYaw) * k; this.armPitch += (wp - this.armPitch) * k;
+      A.position.set(4 - this.gunKick * 0.4, -15, 28);
+      A.rotation.set((1 - eq) * 6.28, -this.armPitch, this.armYaw);
+      A.scale.setScalar(1);
+      this.armMesh.visible = true;
+      this.gun.position.set(20 - this.gunKick, 0, 0);
+      this.gun.rotation.set(0, -this.gunKick * 0.03, 0);
+      this.gun.scale.setScalar(1.25);
     } else {
-      this.gun.position.set(2, 16, 14);
-      this.gun.rotation.set(0, 1.2, 0);
-      this.gun.scale.setScalar(0.8);
+      A.position.set(-2, 15, 14);
+      A.rotation.set(0, 1.25, 0);
+      this.armMesh.visible = false;
+      this.gun.position.set(0, 0, 0);
+      this.gun.rotation.set(0, 0, 0);
+      this.gun.scale.setScalar(0.85);
+    }
+    this.ammoSpr.visible = gunMode;
+    const ak = `${this.ammo}|${this.ultOn}`;
+    if (gunMode && this.ammoTex.key !== ak) {
+      const t = this.ammoTex, c = t.ctx; t.key = ak;
+      c.clearRect(0, 0, 128, 48);
+      c.font = "900 34px Consolas, 'Courier New', monospace"; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.lineWidth = 6; c.strokeStyle = '#000';
+      const s = this.ultOn ? 'INF' : String(this.ammo);
+      c.strokeText(s, 64, 26); c.fillStyle = this.ammo <= 3 && !this.ultOn ? '#ff5a5a' : '#ffd23f'; c.fillText(s, 64, 26);
+      t.tex.needsUpdate = true;
     }
     this.muzzle.visible = this.muzzleT > 0;
     // Sword glows while the counter crit is ready

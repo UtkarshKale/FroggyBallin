@@ -21,11 +21,14 @@ export const CFG = {
     // Hitstops are short punches (wall-clock capped by maxHitstop); big parries punch then slow-mo.
     hitstop: 0.06, bigHitstop: 0.18, bigSlow: 0.3, breakHitstop: 0.08, bigBreakHitstop: 0.12, maxHitstop: 0.25, overlayMax: 0.6,
     fovPunch: 6, punchTime: 0.25, dimTime: 0.35, streakWindow: 3, staminaRefund: 15, knock: 70, blockPush: 140 },
-  GUN: { dmg: 15, speed: 720, cooldown: 0.22, radius: 8, assistCone: 0.14, aimMult: 1.5, aimSpeedMult: 1.2, aimCone: 0.06 },
+  GUN: { dmg: 15, speed: 720, cooldown: 0.22, radius: 8, assistCone: 0.14, aimMult: 1.5, aimSpeedMult: 1.2, aimCone: 0.06,
+    turnRate: 18, armTurn: 22, aimMin: 320, aimMax: 900, recoil: 7, spread: 0.05, aimSpread: 0.008, equipTime: 0.28, bulletZ: 30 },
+  // F: quick sword flurry from any weapon (auto-draws the sword in gun mode, then returns to the gun).
+  FLURRY: { hits: 3, gap: 0.1, dmg: 0.7, cooldown: 1.1, speedMult: 0.75 },
   // Sekiro-style posture: filling an enemy's bar breaks it (stunned, deathblow x3). Player has one too.
   POSTURE: { regen: 14, delay: 1.6, brokenTime: 2.5, deathblow: 3, sword: [8, 8, 16], critMult: 2, parryMin: 25, parryFrac: 0.5, reflectHit: 25, bossStun: 3.5 },
   PLAYER_POSTURE: { max: 100, regen: 18, delay: 1.0, blockMult: 1.6, blockAdd: 4, hitMult: 0.6, perfectRelief: 25, brokenTime: 1.4 },
-  CAMERA: { dist: 270, gunDist: 230, aimDist: 185, fov: 55, gunFov: 50, aimFov: 40, shoulder: 38 },
+  CAMERA: { dist: 270, gunDist: 300, aimDist: 235, fov: 55, gunFov: 52, aimFov: 42, shoulder: 70, gunLift: 22, gunPitchMin: 0.3 },
   TONGUE: { range: 200, cost: 25, regen: 35, regenDelay: 0.4, dur: 0.3, resolveAt: 0.12, halfArc: 0.45 },
   DODGE: { dur: 0.22, speedMult: 3.2, iframes: 0.3, cooldown: 0.55, roll: 0.07 },
   // Zones spawn in quick waves: the next wave arrives after waveGap s or when few bugs are left.

@@ -5,7 +5,7 @@ import { Settings } from './Settings.js';
 export const ACTIONS = [
   ['forward', 'MOVE FORWARD'], ['back', 'MOVE BACK'], ['left', 'MOVE LEFT'], ['right', 'MOVE RIGHT'],
   ['jump', 'JUMP'], ['dodge', 'DODGE'], ['slash', 'SWORD / FIRE'], ['parry', 'PARRY / AIM'],
-  ['shoot', 'QUICK ACTION'], ['tongue', 'TONGUE'], ['weapon', 'SWAP WEAPON'], ['sword', 'SWORD'], ['gun', 'GUN'],
+  ['shoot', 'QUICK SLASH'], ['tongue', 'TONGUE'], ['weapon', 'SWAP WEAPON'], ['sword', 'SWORD'], ['gun', 'GUN'],
   ['ult', 'ULTIMATE'], ['pause', 'PAUSE'], ['mute', 'MUTE'], ['restart', 'RESTART (STATS)'],
 ];
 

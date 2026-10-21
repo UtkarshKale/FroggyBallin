@@ -131,7 +131,7 @@ export class Screens {
         <tr><td>Sword combo (3 hits)</td><td>Left click</td></tr>
         <tr><td>Parry</td><td>Right click, just before a hit lands</td></tr>
         <tr><td>Equip gun / sword</td><td>Q (or 1 / 2). Gun: LMB fire, hold RMB to aim</td></tr>
-        <tr><td>Quick shot (any weapon)</td><td>F</td></tr>
+        <tr><td>Quick sword flurry (any weapon)</td><td>${keyName(CFG.KEYS.shoot)}</td></tr>
         <tr><td>Tongue: eat bugs, heals</td><td>E (pink E marker = edible)</td></tr>
         <tr><td>Ultimate (when the meter is full)</td><td>G</td></tr>
         <tr><td>Pause / Mute</td><td>P or Esc / M</td></tr>

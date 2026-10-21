@@ -128,7 +128,7 @@ export class Hud {
   refreshHelp() {
     const K = CFG.KEYS, n = keyName;
     const el = this.root.querySelector('#h-help');
-    if (el) el.textContent = `${n(K.forward)}${n(K.left)}${n(K.back)}${n(K.right)} move · ${n(K.slash)} slash · ${n(K.parry)} parry · ${n(K.shoot)} quick · ${n(K.tongue)} tongue · ${n(K.jump)} jump · ${n(K.dodge)} dodge · ${n(K.weapon)} swap · ${n(K.ult)} ult · ${n(K.pause)} pause`;
+    if (el) el.textContent = `${n(K.forward)}${n(K.left)}${n(K.back)}${n(K.right)} move · ${n(K.slash)} slash · ${n(K.parry)} parry · ${n(K.shoot)} quick slash · ${n(K.tongue)} tongue · ${n(K.jump)} jump · ${n(K.dodge)} dodge · ${n(K.weapon)} swap · ${n(K.ult)} ult · ${n(K.pause)} pause`;
   }
 
   show(v) { this.root.style.display = v ? 'block' : 'none'; }
@@ -240,8 +240,14 @@ export class Hud {
     e.ammo.innerHTML = `<b>${'●'.repeat(p.ammo)}</b>${'○'.repeat(Math.max(0, CFG.PLAYER.maxAmmo - p.ammo))}`;
     e.time.textContent = fmtTime(g.simT);
     e.cross.style.display = 'block';
-    const cc = 'abs crosshair' + (p.weapon === 'gun' ? ' gun' : '') + (p.aiming ? ' aim' : '');
+    const cc = 'abs crosshair' + (p.weapon === 'gun' ? ' gun' : '') + (p.aiming ? ' aim' : '') + (g.aimTarget && p.weapon === 'gun' ? ' lock' : '');
     if (this._cc !== cc) { this._cc = cc; e.cross.className = cc; }
+    if (p.weapon === 'gun' && g.aimPoint) {
+      tmp.copy(g.aimPoint).project(g.world.camera);
+      const zm = this.zoom || 1;
+      e.cross.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth / zm}px`;
+      e.cross.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight / zm}px`;
+    } else { e.cross.style.left = '50%'; e.cross.style.top = '50%'; }
     const wk = keyName(CFG.KEYS.weapon);
     const wh = p.weapon === 'gun' ? `<span class="ico gold">${ICON.gun}</span><b>GUN</b><small>${wk}</small>` : `<span class="ico">${ICON.sword}</span><b>SWORD</b><small>${wk}</small>`;
     if (this._wh !== wh) { this._wh = wh; e.wpn.innerHTML = wh; }
