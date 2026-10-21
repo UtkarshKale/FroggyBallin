@@ -10,12 +10,15 @@ A third-person 3D browser game built for the JetBrains "Build a Game with an AI 
 - **Sekiro-style posture (stance) bars:** every enemy, boss and the ghost has one. Hits and parries fill it; a full bar breaks the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.
 - **Gun mode:** press Q to equip. Over-the-shoulder camera, LMB fires (hold to auto-fire), hold RMB to aim down sights for bonus damage. Limited ammo.
 - **Tongue** (stamina bar): auto-targets edible bugs (pink **E** marker); broken bugs are always edible. Eating heals. Juicebugs burst into healing droplets.
-- **Bugs:** Gnat swarms, Juicebugs, Spitter Wasps, Shellbacks, Ant Grunts.
-- **Four levels, four bosses with animated preludes:** Hornet Queen (Teatime Meadow), Stag Beetle King (Rotwood Hollow), Mantis Duelist (The Clockpond), Chrono Moth (Final Iteration).
-- **Modes:** Time Loop (per level, with ghost), **Boss Rush** (all four in a row), Classic Survival (endless arena).
+- **Bugs:** Gnat swarms, Juicebugs, Spitter Wasps, Shellbacks, Ant Grunts, **Bomber Beetles** (fuse + hop; parry to bat them into other bugs), **Leeches** (latch on and drain; slash or eat them), Spiderlings.
+- **Five levels, five bosses with animated preludes:** Hornet Queen (Teatime Meadow), Stag Beetle King (Rotwood Hollow), Mantis Duelist (The Clockpond), Chrono Moth (Final Iteration), **Spider Matriarch (Mirewood Web)**: web volleys, sticky web traps, ceiling drops and spiderling broods.
+- **Modes:** Time Loop (per level, with ghost), **Boss Rush** (all five in a row), Classic Survival (endless arena).
 - **Power-ups:** Firefly, Dragonfly, Beetle Shell, Time Snail, Big Mouth, Ammo Moth, Golden Fly (rewind 3s), Overclock (double parry window).
 - **Comic-panel cutscenes**, main menu.
-- Juice: hitstop, screenshake, slow-mo on perfect parry, synthesized sound effects and a small procedural music loop.
+- **Perfect parry feel:** contact sparks, radial speed lines, shockwave, camera zoom punch, desaturated screen edges, layered clang that climbs in pitch with a PARRY xN streak, glowing blade + COUNTER! prompt, attacker knockback. Plain blocks are a dull thud.
+- **Style rank (D to S)** and combo counter: hits, kills, parries, counters and deathblows raise it; idling and getting hit drop it.
+- Juice: anticipation/follow-through sword swings with a tip trail, squash and stretch, tongue wobble, spawn pops, hit wobble, spin-and-splash deaths, breathing bosses, camera roll on dodge, hitstop, screenshake, synthesized sound effects and a small procedural music loop.
+- **Pacing:** fast cancelable combo, short dodge cooldown, zones spawn in quick waves, compact levels, faster phase-2 bosses, any key skips boss intros.
 
 ## Controls
 | Input | Action |

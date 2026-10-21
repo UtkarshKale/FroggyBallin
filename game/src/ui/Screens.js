@@ -75,6 +75,7 @@ export class Screens {
       </table>
       <p><b>Posture:</b> every enemy has a stance bar. Hits and parries fill it; when it's full the enemy is <b>broken</b>: stunned, edible, and a hit becomes a <b>deathblow</b> (x3). Your own bar (bottom centre) fills when you block or get hit. Perfect-parrying something big freezes time for a moment.</p>
       <p><b>Perfect parry</b> (first 0.15s) staggers melee attackers, reflects projectiles and opens a <b>Counter</b>: your next slash crits for x3. Green <b>juicebugs</b> burst into healing droplets; weakened bugs can be eaten too. Shellbacks and the Stag King reflect bullets from the front.</p>
+      <p><b>Bomber Beetles</b> light a fuse and hop at you: perfect-parry them to bat them into other bugs. <b>Leeches</b> latch on and drain you: slash or eat them. <b>Webs</b> on the ground slow you down. Chain hits, kills and parries to raise your <b>style rank</b> (D to S).</p>
       <div class="btnrow"><button class="menu-btn small" id="b-back">Back</button></div></div>`, 'menu');
     this._btn('b-back', () => this.showMenu());
   }
