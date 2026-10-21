@@ -53,6 +53,7 @@ export class Menu3D {
       const p = this.panels[this.sel];
       if (p && p.hover && p.interactive) { this._pendingClick = { p, dir: e.button === 2 ? -1 : 1 }; if (!this.maxScroll) { this._activate(p, this._pendingClick.dir); this._pendingClick = null; } }
     });
+    window.addEventListener('resize', () => { if (this.active && this.roomName) this.go(this.roomName, true); });
     window.addEventListener('keydown', (e) => {
       if (this.active && this.capture) {
         e.preventDefault();
@@ -116,7 +117,7 @@ export class Menu3D {
     return {
       main: () => ({
         cam: V(440, -30, 140), look: V(40, -95, 108),
-        list: { at: V(120, -150, 190), w: 122, h: 25, gap: 29 },
+        list: { at: V(120, -150, 190), w: 122, h: 25, gap: 29 }, rows: this._fitRows(8, 7),
         title: { label: 'FROGGY BALLIN', at: V(118, -150, 228), w: 200, h: 40 },
         items: [
           { kind: 'button', label: 'PLAY', sub: 'Time Loop: pick a level', act: () => this.go('levels') },
@@ -131,7 +132,7 @@ export class Menu3D {
       }),
       levels: () => ({
         cam: V(430, -628, 140), look: V(40, -628, 118),
-        grid: { at: V(110, -700, 175), w: 135, h: 46, cols: 2, dx: 145, dz: 54 },
+        grid: { at: V(110, -700, 175), w: 135, h: 46, cols: 2, dx: 145, dz: 54 }, rows: this._fitRows(3, 2),
         items: [
           ...LEVELS.map((l) => {
             const pb = Storage.get(g.sk('pb', l.id), null);
@@ -142,7 +143,7 @@ export class Menu3D {
       }),
       difficulty: () => ({
         cam: V(430, 530, 130), look: V(40, 530, 105),
-        list: { at: V(120, 450, 172), w: 112, h: 26, gap: 31 },
+        list: { at: V(120, 450, 172), w: 112, h: 26, gap: 31 }, rows: this._fitRows(5, 4),
         card: { at: V(110, 595, 122), w: 150, h: 110, item: { kind: 'card', label: g.D.label, body: g.D.desc } },
         items: [
           ...Object.entries(DIFFICULTY).map(([k, v]) => ({ kind: 'option', label: v.label, value: () => (g.diffKey === k ? 'ON' : ''), act: () => { g.setDifficulty(k); this.go('difficulty', true); } })),
@@ -208,7 +209,7 @@ export class Menu3D {
     const locks = Object.entries(ACH).map(([k, v]) => `${(Storage.get('ach', {}) || {})[k] ? 'UNLOCKED' : 'LOCKED'}: ${v}`).join('\n');
     return {
       cam: V(250, -50, 80), look: V(0, -82, 54),
-      grid: { at: V(40, -175, 96), w: 82, h: 14, cols: 2, dx: 88, dz: 16 },
+      grid: { at: V(40, -175, 96), w: 82, h: 14, cols: 2, dx: 88, dz: 16 }, rows: this._fitRows(6, 4),
       card: { at: V(40, 60, 92), w: 70, h: 52, item: { kind: 'card', label: 'UNLOCKS', body: `Gold skin / blade: S rank\nCrown, glowing eyes, gold gun: beat a boss\nHalo: clear Boss Rush\nVoid glow: win on TORTURE\n${locks}` } },
       items: [...items, { kind: 'button', label: 'BACK', act: () => this.go('main') }],
     };
@@ -330,6 +331,9 @@ export class Menu3D {
     this.g.sfx.play('ui');
   }
 
+  // Fewer visible rows on short windows (text stays a readable size); the rest scrolls.
+  _fitRows(full, short) { const h = window.innerHeight; return h >= 640 ? full : h >= 470 ? short : Math.max(3, short - 2); }
+
   _rowH() { const R = this.room; return R.grid ? R.grid.dz : R.list ? R.list.gap : 30; }
 
   _camLocal() {
@@ -394,7 +398,7 @@ export class Menu3D {
     if (!this.active) return;
     const g = this.g, w = g.world, cam = w.camera;
     this.t += dt;
-    if (this.room.orbit) { this.orbit += dt * 0.12; this._face(); }
+    if (this.room.orbit) { this.orbit = Math.sin(this.t * 0.22) * 0.6; this._face(); } // +-35 deg sweep, never behind the panels
     const camW = this.rig.localToWorld(this._camLocal());
     const lookW = this.rig.localToWorld(this.room.look.clone());
     const k = this.snap ? 1 : 1 - Math.exp(-4.5 * dt);

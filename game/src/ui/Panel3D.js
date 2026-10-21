@@ -28,9 +28,10 @@ export class Panel3D {
     this.tex = new THREE.CanvasTexture(this.canvas);
     this.tex.colorSpace = THREE.SRGBColorSpace;
     this.tex.anisotropy = 4;
-    this.mat = new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    // depthTest off + high render order: scene geometry (houses, the frog, bugs) can never hide a UI panel
+    this.mat = new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false });
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), this.mat);
-    this.mesh.renderOrder = 5;
+    this.mesh.renderOrder = 20;
     this.mesh.userData.panel = this;
     this.hover = false;
     this.pop = 0;
