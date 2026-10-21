@@ -4,6 +4,8 @@ import { TAU } from '../core/math.js';
 const sphere = new THREE.SphereGeometry(1, 6, 5);
 const ringGeo = new THREE.RingGeometry(0.85, 1, 40);
 const discGeo = new THREE.CircleGeometry(1, 32);
+const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+const X_AXIS = new THREE.Vector3(1, 0, 0);
 const mats = new Map();
 function pmat(color) {
   if (!mats.has(color)) {
@@ -19,6 +21,7 @@ export class Fx {
     this.parts = [];
     this.flats = [];
     this.dis = [];
+    this.streakList = [];
     this.shake = 0;
   }
 
@@ -91,6 +94,30 @@ export class Fx {
     this.dis.push({ root, life, max: life, tx, ty, x0: root.position.x, y0: root.position.y, z0: root.position.z, s0: root.scale.x });
   }
 
+  // Radial speed lines bursting out of a contact point (perfect parry).
+  streaks(x, y, z, color, n = 10, len = 100, life = 0.22) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU, el = (Math.random() - 0.3) * 0.9;
+      const d = new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(a) * Math.cos(el), Math.sin(el));
+      const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false, blending: THREE.AdditiveBlending });
+      const m = new THREE.Mesh(boxGeo, mat);
+      m.quaternion.setFromUnitVectors(X_AXIS, d);
+      m.position.set(x, y, z);
+      this.scene.add(m);
+      this.streakList.push({ m, mat, d, x, y, z, len: len * (0.6 + Math.random() * 0.7), life, max: life });
+    }
+  }
+
+  // Single short-lived glowing dot (sword trails).
+  dot(x, y, z, color, size = 3, life = 0.15) {
+    if (this.parts.length > 350) return;
+    const m = new THREE.Mesh(sphere, pmat(color));
+    m.position.set(x, y, z);
+    m.scale.setScalar(size);
+    this.scene.add(m);
+    this.parts.push({ m, vx: 0, vy: 0, vz: 0, life, max: life, grav: 0 });
+  }
+
   addShake(a) { this.shake = Math.max(this.shake, a); }
 
   update(dt) {
@@ -134,6 +161,18 @@ export class Fx {
         d.root.position.y = d.y0 + (d.ty - d.y0) * k * 0.7;
       }
     }
+    for (let i = this.streakList.length - 1; i >= 0; i--) {
+      const s = this.streakList[i];
+      s.life -= dt;
+      if (s.life <= 0) { this.scene.remove(s.m); s.mat.dispose(); this.streakList.splice(i, 1); continue; }
+      const k = 1 - s.life / s.max;
+      const L = s.len * (1 - (1 - k) * (1 - k));
+      const th = 3 * (1 - k) + 0.5;
+      s.m.scale.set(Math.max(1, L * 0.7), th, th);
+      const off = L * 0.35 + s.len * 0.45 * k + 10;
+      s.m.position.set(s.x + s.d.x * off, s.y + s.d.y * off, s.z + s.d.z * off);
+      s.mat.opacity = 1 - k;
+    }
     this.shake *= Math.exp(-9 * dt);
     if (this.shake < 0.05) this.shake = 0;
   }
@@ -142,6 +181,8 @@ export class Fx {
     for (const p of this.parts) this.scene.remove(p.m);
     for (const f of this.flats) { this.scene.remove(f.m); f.mat.dispose(); }
     for (const d of this.dis) this.scene.remove(d.root);
+    for (const s of this.streakList) { this.scene.remove(s.m); s.mat.dispose(); }
+    this.streakList.length = 0;
     this.dis.length = 0;
     this.parts.length = 0;
     this.flats.length = 0;

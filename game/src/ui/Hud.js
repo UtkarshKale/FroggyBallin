@@ -9,7 +9,7 @@ export class Hud {
     this.root = document.createElement('div');
     this.root.style.display = 'none';
     this.root.innerHTML = `
-      <div class="abs vignette"></div><div class="abs lowhp"></div><div class="abs sflash" id="h-sflash"></div>
+      <div class="abs vignette"></div><div class="abs lowhp"></div><div class="abs sflash" id="h-sflash"></div><div class="abs pdim" id="h-pdim"></div>
       <div class="abs hud-tl panel-shadow">
         <div class="bar hp"><i id="h-hp"></i></div>
         <div class="row"><span id="h-hptxt">100</span><span class="ammo" id="h-ammo"></span></div>
@@ -33,6 +33,8 @@ export class Hud {
       <div class="abs stamina" id="h-stam"><div class="bar stam"><i id="h-stami"></i></div></div>
       <div class="abs powers panel-shadow" id="h-powers"></div>
       <div class="abs help panel-shadow">WASD move · Mouse aim · LMB slash · RMB parry · F shoot · E tongue · Space jump · Shift dodge · P pause · Q gun/sword · RMB hold (gun) aim · M mute</div>
+      <div class="abs counterp panel-shadow" id="h-counter">COUNTER!</div>
+      <div class="abs pstreak panel-shadow" id="h-streak"></div>
       <div class="abs banner panel-shadow" id="h-banner"></div>
       <div class="abs toast panel-shadow" id="h-toast"></div>`;
     root.appendChild(this.root);
@@ -42,7 +44,7 @@ export class Hud {
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
       stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
-      stam: q('h-stam'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
+      stam: q('h-stam'), pdim: q('h-pdim'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
     this.low = this.root.querySelector('.lowhp');
@@ -61,6 +63,24 @@ export class Hud {
     this.el.sflash.style.transition = 'none';
     this.el.sflash.style.opacity = 0.85;
     requestAnimationFrame(() => { this.el.sflash.style.transition = 'opacity .5s'; this.el.sflash.style.opacity = 0; });
+  }
+
+  // Perfect parry: desaturate + darken the screen edges for a beat (no black bars).
+  parryDim(dur = 0.35) {
+    const el = this.el.pdim;
+    el.style.transition = 'none';
+    el.style.opacity = 1;
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = `opacity ${dur}s ease-out`; el.style.opacity = 0; }));
+  }
+
+  parryStreak(n) {
+    const el = this.el.streak;
+    if (n < 2) return;
+    el.textContent = `PARRY x${n}`;
+    el.style.color = n >= 5 ? '#ffd23f' : n >= 3 ? '#9ff' : '#fff';
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
   }
 
   flash(text, color = '#fff') {
@@ -134,6 +154,13 @@ export class Hud {
       e.stam.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight}px`;
       e.stami.style.width = `${p.stamina}%`;
     } else e.stam.style.display = 'none';
+    // Floating COUNTER! prompt while the counter window is open
+    tmp.set(p.x, p.y, p.z + CFG.PLAYER.height + 46).project(g.world.camera);
+    if (tmp.z < 1 && p.counterT > 0) {
+      e.counter.style.display = 'block';
+      e.counter.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth}px`;
+      e.counter.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight}px`;
+    } else e.counter.style.display = 'none';
 
     // Power-up chips
     let html = '';

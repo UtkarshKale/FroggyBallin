@@ -19,12 +19,19 @@ export class Player {
     // Sword on a pivot at the frog's right hand.
     this.pivot = new THREE.Group();
     this.pivot.position.set(6, -16, 24);
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(50, 4, 7), stdMat(0xdfe8f0, { metalness: 0.8, roughness: 0.25 }));
+    this.bladeMat = stdMat(0xdfe8f0, { metalness: 0.8, roughness: 0.25 });
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(50, 4, 7), this.bladeMat);
     blade.position.x = 36;
+    // Counter-window glow around the blade + a tip marker for the slash trail
+    this.bladeGlow = new THREE.Mesh(new THREE.BoxGeometry(58, 10, 13), new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.bladeGlow.position.x = 36;
+    this.bladeGlow.visible = false;
+    this.tip = new THREE.Object3D();
+    this.tip.position.x = 60;
     const guard = new THREE.Mesh(new THREE.BoxGeometry(4, 18, 5), stdMat(0xffc400));
     guard.position.x = 10;
     const grip = new THREE.Mesh(new THREE.BoxGeometry(14, 4, 4), stdMat(0x6d4c41));
-    this.pivot.add(blade, guard, grip);
+    this.pivot.add(blade, guard, grip, this.bladeGlow, this.tip);
     this.root.add(this.pivot);
     // Gun (holstered on the left hip, raised in gun mode).
     this.gun = new THREE.Group();
@@ -76,6 +83,8 @@ export class Player {
     this.dodgeCd = 0;
     this.iframes = 0;
     this.parryGrace = 0;
+    this.parryStreak = 0;
+    this.streakT = 0;
     this.jumps = 0;
     this.flashT = 0;
     this.moving = false;
@@ -110,11 +119,11 @@ export class Player {
         const big = !!(src && src.big);
         this.counterT = CFG.PARRY.counterWindow;
         this.posture = Math.max(0, this.posture - P.perfectRelief);
+        this.stamina = Math.min(100, this.stamina + CFG.PARRY.staminaRefund);
+        this.parryStreak = this.streakT > 0 ? this.parryStreak + 1 : 1;
+        this.streakT = CFG.PARRY.streakWindow;
         g.stats.perfectParries++;
-        g.sfx.play('perfect');
-        g.fx.ring(this.x, this.y, 20, 0xffffff, 10, big ? 220 : 120, 0.4);
-        g.fx.burst(this.x, this.y, 30, 0xffffff, big ? 30 : 14, 260, 0.4, 2.5);
-        g.fx.addShake(big ? 22 : 10);
+        g.parryFx(this, src, opts.proj, big, this.parryStreak);
         // Parrying something big freezes the whole game for a beat.
         this.parryGrace = big ? 0.7 : 0.35;
         if (big && g.bigFreeze()) { g.slowmo(0.4); g.hud.screenFlash(); }
@@ -124,8 +133,14 @@ export class Player {
         return 'perfect';
       }
       if (this.parryT < this.blockLen) {
+        // Plain block: dull thud, small grey puff, pushed back. Clearly weaker than a perfect parry.
         g.sfx.play('block');
-        g.fx.burst(this.x, this.y, 30, 0x66ccff, 6, 140, 0.3, 2);
+        g.fx.burst(this.x, this.y, 30, 0x9aa7b0, 4, 90, 0.25, 1.6);
+        g.fx.addShake(3);
+        if (src && src.x != null) {
+          const a = Math.atan2(src.y - this.y, src.x - this.x);
+          this.vx -= Math.cos(a) * CFG.PARRY.blockPush; this.vy -= Math.sin(a) * CFG.PARRY.blockPush;
+        }
         this.addPosture(dmg * P.blockMult + P.blockAdd);
         this._damage(dmg * CFG.PARRY.blockReduce);
         return 'block';
@@ -138,6 +153,7 @@ export class Player {
       return 'shell';
     }
     this._damage(dmg);
+    this.parryStreak = 0;
     this.addPosture(dmg * P.hitMult);
     g.sfx.play('hurt');
     g.fx.addShake(8);
@@ -209,6 +225,8 @@ export class Player {
     this.parryCd = Math.max(0, this.parryCd - dt);
     this.shootCd = Math.max(0, this.shootCd - dt);
     this.counterT = Math.max(0, this.counterT - dt);
+    this.streakT = Math.max(0, this.streakT - dt);
+    if (this.streakT <= 0) this.parryStreak = 0;
     this.comboT += dt;
     this.slashBuf = Math.max(0, this.slashBuf - dt);
     this.faceHold = Math.max(0, this.faceHold - dt);
@@ -511,6 +529,11 @@ export class Player {
       this.gun.scale.setScalar(0.8);
     }
     this.muzzle.visible = this.muzzleT > 0;
+    // Sword glows while the counter crit is ready
+    const ready = this.counterT > 0;
+    this.bladeGlow.visible = ready;
+    if (ready) this.bladeGlow.material.opacity = 0.35 + 0.3 * Math.sin(this.t * 30);
+    this.bladeMat.emissive.setHex(ready ? 0x997700 : 0x000000);
     this.parryDisc.visible = this.parryT >= 0 && !gunMode;
     if (this.parryT >= 0) {
       const perfect = this.parryT < this.perfectLen;

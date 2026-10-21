@@ -102,3 +102,13 @@
 .crosshair.aim { transform: scale(.6); }
 .crosshair.aim::before, .crosshair.aim::after { background: #ff5a5a; }
 .lvl { width: 215px; }
+
+/* Perfect parry feel */
+.pdim { inset: 0; opacity: 0; backdrop-filter: saturate(.15) brightness(.62); -webkit-backdrop-filter: saturate(.15) brightness(.62);
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 38%, #000 82%); mask-image: radial-gradient(ellipse at center, transparent 38%, #000 82%);
+  box-shadow: inset 0 0 160px rgba(120, 200, 255, .35); }
+.counterp { transform: translate(-50%, -100%); font-weight: 900; font-size: 16px; color: #ffe55a; letter-spacing: 2px; display: none; animation: cpulse .25s infinite alternate; }
+@keyframes cpulse { from { transform: translate(-50%, -100%) scale(1); } to { transform: translate(-50%, -100%) scale(1.12); } }
+.pstreak { left: 50%; top: 22%; transform: translateX(-50%); font-weight: 900; font-size: 34px; letter-spacing: 3px; opacity: 0; }
+.pstreak.pop { animation: spop 1.4s ease-out forwards; }
+@keyframes spop { 0% { opacity: 1; transform: translateX(-50%) scale(1.8); } 12% { opacity: 1; transform: translateX(-50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) scale(.95); } }

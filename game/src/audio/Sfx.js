@@ -61,7 +61,7 @@ class SfxEngine {
       case 'crit': this.tone({ f: 900, f2: 300, d: 0.2, type: 'sawtooth', v: 0.2 }); this.noise({ d: 0.2, v: 0.25, lp: 2500 }); break;
       case 'parry': this.tone({ f: 1400, d: 0.2, type: 'triangle', v: 0.18 }); this.tone({ f: 2100, d: 0.15, type: 'sine', v: 0.1 }); break;
       case 'perfect': this.tone({ f: 1800, d: 0.35, type: 'triangle', v: 0.25 }); this.tone({ f: 2700, d: 0.3, type: 'sine', v: 0.15, delay: 0.03 }); this.noise({ d: 0.12, v: 0.2, hp: 4000 }); break;
-      case 'block': this.tone({ f: 300, f2: 200, d: 0.1, type: 'square', v: 0.12 }); break;
+      case 'block': this.tone({ f: 210, f2: 130, d: 0.09, type: 'square', v: 0.09 }); this.noise({ d: 0.07, v: 0.12, lp: 700 }); break;
       case 'shoot': this.tone({ f: 900, f2: 120, d: 0.12, type: 'square', v: 0.15 }); this.noise({ d: 0.05, v: 0.12, lp: 4000 }); break;
       case 'empty': this.tone({ f: 200, d: 0.05, type: 'square', v: 0.08 }); break;
       case 'tongue': this.tone({ f: 300, f2: 900, d: 0.1, type: 'sine', v: 0.15 }); break;
@@ -86,6 +86,16 @@ class SfxEngine {
       case 'warn': this.tone({ f: 440, d: 0.08, type: 'square', v: 0.07 }); break;
       default: break;
     }
+  }
+  // Layered perfect-parry: metallic clang partials + low thump. Pitch climbs with the parry streak.
+  parry(streak = 1, big = false) {
+    if (!this.ctx || this.muted) return;
+    const p = Math.pow(2, (Math.min(streak, 9) - 1) * 2 / 12);
+    [1, 2.76, 5.4].forEach((m, i) => this.tone({ f: 880 * p * m, d: 0.5 - i * 0.12, type: i ? 'sine' : 'triangle', v: 0.22 / (i + 1) }));
+    this.noise({ d: 0.06, v: 0.32, hp: 5000 });
+    this.tone({ f: big ? 120 : 160, f2: 40, d: big ? 0.5 : 0.24, type: 'sine', v: big ? 0.55 : 0.38 });
+    this.noise({ d: 0.14, v: 0.25, lp: 320 });
+    if (big) { this.tone({ f: 62, f2: 28, d: 0.9, type: 'sawtooth', v: 0.14, delay: 0.05 }); this.tone({ f: 1760 * p, d: 0.7, type: 'sine', v: 0.08, delay: 0.08 }); }
   }
   // Tiny original procedural loop: bass + arpeggio. intensity 0 = calm, 1 = boss.
   startMusic() {

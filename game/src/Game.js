@@ -41,6 +41,7 @@ export class Game {
     this.slowT = 0;
     this.hitstopT = 0;
     this.freezeGap = 0;
+    this.punchT = 0; this.punchAmt = 0; this.baseFov = CFG.CAMERA.fov;
     this.survBest = Storage.get('surv.best', 0);
     this.clock = new THREE.Clock();
   }
@@ -120,7 +121,7 @@ export class Game {
     this.zoneDone = (level.zones || []).map(() => false);
     this._goalOpen = null;
     this.surv = { t: 0, spawnT: 1.5, ammoT: 20 };
-    this.slowT = 0; this.hitstopT = 0; this.freezeGap = 0;
+    this.slowT = 0; this.hitstopT = 0; this.freezeGap = 0; this.punchT = 0; this.baseFov = CFG.CAMERA.fov;
     this.sfx.intensity = 0;
 
     this.player.reset(level.start.x, level.start.y);
@@ -283,6 +284,49 @@ export class Game {
   // ------------------------------------------------------------ helpers
   slowmo(t) { this.slowT = Math.max(this.slowT, t); }
   hitstop(t) { this.hitstopT = Math.max(this.hitstopT, t); }
+  fovPunch(a) { this.punchAmt = a; this.punchT = CFG.PARRY.punchTime; }
+
+  // Perfect parry juice at the contact point: sparks, speed lines, shockwave, zoom punch, edge dim, layered clang.
+  parryFx(p, src, proj, big, streak) {
+    const PA = CFG.PARRY, fx = this.fx;
+    const sx = proj ? proj.x : src && src.x != null ? src.x : p.x + Math.cos(p.yaw) * 40;
+    const sy = proj ? proj.y : src && src.y != null ? src.y : p.y + Math.sin(p.yaw) * 40;
+    const ang = Math.atan2(sy - p.y, sx - p.x);
+    const cx = p.x + Math.cos(ang) * 34, cy = p.y + Math.sin(ang) * 34, cz = proj ? proj.z : 28;
+    fx.burst(cx, cy, cz, 0xffffff, big ? 34 : 18, 380, 0.35, 2.2, 60);
+    fx.burst(cx, cy, cz, 0xffe066, big ? 22 : 10, 300, 0.45, 1.8, 140);
+    fx.streaks(cx, cy, cz, 0xffffff, big ? 18 : 10, big ? 170 : 95, big ? 0.3 : 0.22);
+    fx.disc(cx, cy, cz, 0xffffff, 6, big ? 70 : 36, 0.12, 0.9);
+    fx.ring(cx, cy, cz, 0xffffff, 8, big ? 260 : 140, 0.35);
+    fx.ring(p.x, p.y, 3, 0xbfe9ff, 20, big ? 340 : 180, 0.45, 0.7);
+    fx.addShake(big ? 22 : 10);
+    this.fovPunch(big ? PA.fovPunch * 1.6 : PA.fovPunch);
+    this.hud.parryDim(big ? 0.65 : PA.dimTime);
+    this.hud.parryStreak(streak);
+    this.sfx.parry(streak, big);
+    if (src && !proj && src.team !== 'player') {
+      src.flashT = 0.18;
+      if (!src.isBoss && src.knock) src.knock(ang, PA.knock);
+    }
+  }
+
+  // Camera distance / shoulder / FOV easing, including the parry zoom punch. Runs during hitstop too.
+  camFov(raw) {
+    const C = CFG.CAMERA, kd = 1 - Math.exp(-10 * raw);
+    const pl = this.player, cam = this.world.cam, cm = this.world.camera;
+    const gun = pl.weapon === 'gun';
+    cam.dist += ((pl.aiming ? C.aimDist : gun ? C.gunDist : C.dist) - cam.dist) * kd;
+    cam.shoulder += ((gun ? C.shoulder : 0) - cam.shoulder) * kd;
+    this.baseFov += ((pl.aiming ? C.aimFov : gun ? C.gunFov : C.fov) - this.baseFov) * kd;
+    let dip = 0;
+    if (this.punchT > 0) {
+      this.punchT = Math.max(0, this.punchT - raw);
+      dip = this.punchAmt * ease(this.punchT / CFG.PARRY.punchTime);
+    }
+    cm.fov = this.baseFov - dip;
+    cm.updateProjectionMatrix();
+  }
+
   bigFreeze() { if (this.freezeGap > 0) return false; this.hitstopT = Math.max(this.hitstopT, 0.45); this.freezeGap = 1.5; return true; }
 
   spawnEnemy(type, x, y) {
@@ -523,6 +567,7 @@ export class Game {
     if (this.hitstopT > 0) {
       this.hitstopT -= raw;
       this._holdInput = true; // don't swallow key presses made during the freeze
+      this.camFov(raw);
       this.world.followCamera(this.player, raw, this.fx.shake);
       this.hud.update(this, raw);
       return;
@@ -536,15 +581,7 @@ export class Game {
     this.recorder.t = this.simT;
 
     const pl = this.player;
-    {
-      const C = CFG.CAMERA, kd = 1 - Math.exp(-10 * raw);
-      const gun = pl.weapon === 'gun';
-      cam.dist += ((pl.aiming ? C.aimDist : gun ? C.gunDist : C.dist) - cam.dist) * kd;
-      cam.shoulder += ((gun ? C.shoulder : 0) - cam.shoulder) * kd;
-      const cm = this.world.camera;
-      cm.fov += ((pl.aiming ? C.aimFov : gun ? C.gunFov : C.fov) - cm.fov) * kd;
-      cm.updateProjectionMatrix();
-    }
+    this.camFov(raw);
     pl.update(dt, inp, cam);
     if (this.state !== 'PLAYING') return;
 

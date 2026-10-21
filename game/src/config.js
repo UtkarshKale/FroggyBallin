@@ -15,7 +15,9 @@ export const CFG = {
     critMult: 3,
     knock: 46,
   },
-  PARRY: { perfect: 0.15, block: 0.35, cooldown: 0.7, blockReduce: 0.3, counterWindow: 1.0, slowmo: 0.12 },
+  PARRY: { perfect: 0.15, block: 0.35, cooldown: 0.7, blockReduce: 0.3, counterWindow: 1.0, slowmo: 0.12,
+    // Perfect-parry feel: camera zoom punch, edge dim, streak counter, refunds, attacker knockback.
+    fovPunch: 6, punchTime: 0.25, dimTime: 0.35, streakWindow: 3, staminaRefund: 15, knock: 70, blockPush: 140 },
   GUN: { dmg: 15, speed: 720, cooldown: 0.22, radius: 8, assistCone: 0.14, aimMult: 1.5, aimSpeedMult: 1.2, aimCone: 0.06 },
   // Sekiro-style posture: filling an enemy's bar breaks it (stunned, deathblow x3). Player has one too.
   POSTURE: { regen: 14, delay: 1.6, brokenTime: 2.5, deathblow: 3, sword: [8, 8, 16], critMult: 2, parryMin: 25, parryFrac: 0.5, reflectHit: 25, bossStun: 3.5 },
