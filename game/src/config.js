@@ -33,7 +33,7 @@ export const CFG = {
   GHOST: { hp: 150, echoEvery: 4, echoRange: 900, echoDmg: 10 },
   POWERUP: { duration: 12, snail: 6, dropChance: 0.12 },
   // Style meter (D..S): rewards hits, kills, parries, deathblows; decays when idle, drops when hurt.
-  STYLE: { hit: 4, kill: 12, parry: 30, deathblow: 35, counter: 20, eat: 10, hurt: -60, decay: 16, idle: 2.0, comboWindow: 2.5, max: 460,
+  STYLE: { hit: 4, kill: 12, parry: 30, deathblow: 35, counter: 20, eat: 10, perilDodge: 25, riposte: 40, hurt: -60, decay: 16, idle: 2.0, comboWindow: 2.5, max: 460,
     ranks: [[0, 'D', '#9aa'], [50, 'C', '#7dff7d'], [120, 'B', '#66ddff'], [220, 'A', '#ffd23f'], [340, 'S', '#ff5a8a']] },
   // New bugs + Mirewood hazards
   BOMBER: { fuse: 1.0, hopSpeed: 420, hopTime: 0.4, radius: 120, dmg: 18, launchSpeed: 640, launchTime: 0.5, bugDmg: 45 },
@@ -45,6 +45,8 @@ export const CFG = {
     bossWindup: 1.0, bossDuration: 8, bossDelay: [5, 10], bossSpeed: 1.5, bossDmg: 2.5,
     playerTint: 0x66ffcc, bossTint: 0xff3344,
     bossEffects: { hornet: 'noRegen', stag: 'reverse', mantis: 'tightParry', moth: 'shift', spider: 'webs' } },
+  // Perilous attacks. 'dodge': can't be parried, dodge (or jump sweeps); hits hard. 'counter': dodge it to open a RIPOSTE.
+  PERIL: { dmgMult: 1.3, postureMult: 1.2, dodgeRelief: 20, riposte: 0.6, ripostePosture: 3, riposteLunge: 110, slow: 0.12, glyphTime: 0.9 },
   SAMPLE_DT: 0.05,
 
   KEYS: {
@@ -63,4 +65,19 @@ export const POWERUPS = {
   ammo:     { color: 0xffee44, label: 'Ammo Moth',    desc: '+6 ammo' },
   golden:   { color: 0xffd700, label: 'Golden Fly',   desc: 'Rewind 3 seconds' },
   over:     { color: 0xff5555, label: 'Overclock',    desc: 'Parry window x2' },
+};
+
+// Difficulty tiers. hp/bossHp/ghostHp: health; dmg: damage taken; speed: enemy + boss time scale; parry: parry window;
+// posture: posture gained by the frog; heal: drop rate; ult: ult meter gain; bossUlt: boss ult frequency (repeat: re-arm
+// after each ult); tele: telegraph length; perilMix: share of perilous attacks; fakeOut: chance of a delayed wind-up;
+// random: attack types are rolled at random every attack (only the glyph colour tells you).
+export const DIFFICULTY = {
+  baby: { label: 'BABY', hp: 0.9, bossHp: 0.9, ghostHp: 0.85, dmg: 0.7, speed: 0.9, parry: 1.35, posture: 0.8, heal: 1.3, ult: 1.3, bossUlt: 0.6, tele: 1.45, perilMix: 0.1, fakeOut: 0, random: false, repeat: false,
+    desc: 'For anyone who just wants to hop around and eat bugs. Gentle bugs, a wider parry window and long, clear warnings, but bugs still bite.' },
+  normal: { label: 'NORMAL', hp: 1, bossHp: 1, ghostHp: 1, dmg: 1, speed: 1, parry: 1, posture: 1, heal: 1, ult: 1, bossUlt: 1, tele: 1, perilMix: 0.3, fakeOut: 0, random: false, repeat: false,
+    desc: 'The intended way to play.' },
+  mayhem: { label: 'MAYHEM', hp: 1.2, bossHp: 1.2, ghostHp: 1.2, dmg: 1.4, speed: 1.15, parry: 0.8, posture: 1.2, heal: 0.8, ult: 0.9, bossUlt: 1.6, tele: 0.8, perilMix: 0.55, fakeOut: 0.3, random: false, repeat: false,
+    desc: 'Faster, meaner bugs, tight parries, more perilous attacks and fake-outs. You asked for it.' },
+  torture: { label: 'TORTURE', hp: 1.4, bossHp: 1.4, ghostHp: 1.4, dmg: 2, speed: 1.25, parry: 0.65, posture: 1.4, heal: 0.6, ult: 0.8, bossUlt: 2.5, tele: 0.6, perilMix: 0.6, fakeOut: 0.35, random: true, repeat: true,
+    desc: 'Only for people who love challenges. Bugs hit hard, bosses ult constantly, attack types are random and only the glyph colour warns you.' },
 };

@@ -1,6 +1,7 @@
 import { fmtTime } from '../core/math.js';
 import { LEVELS } from '../levels/levels.js';
 import { Storage } from '../core/Storage.js';
+import { DIFFICULTY } from '../config.js';
 
 // Menu, pause, stats, comic cutscenes, boss prelude. All DOM overlays.
 export class Screens {
@@ -34,25 +35,31 @@ export class Screens {
 
   showMenu() {
     const cards = LEVELS.map((l) => {
-      const pb = Storage.get(`pb.${l.id}`, null);
+      const pb = Storage.get(this.g.sk('pb', l.id), null);
       return `<div class="lvl"><h3>${l.name}</h3><p>${l.blurb}</p>
         <div class="pb">${pb ? `Best ${fmtTime(pb.best)} · ${pb.wins} win${pb.wins === 1 ? '' : 's'}` : 'No record yet'}</div>
         <button class="menu-btn small" id="play-${l.id}">Time Loop</button>
         ${pb ? `<button class="menu-btn small alt" id="reset-${l.id}">Reset ghost</button>` : ''}</div>`;
     }).join('');
+    const cur = this.g.diffKey;
+    const diffs = Object.entries(DIFFICULTY).map(([k, v]) => `<button class="diff-btn ${k === cur ? 'on' : ''}" id="d-${k}">${v.label}</button>`).join('');
+    const rush = Storage.get(this.g.sk('pb', 'bossrush'), null);
     this._set(`
       <h1 class="title">FROGGY BALLIN</h1>
       <div class="tagline">Race your past self. Parry. Slash. Eat. Don't lose to the ghost of you.</div>
+      <div class="diffrow">${diffs}</div>
+      <div class="diffdesc">${DIFFICULTY[cur].desc}</div>
       <div class="levels">${cards}</div>
-      <button class="menu-btn alt" id="b-rush">Boss Rush${Storage.get('pb.bossrush', null) ? ' (best ' + fmtTime(Storage.get('pb.bossrush', null).best) + ')' : ''}</button>
+      <button class="menu-btn alt" id="b-rush">Boss Rush${rush ? ' (best ' + fmtTime(rush.best) + ')' : ''}</button>
       <button class="menu-btn alt" id="b-surv">Classic Survival</button>
       <button class="menu-btn alt" id="b-how">How to Play</button>
       <button class="menu-btn alt" id="b-cred">Credits</button>
       <button class="menu-btn small alt" id="b-mute">Sound: ${this.g.sfx.muted ? 'OFF' : 'ON'}</button>`, 'menu');
     for (const l of LEVELS) {
       this._btn(`play-${l.id}`, () => this.g.startRun('timeloop', l.id));
-      this._btn(`reset-${l.id}`, () => { Storage.set(`ghost.${l.id}`, null); Storage.set(`pb.${l.id}`, null); this.showMenu(); });
+      this._btn(`reset-${l.id}`, () => { Storage.set(this.g.sk('ghost', l.id), null); Storage.set(this.g.sk('pb', l.id), null); this.showMenu(); });
     }
+    for (const k of Object.keys(DIFFICULTY)) this._btn(`d-${k}`, () => { this.g.setDifficulty(k); this.showMenu(); });
     this._btn('b-rush', () => this.g.startRun('bossrush'));
     this._btn('b-surv', () => this.g.startRun('survival'));
     this._btn('b-how', () => this.showHow());
@@ -71,10 +78,14 @@ export class Screens {
         <tr><td>Equip gun / sword</td><td>Q (or 1 / 2). Gun: LMB fire, hold RMB to aim</td></tr>
         <tr><td>Quick shot (any weapon)</td><td>F</td></tr>
         <tr><td>Tongue: eat bugs, heals</td><td>E (pink E marker = edible)</td></tr>
+        <tr><td>Ultimate (when the meter is full)</td><td>G</td></tr>
         <tr><td>Pause / Mute</td><td>P or Esc / M</td></tr>
       </table>
       <p><b>Posture:</b> every enemy has a stance bar. Hits and parries fill it; when it's full the enemy is <b>broken</b>: stunned, edible, and a hit becomes a <b>deathblow</b> (x3). Your own bar (bottom centre) fills when you block or get hit. Perfect-parrying something big freezes time for a moment.</p>
       <p><b>Perfect parry</b> (first 0.15s) staggers melee attackers, reflects projectiles and opens a <b>Counter</b>: your next slash crits for x3. Green <b>juicebugs</b> burst into healing droplets; weakened bugs can be eaten too. Shellbacks and the Stag King reflect bullets from the front.</p>
+      <p><b>Read the telegraph colour.</b> <b style="color:#ffdd44">Yellow/white flash</b>: normal attack, parry it. <b style="color:#ff2233">Red glyph</b>: perilous, it can't be parried and hits hard, dodge it (Shift) or jump shockwave sweeps. <b style="color:#ff9a1a">Orange glyph</b>: perilous counter, dodge through it to open a short <b>RIPOSTE</b> window: slash right away for a guaranteed crit with huge posture damage.</p>
+      <p><b>Ultimate:</b> style, kills and parries fill the ULT meter. Press <b>G</b> when it's full: 10 seconds of ASCII mode where everything you do is x3. Bosses have their own ult once per phase. Break their posture to cancel it.</p>
+      <p><b>Difficulty:</b> BABY, NORMAL, MAYHEM or TORTURE, chosen on the menu. Records are kept per difficulty.</p>
       <p><b>Bomber Beetles</b> light a fuse and hop at you: perfect-parry them to bat them into other bugs. <b>Leeches</b> latch on and drain you: slash or eat them. <b>Webs</b> on the ground slow you down. Chain hits, kills and parries to raise your <b>style rank</b> (D to S).</p>
       <div class="btnrow"><button class="menu-btn small" id="b-back">Back</button></div></div>`, 'menu');
     this._btn('b-back', () => this.showMenu());
@@ -98,6 +109,7 @@ export class Screens {
 
   showStats(d) {
     const rows = [
+      ['Difficulty', d.diff],
       ['Time', fmtTime(d.time)],
       ...(d.mode === 'timeloop' ? [['Personal best', fmtTime(d.pb)], ['Iteration', d.loopNo]] : d.mode === 'bossrush' ? [['Personal best', fmtTime(d.pb)]] : [['Score', Math.floor(d.score)]]),
       ['Bugs slain (you / ghost)', `${d.kills} / ${d.ghostKills}`],

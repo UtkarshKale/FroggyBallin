@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CFG, POWERUPS } from './config.js';
+import { CFG, POWERUPS, DIFFICULTY } from './config.js';
 import { World } from './world/World.js';
 import { Fx } from './fx/Fx.js';
 import { Input } from './core/Input.js';
@@ -16,6 +16,7 @@ import { makeBoss } from './entities/Bosses.js';
 import { Recorder } from './loop/Recorder.js';
 import { Ghost } from './loop/Ghost.js';
 import { Webs } from './world/Webs.js';
+import { PerilFx } from './fx/Peril.js';
 import { LEVELS, SURVIVAL_LEVEL, BOSSRUSH_LEVEL } from './levels/levels.js';
 import { Hud } from './ui/Hud.js';
 import { Screens } from './ui/Screens.js';
@@ -48,6 +49,9 @@ export class Game {
     this.hitstopT = 0;
     this.freezeGap = 0;
     this.punchT = 0; this.punchAmt = 0; this.baseFov = CFG.CAMERA.fov;
+    this.diffKey = DIFFICULTY[Storage.get('difficulty', 'normal')] ? Storage.get('difficulty', 'normal') : 'normal';
+    this.atkRng = new Rng(1);
+    this._perilSlowAt = -9;
     this.survBest = Storage.get('surv.best', 0);
     this.clock = new THREE.Clock();
   }
@@ -60,6 +64,7 @@ export class Game {
     this.projectiles = new Projectiles(this);
     this.pickups = new Pickups(this);
     this.webs = new Webs(this);
+    this.perilFx = new PerilFx(this);
     this.recorder = new Recorder();
     this.hud = new Hud(this.uiRoot);
     this.screens = new Screens(this.uiRoot, this);
@@ -109,6 +114,7 @@ export class Game {
     this.projectiles.clear();
     this.pickups.clear();
     this.webs.clear();
+    this.perilFx.clear();
     this.fx.clear();
     this.hud.setBoss(null);
     this.snailT = 0;
@@ -137,6 +143,8 @@ export class Game {
     this.zoneDone = (level.zones || []).map(() => false);
     this._goalOpen = null;
     this.surv = { t: 0, spawnT: 1.5, ammoT: 20 };
+    this.atkRng = new Rng(level.seed * 13 + 7);
+    this._perilSlowAt = -9;
     this.slowT = 0; this.hitstopT = 0; this.freezeGap = 0; this.punchT = 0; this.baseFov = CFG.CAMERA.fov;
     this.sfx.intensity = 0;
 
@@ -154,15 +162,18 @@ export class Game {
     this.pb = null;
     this.loopNo = 1;
     if (mode === 'bossrush') {
-      const pbObj = Storage.get(`pb.${level.id}`, null);
+      const pbObj = Storage.get(this.sk('pb', level.id), null);
       this.pb = pbObj ? pbObj.best : null;
     }
     if (mode === 'timeloop') {
-      const pbObj = Storage.get(`pb.${level.id}`, null);
+      const pbObj = Storage.get(this.sk('pb', level.id), null);
       this.pb = pbObj ? pbObj.best : null;
       this.loopNo = (pbObj ? pbObj.wins : 0) + 1;
-      const run = Storage.get(`ghost.${level.id}`, null);
-      if (run && run.samples && run.samples.length > 2) this.ghost = new Ghost(this, run, this.loopNo);
+      const run = Storage.get(this.sk('ghost', level.id), null);
+      if (run && run.samples && run.samples.length > 2) {
+        this.ghost = new Ghost(this, run, this.loopNo);
+        this.ghost.hp = this.ghost.maxHp = Math.round(CFG.GHOST.hp * this.D.ghostHp);
+      }
     }
 
     const queue = [];
@@ -215,6 +226,28 @@ export class Game {
     this.startRun(this.mode, this.levelCfg && this.levelCfg.id);
   }
 
+  // ------------------------------------------------------------ difficulty
+  get D() { return DIFFICULTY[this.diffKey]; }
+  setDifficulty(k) { if (DIFFICULTY[k]) { this.diffKey = k; Storage.set('difficulty', k); } }
+  // Storage key per difficulty; NORMAL keeps the original keys so existing records survive.
+  sk(kind, id) { return this.diffKey === 'normal' ? `${kind}.${id}` : `${kind}.${this.diffKey}.${id}`; }
+
+  // Attack type for a regular bug melee attack (seeded per run, so replays of a level stay consistent).
+  rollEnemyType() {
+    const D = this.D, r = this.atkRng;
+    if (r.next() >= D.perilMix * 0.5) return 'normal';
+    return r.next() < 0.5 ? 'dodge' : 'counter';
+  }
+
+  // Perilous telegraph: glyph above the attacker, sting, brief slow-down (rate limited).
+  perilTelegraph(ent, type, dur = CFG.PERIL.glyphTime) {
+    if (type === 'normal') return;
+    this.perilFx.show(ent, type, dur, ent.isBoss ? ent.radius * 2 + 70 : 60);
+    this.sfx.play(type === 'dodge' ? 'peril' : 'perilC');
+    this.hud.perilFlash(type);
+    if (this.simT - this._perilSlowAt > 1.5) { this._perilSlowAt = this.simT; this.slowmo(CFG.PERIL.slow); }
+  }
+
   // ------------------------------------------------------------ run end
   objective() {
     if (this.mode === 'survival') return 'Survive!';
@@ -234,7 +267,7 @@ export class Game {
     this.input.exitLock();
     this.hud.setBoss(null);
     const s = this.stats;
-    const d = { ...s, mode: this.mode, time: this.simT, score: this.score, loopNo: this.loopNo, hadGhost: !!this.ghost, ghostWon: reason === 'ghost', pb: this.pb };
+    const d = { ...s, diff: this.D.label, mode: this.mode, time: this.simT, score: this.score, loopNo: this.loopNo, hadGhost: !!this.ghost, ghostWon: reason === 'ghost', pb: this.pb };
     let delay = 0;
     if (this.mode === 'survival') {
       this.survBest = Math.max(this.survBest, this.score);
@@ -243,11 +276,11 @@ export class Game {
       this.sfx.play('lose'); delay = 900;
     } else if (reason === 'win') {
       const id = this.levelCfg.id;
-      if (this.mode === 'timeloop') Storage.set(`ghost.${id}`, this.recorder.finish(this.simT, this.player));
-      const old = Storage.get(`pb.${id}`, null);
+      if (this.mode === 'timeloop') Storage.set(this.sk('ghost', id), this.recorder.finish(this.simT, this.player));
+      const old = Storage.get(this.sk('pb', id), null);
       const best = old ? Math.min(old.best, this.simT) : this.simT;
       d.newPB = !old || this.simT < old.best;
-      Storage.set(`pb.${id}`, { best, wins: (old ? old.wins : 0) + 1 });
+      Storage.set(this.sk('pb', id), { best, wins: (old ? old.wins : 0) + 1 });
       d.pb = best;
       this.pb = best;
       Object.assign(d, this.mode === 'bossrush'
@@ -313,7 +346,7 @@ export class Game {
       st.idle = 0;
       if (this.ult.t <= 0) {
         const was = this.ult.meter;
-        this.ult.meter = Math.min(100, this.ult.meter + v * CFG.ULT.gain);
+        this.ult.meter = Math.min(100, this.ult.meter + v * CFG.ULT.gain * this.D.ult);
         if (was < 100 && this.ult.meter >= 100) { this.hud.flash('ULTIMATE READY - press G', '#66ffcc'); this.sfx.play('rank'); }
       }
       if (kind !== 'eat') { st.combo++; st.comboT = S.comboWindow; this.stats.maxCombo = Math.max(this.stats.maxCombo, st.combo); }
@@ -380,7 +413,7 @@ export class Game {
     if (!b || !b.active || b.dead) { if (bu) this.endBossUlt(); return; }
     if (!bu) {
       if (b.ultDone === b.phase || b.stunned) return;
-      if (b.ultT == null) { const [lo, hi] = CFG.ULT.bossDelay; b.ultT = lo + Math.random() * (hi - lo); }
+      if (b.ultT == null) { const [lo, hi] = CFG.ULT.bossDelay; b.ultT = (lo + Math.random() * (hi - lo)) / this.D.bossUlt; }
       b.ultT -= dt;
       if (b.ultT <= 0 && u.t <= 0 && b.state === 'move') this.startBossUlt(b);
       return;
@@ -416,6 +449,7 @@ export class Game {
   endBossUlt(reason) {
     if (!this.bossUlt) return;
     const was = this.bossUlt.phase === 'active';
+    if (this.D.repeat && this.bossUlt.b) this.bossUlt.b.ultDone = null; // Torture: bosses ult again and again
     this.bossUlt = null;
     const a = this.world.ascii;
     a.extra = 0;
@@ -478,7 +512,7 @@ export class Game {
   }
 
   maybeDrop(x, y) {
-    if (Math.random() > CFG.POWERUP.dropChance) return;
+    if (Math.random() > CFG.POWERUP.dropChance * this.D.heal) return;
     const types = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth', 'ammo', 'golden', 'over'];
     this.pickups.spawn(types[Math.floor(Math.random() * types.length)], x, y);
   }
@@ -551,10 +585,12 @@ export class Game {
     const range = S.range[step], half = S.halfArc[step];
     let dmg = S.dmg[step] * (team === 'player' && this.playerUlt ? CFG.ULT.mult : 1);
     const crit = team === 'player' && src.counterT > 0;
+    const rip = crit && src.riposteT > 0;
     if (crit) {
       dmg *= S.critMult;
       src.counterT = 0;
-      this.hud.flash('COUNTER!', '#ffee55');
+      if (rip) { src.riposteT = 0; this.hud.flash('RIPOSTE!', '#ff9a1a'); this.addStyle('riposte'); this.fx.addShake(14); this.fovPunch(8); this.hitstop(0.12); }
+      else this.hud.flash('COUNTER!', '#ffee55');
       this.addStyle('counter');
     }
     const col = crit ? 0xffee55 : team === 'ghost' ? 0x66ddff : 0xffffff;
@@ -579,7 +615,7 @@ export class Game {
       } else {
         const wasBug = t.team === 'bug';
         this.damageTarget(t, dmg, { team, knock: true, ang: a, crit });
-        if (team === 'player' && !t.dead) this.addPosture(t, CFG.POSTURE.sword[step] * (crit ? CFG.POSTURE.critMult : 1) * (this.playerUlt ? CFG.ULT.mult : 1));
+        if (team === 'player' && !t.dead) this.addPosture(t, CFG.POSTURE.sword[step] * (crit ? CFG.POSTURE.critMult : 1) * (rip ? CFG.PERIL.ripostePosture : 1) * (this.playerUlt ? CFG.ULT.mult : 1));
         hits++;
         if (crit && wasBug && t.dead) this.pickups.spawn('bullet', t.x, t.y);
       }
@@ -636,6 +672,7 @@ export class Game {
     this.bossStarted = true;
     this.boss = makeBoss(type, this, bx, by);
     this.boss.kind = type;
+    this.boss.hp = this.boss.maxHp = Math.round(this.boss.maxHp * this.D.bossHp);
     this.state = 'PRELUDE';
     this.hud.show(false);
     this.pre = { t: 0, dur: CFG.BOSS.preludeDur, a0: Math.atan2(this.player.y - by, this.player.x - bx) };
@@ -777,14 +814,16 @@ export class Game {
     if (this.mode === 'survival') this.survivalUpdate(dt);
     if (this.mode === 'bossrush') this.rushUpdate(dt);
 
-    for (const e of this.enemies) e.update(dt * es);
+    const ds = this.D.speed;
+    for (const e of this.enemies) e.update(dt * es * ds);
     const bu = this.bossUlt;
-    if (this.boss && this.boss.active && !(bu && bu.phase === 'wind')) this.boss.update(dt * es * (bu ? CFG.ULT.bossSpeed : 1));
+    if (this.boss && this.boss.active && !(bu && bu.phase === 'wind')) this.boss.update(dt * es * ds * (bu ? CFG.ULT.bossSpeed : 1));
     if (this.ghost && !this.ghost.dead) this.ghost.update(dt * es);
     if (this.state !== 'PLAYING') return;
     this.projectiles.update(dt, es);
     this.pickups.update(dt);
     this.webs.update(dt);
+    this.perilFx.update(dt);
     this.separate();
     this.enemies = this.enemies.filter((e) => !e.dead);
     this.fx.update(dt);

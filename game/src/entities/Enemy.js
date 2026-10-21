@@ -4,6 +4,7 @@ import { angDiff, lerpAngle, TAU } from '../core/math.js';
 import { CFG } from '../config.js';
 import { initPosture, tickPosture } from '../combat/Posture.js';
 import { Overhead } from '../fx/Overhead.js';
+import { hitOpts, TELE_COLORS } from '../fx/Peril.js';
 
 export const ENEMY_TYPES = {
   gnat:      { hp: 10, r: 12, speed: 200, fly: true,  edible: true,  heal: 8,  posture: 16 },
@@ -127,7 +128,7 @@ export class Enemy {
     this.team = 'bug';
     this.x = x; this.y = y; this.z = 0;
     this.yaw = Math.random() * TAU;
-    this.hp = this.maxHp = T.hp;
+    this.hp = this.maxHp = Math.max(1, Math.round(T.hp * game.D.hp));
     this.radius = T.r;
     this.speed = T.speed;
     this.fly = !!T.fly;
@@ -229,7 +230,7 @@ export class Enemy {
     this.x = p.x + Math.cos(a) * (p.radius + 4);
     this.y = p.y + Math.sin(a) * (p.radius + 4);
     this.yaw = a + Math.PI;
-    p._damage(CFG.LEECH.drain * dt);
+    p._damage(CFG.LEECH.drain * this.g.D.dmg * dt);
     if (Math.random() < dt * 4) this.g.fx.burst(this.x, this.y, 20, 0xaa2233, 1, 50, 0.3, 2);
   }
 
@@ -318,14 +319,15 @@ export class Enemy {
         if (!this.atk) {
           this._face(ang, 5, dt);
           this._go(ang, this.speed, dt);
-          if (d < 90 && this.atkCd <= 0) this.atk = { k: 'wind', t: 0 };
+          if (d < 90 && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0, type: this.g.rollEnemyType() }; this.g.perilTelegraph(this, this.atk.type, 0.6 * this.g.D.tele); }
         } else {
           this.atk.t += dt;
-          if (this.atk.t >= 0.55) {
+          if (this.atk.t >= 0.55 * this.g.D.tele) {
+            this._lastType = this.atk.type;
             this.atk = null;
             this.atkCd = 1.8;
             const front = Math.abs(angDiff(this.yaw, Math.atan2(p.y - this.y, p.x - this.x))) < 1.1;
-            if (d < 105 && front) p.takeHit(16, this, { parryable: true });
+            if (d < 105 && front) p.takeHit(16, this, hitOpts(this.atk ? this.atk.type : this._lastType, { sweep: true }));
             this.g.fx.ring(this.x + Math.cos(this.yaw) * 50, this.y + Math.sin(this.yaw) * 50, 5, 0xaaaaff, 10, 55, 0.25);
           }
         }
@@ -377,18 +379,19 @@ export class Enemy {
         if (!this.atk) {
           this._face(ang, 9, dt);
           this._go(ang, this.speed, dt);
-          if (d < 110 && this.atkCd <= 0) this.atk = { k: 'wind', t: 0, yaw: ang };
+          if (d < 110 && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0, yaw: ang, type: this.g.rollEnemyType() }; this.g.perilTelegraph(this, this.atk.type, 0.5 * this.g.D.tele); }
         } else if (this.atk.k === 'wind') {
           this.atk.t += dt;
-          if (this.atk.t < 0.3) this.atk.yaw = ang;
+          const tl = this.g.D.tele;
+          if (this.atk.t < 0.3 * tl) this.atk.yaw = ang;
           this._face(this.atk.yaw, 20, dt);
-          if (this.atk.t >= 0.45) this.atk = { k: 'dash', t: 0, yaw: this.atk.yaw, hit: false };
+          if (this.atk.t >= 0.45 * tl) this.atk = { k: 'dash', t: 0, yaw: this.atk.yaw, hit: false, type: this.atk.type };
         } else {
           this.atk.t += dt;
           this._go(this.atk.yaw, 720, dt);
           if (!this.atk.hit && d < this.radius + p.radius + 14) {
             this.atk.hit = true;
-            p.takeHit(14, this, { parryable: true });
+            p.takeHit(14, this, hitOpts(this.atk.type));
           }
           if (this.atk.t >= 0.22) { this.atk = null; this.atkCd = 1.4; }
         }
@@ -415,7 +418,7 @@ export class Enemy {
     this.overhead.update(this.g.world.camera, this.x, this.y, zz + this.radius * 2 + 14, this.hp / this.maxHp, this.posture / this.postureMax, this.broken > 0, this.eatable && near);
     if (this.flashT > 0) setFlash(this.flashList, 0xffffff);
     else if (this.broken > 0) setFlash(this.flashList, Math.floor(this.t * 10) % 2 ? 0xffaa00 : 0x442200);
-    else if (this.atk && this.atk.k === 'wind') setFlash(this.flashList, Math.floor(this.t * 20) % 2 ? 0xff2200 : 0x660000);
+    else if (this.atk && this.atk.k === 'wind') { const c = TELE_COLORS[this.atk.type || 'normal']; setFlash(this.flashList, Math.floor(this.t * 20) % 2 ? c[0] : c[1]); }
     else if (this.stagger > 0) setFlash(this.flashList, 0x888800);
     else if (this.burn > 0) setFlash(this.flashList, 0x773300);
     else setFlash(this.flashList, null);
@@ -453,7 +456,7 @@ export class Enemy {
     if (team === 'player') g.stats.kills++;
     else if (team === 'ghost') g.stats.ghostKills++;
     g.sfx.play('hit');
-    if (this.type === 'juicebug') for (let i = 0; i < 4; i++) g.pickups.spawn('droplet', this.x, this.y);
+    if (this.type === 'juicebug') for (let i = 0; i < Math.round(4 * g.D.heal); i++) g.pickups.spawn('droplet', this.x, this.y);
     if (this.type === 'shellback') { g.pickups.spawn('bullet', this.x + 12, this.y); g.pickups.spawn('bullet', this.x - 12, this.y); }
     if (this.type !== 'echo') g.maybeDrop(this.x, this.y);
     g.score += 10;

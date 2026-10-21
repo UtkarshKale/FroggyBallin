@@ -3,6 +3,8 @@ import { blob, stdMat, collectFlash, setFlash } from '../core/Assets.js';
 import { lerp, lerpAngle, angDiff, clamp, ease, TAU } from '../core/math.js';
 import { CFG } from '../config.js';
 import { initPosture, tickPosture } from '../combat/Posture.js';
+import { Rng } from '../core/Rng.js';
+import { hitOpts, TELE_COLORS } from '../fx/Peril.js';
 
 class Boss {
   constructor(game, { name, title, hp, r, posture = 120 }) {
@@ -31,7 +33,27 @@ class Boss {
     this.shell = false;
     this.big = true;
     initPosture(this, posture);
+    this.rng = new Rng((game.levelCfg ? game.levelCfg.seed : 1) * 31 + hp);
+    this.atkType = 'normal';
+    this.holdT = 0; this.holdAt = 0; this.teleLast = false;
   }
+  // Start an attack state. defType: 'normal' | 'dodge' | 'counter'. melee=false attacks (volleys, summons) stay normal.
+  begin(state, defType = 'normal', melee = true) {
+    this.state = state; this.st = 0; this.fired = false;
+    this.atkType = melee ? this.rollType(defType) : 'normal';
+    const D = this.g.D;
+    this.holdT = this.rng.next() < D.fakeOut ? this.rng.range(0.2, 0.4) : 0; // fake-out: pause mid wind-up
+    this.holdAt = this.rng.range(0.12, 0.3);
+    this.g.sfx.play('warn');
+    if (this.atkType !== 'normal') this.g.perilTelegraph(this, this.atkType, CFG.PERIL.glyphTime * D.tele);
+  }
+  rollType(def) {
+    const D = this.g.D, r = this.rng;
+    if (D.random) return r.next() < D.perilMix ? (r.next() < 0.5 ? 'dodge' : 'counter') : 'normal';
+    if (def === 'normal' && r.next() < D.perilMix * 0.35) return r.next() < 0.5 ? 'dodge' : 'counter';
+    return def;
+  }
+  hitOpts(extra) { return hitOpts(this.atkType, extra); }
   finishBuild(root) {
     this.root = root;
     this.flashList = collectFlash(root);
@@ -56,12 +78,19 @@ class Boss {
     this.g.hud.flash('STUNNED - ATTACK!', '#ffee55');
   }
   // Attack-state timer step: phase 2 telegraphs and recoveries play out faster.
-  stDt(dt) { return this.phase === 2 && this.state !== 'move' && this.state !== 'stunned' ? dt * CFG.BOSS.ph2Speed : dt; }
+  stDt(dt) {
+    if (this.state === 'move' || this.state === 'stunned') return dt;
+    if (this.holdT > 0 && this.st >= this.holdAt && this.teleLast) { this.holdT -= dt; return 0; }
+    let k = this.phase === 2 ? CFG.BOSS.ph2Speed : 1;
+    if (this.teleLast) k /= this.g.D.tele;
+    return dt * k;
+  }
   clearMarker() { if (this.marker) { this.marker.remove(); this.marker = null; } }
   flashSync() {
+    this.teleLast = !!this.telegraph;
     if (this.flashT > 0) setFlash(this.flashList, 0xffffff);
     else if (this.stunned) setFlash(this.flashList, Math.floor(this.t * 12) % 2 ? 0xaaaa00 : 0x333300);
-    else if (this.telegraph) setFlash(this.flashList, Math.floor(this.t * 18) % 2 ? 0xff3300 : 0x550000);
+    else if (this.telegraph) { const c = TELE_COLORS[this.atkType] || TELE_COLORS.normal; setFlash(this.flashList, Math.floor(this.t * 18) % 2 ? c[0] : c[1]); }
     else setFlash(this.flashList, null);
     // Breathing idle: slow chest swell (quicker and shallower while stunned).
     const b = Math.sin(this.t * (this.stunned ? 5 : 2.4)) * (this.stunned ? 0.02 : 0.035);
@@ -214,7 +243,7 @@ export class HornetQueen extends Boss {
       case 'diveRecover': {
         this.z = lerp(this.z, 110, 1 - Math.exp(-5 * dt));
         if (this.st > 0.8) {
-          if (ph2 && !this.doubled) { this.doubled = true; this.state = 'diveMark'; this.st = 0; }
+          if (ph2 && !this.doubled) { this.doubled = true; this.clearMarker(); this.begin('diveMark', 'counter'); }
           else this.endAttack();
         }
         break;
@@ -253,9 +282,9 @@ export class HornetQueen extends Boss {
     this.st = 0; this.fired = false; this.doubled = false;
     const bugs = g.enemies.length;
     const r = Math.random();
-    if (bugs < 6 && r < 0.25) { this.state = 'summon'; g.sfx.play('boss'); }
-    else if (r < 0.65) { this.state = 'volley'; g.sfx.play('warn'); }
-    else { this.state = 'diveMark'; g.sfx.play('warn'); }
+    if (bugs < 6 && r < 0.25) { this.begin('summon', 'normal', false); g.sfx.play('boss'); }
+    else if (r < 0.65) this.begin('volley', 'normal', false);
+    else this.begin('diveMark', 'dodge');
   }
 
   endAttack() {
@@ -275,7 +304,7 @@ export class HornetQueen extends Boss {
     g.sfx.play('slam');
     const d = Math.hypot(p.x - this.x, p.y - this.y);
     if (d < 130 + p.radius && p.z < 60) {
-      const res = p.takeHit(24, this, { parryable: true });
+      const res = p.takeHit(24, this, this.hitOpts());
       if (res === 'perfect') { this.stun(3); return; }
     }
     this.state = 'diveRecover';
@@ -375,7 +404,7 @@ export class StagBeetleKing extends Boss {
           g.sfx.play('slash');
           const front = Math.abs(angDiff(this.yaw, ang)) < 1.1;
           if (d < 230 + p.radius && front) {
-            const res = p.takeHit(22, this, { parryable: true });
+            const res = p.takeHit(22, this, this.hitOpts());
             if (res === 'perfect') { this.hp -= 20; this.flashT = 0.15; this.stagger = 1.5; this.state = 'recover'; this.st = 0; return; }
           }
         }
@@ -404,12 +433,12 @@ export class StagBeetleKing extends Boss {
         if (Math.random() < 0.6) g.fx.burst(this.x, this.y, 8, 0x8d6e63, 1, 90, 0.4, 3);
         if (!this.chit && Math.hypot(p.x - this.x, p.y - this.y) < this.radius + p.radius) {
           this.chit = true;
-          const res = p.takeHit(24, this, { parryable: true });
+          const res = p.takeHit(24, this, this.hitOpts());
           if (res === 'perfect') { this.stun(4); return; }
         }
         if (this.hitWall) { g.fx.addShake(14); g.sfx.play('slam'); g.fx.ring(this.x, this.y, 5, 0xffffff, 20, 200, 0.4); this.stun(1.6); return; }
         if (this.st >= 0.8) {
-          if (ph2) { this.state = 'slamWind'; this.st = 0; } else { this.state = 'recover'; this.st = 0; }
+          if (ph2) this.begin('slamWind', 'dodge'); else { this.state = 'recover'; this.st = 0; }
         }
         break;
       }
@@ -451,9 +480,9 @@ export class StagBeetleKing extends Boss {
     const g = this.g;
     this.st = 0; this.fired = false;
     const r = Math.random();
-    if (d < 230 && r < 0.5) { this.state = 'swipe'; g.sfx.play('warn'); }
-    else if (r < 0.75) { this.state = 'chargeMark'; g.sfx.play('warn'); }
-    else { this.state = 'slamWind'; g.sfx.play('warn'); }
+    if (d < 230 && r < 0.5) this.begin('swipe', 'normal');
+    else if (r < 0.75) this.begin('chargeMark', 'counter');
+    else this.begin('slamWind', 'dodge');
   }
 
   endAttack() {
@@ -478,7 +507,7 @@ export class StagBeetleKing extends Boss {
       const d = Math.hypot(p.x - this.x, p.y - this.y);
       if (!r.hit && Math.abs(d - r.r) < 22 && p.z < 28) {
         r.hit = true;
-        p.takeHit(18, this, { parryable: false });
+        p.takeHit(18, this, hitOpts('dodge', { sweep: true }));
       }
       if (r.r > 820) { g.world.scene.remove(r.vis); r.vis.geometry.dispose(); r.vis.material.dispose(); this.rings.splice(i, 1); }
     }
@@ -585,7 +614,15 @@ export class MantisDuelist extends Boss {
         break;
       }
       case 'combo': {
-        const cs = this.cs, wt = ph2 ? 0.3 : 0.4, total = ph2 ? 4 : 3;
+        const cs = this.cs, wt = (ph2 ? 0.3 : 0.4) * g.D.tele, total = ph2 ? 4 : 3;
+        // Each strike of the combo has its own type: the phase-2 finisher is a riposte bait.
+        if (cs.phase === 'wind' && cs.typeFor !== cs.n) {
+          cs.typeFor = cs.n;
+          const D = g.D;
+          cs.type = D.random ? this.rollType('normal') : ph2 && cs.n === total - 1 ? 'counter' : this.rng.next() < D.perilMix * 0.25 ? 'dodge' : 'normal';
+          this.atkType = cs.type;
+          if (cs.type !== 'normal') g.perilTelegraph(this, cs.type, wt + 0.15);
+        }
         cs.t += dt;
         if (cs.phase === 'wind') {
           this.telegraph = true;
@@ -597,7 +634,7 @@ export class MantisDuelist extends Boss {
             g.sfx.play('slash');
             const dd = Math.hypot(p.x - this.x, p.y - this.y);
             if (dd < 190 + p.radius && Math.abs(angDiff(this.yaw, Math.atan2(p.y - this.y, p.x - this.x))) < 1.0) {
-              p.takeHit(15, this, { parryable: true });
+              p.takeHit(15, this, hitOpts(cs.type));
               if (this.state !== 'combo') return;
             }
             cs.phase = 'gap'; cs.t = 0; cs.n++;
@@ -624,7 +661,7 @@ export class MantisDuelist extends Boss {
           g.sfx.play('slam');
           const dd = Math.hypot(p.x - this.x, p.y - this.y);
           if (dd < 110 + p.radius && p.z < 50) {
-            const res = p.takeHit(22, this, { parryable: true });
+            const res = p.takeHit(22, this, this.hitOpts());
             if (res === 'perfect') { this.stun(3); return; }
           }
           this.state = 'recover'; this.st = 0;
@@ -677,9 +714,9 @@ export class MantisDuelist extends Boss {
     const g = this.g;
     this.st = 0; this.fired = false;
     const r = Math.random();
-    if (d > 260 && r < 0.45) { this.state = 'wave'; g.sfx.play('warn'); }
-    else if (d > 200 && r < 0.7) { this.state = 'leapWind'; g.sfx.play('warn'); }
-    else { this.state = 'combo'; this.cs = { n: 0, phase: 'wind', t: 0 }; g.sfx.play('warn'); }
+    if (d > 260 && r < 0.45) this.begin('wave', 'normal', false);
+    else if (d > 200 && r < 0.7) this.begin('leapWind', 'dodge');
+    else { this.begin('combo', 'normal', false); this.cs = { n: 0, phase: 'wind', t: 0, typeFor: -1 }; }
   }
 
   endAttack() {
@@ -845,10 +882,9 @@ export class ChronoMoth extends Boss {
     this.st = 0; this.fired = false; this.fired2 = false;
     const echoes = g.enemies.some((e) => e.type === 'echo');
     const r = Math.random();
-    if (!echoes && this.hp < this.maxHp * 0.85 && r < 0.3) this.state = 'rewind';
-    else if (r < 0.65) this.state = 'ring';
-    else this.state = 'diveMark';
-    g.sfx.play('warn');
+    if (!echoes && this.hp < this.maxHp * 0.85 && r < 0.3) this.begin('rewind', 'normal', false);
+    else if (r < 0.65) this.begin('ring', 'normal', false);
+    else { this.diveN = (this.diveN || 0) + 1; this.begin('diveMark', this.diveN % 2 ? 'dodge' : 'counter'); }
   }
 
   endAttack() {
@@ -867,7 +903,7 @@ export class ChronoMoth extends Boss {
     g.sfx.play('slam');
     const d = Math.hypot(p.x - this.x, p.y - this.y);
     if (d < 130 + p.radius && p.z < 60) {
-      const res = p.takeHit(24, this, { parryable: true });
+      const res = p.takeHit(24, this, this.hitOpts());
       if (res === 'perfect') { this.stun(3); return; }
     }
     this.state = 'diveRecover'; this.st = 0;
@@ -1031,6 +1067,22 @@ export class SpiderMatriarch extends Boss {
         if (this.st > 0.7) this.endAttack();
         break;
       }
+      case 'bite': {
+        // Quick fang lunge: dodge through it for a riposte.
+        this.telegraph = this.st < 0.45;
+        if (this.st < 0.35) this.yaw = lerpAngle(this.yaw, ang, 1 - Math.exp(-12 * dt));
+        legAmt = 0.25;
+        if (!this.fired && this.st >= 0.45) {
+          this.fired = true;
+          this.x += Math.cos(this.yaw) * 80; this.y += Math.sin(this.yaw) * 80;
+          g.fx.slash(this.x, this.y, 20, this.yaw, 170, 0.9, 0xd8b0ff);
+          g.sfx.play('slash');
+          const dd = Math.hypot(p.x - this.x, p.y - this.y);
+          if (dd < 170 + p.radius && Math.abs(angDiff(this.yaw, Math.atan2(p.y - this.y, p.x - this.x))) < 1.0) p.takeHit(18, this, this.hitOpts());
+        }
+        if (this.st >= 0.9) this.endAttack();
+        break;
+      }
       case 'brood': {
         this.telegraph = this.st < 0.7;
         this.body.rotation.y = this.telegraph ? 0.2 : 0;
@@ -1083,11 +1135,11 @@ export class SpiderMatriarch extends Boss {
     this.st = 0; this.fired = false;
     const r = Math.random();
     const spiders = g.enemies.filter((e) => e.type === 'spiderling').length;
-    if (this.phase === 2 && spiders < 4 && r < 0.25) this.state = 'brood';
-    else if (r < 0.5) this.state = 'volley';
-    else if (r < 0.72) this.state = 'trap';
-    else { this.state = 'ascend'; g.hud.flash('She climbs... watch the ground!', '#d8b0ff'); }
-    g.sfx.play('warn');
+    if (d < 220 && r < 0.3) this.begin('bite', 'counter');
+    else if (this.phase === 2 && spiders < 4 && r < 0.45) this.begin('brood', 'normal', false);
+    else if (r < 0.65) this.begin('volley', 'normal', false);
+    else if (r < 0.82) this.begin('trap', 'normal', false);
+    else { this.begin('ascend', 'dodge'); g.hud.flash('She climbs... watch the ground!', '#d8b0ff'); }
   }
 
   endAttack() {
@@ -1107,7 +1159,7 @@ export class SpiderMatriarch extends Boss {
     g.webs.add(this.x, this.y, CFG.WEB.r * 1.3);
     const d = Math.hypot(p.x - this.x, p.y - this.y);
     if (d < 135 + p.radius && p.z < 60) {
-      const res = p.takeHit(26, this, { parryable: true });
+      const res = p.takeHit(26, this, this.hitOpts());
       if (res === 'perfect') { this.stun(3); return; }
     }
     this.state = 'dropRecover'; this.st = 0;

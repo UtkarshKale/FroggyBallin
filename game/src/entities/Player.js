@@ -90,6 +90,8 @@ export class Player {
     this.parryStreak = 0;
     this.streakT = 0;
     this.webbedT = 0;
+    this.riposteT = 0;
+    this.riposteSrc = null;
     this.jumps = 0;
     this.flashT = 0;
     this.moving = false;
@@ -115,16 +117,18 @@ export class Player {
   }
 
   get parryActive() { return this.parryT >= 0; }
-  get perfectLen() { return CFG.PARRY.perfect * (this.pu.over > 0 ? 2 : 1) * (this.g.bossUltOn('tightParry') ? 0.5 : 1); }
+  get perfectLen() { return CFG.PARRY.perfect * this.g.D.parry * (this.pu.over > 0 ? 2 : 1) * (this.g.bossUltOn('tightParry') ? 0.5 : 1); }
   get ultOn() { return this.g.playerUlt; }
-  get blockLen() { return CFG.PARRY.block * (this.pu.over > 0 ? 1.4 : 1); }
+  get blockLen() { return CFG.PARRY.block * this.g.D.parry * (this.pu.over > 0 ? 1.4 : 1); }
 
   // Returns 'hit' | 'block' | 'perfect' | 'dodged' | 'shell'
   takeHit(dmg, src, opts = {}) {
     if (this.dead) return 'dodged';
     const g = this.g, P = CFG.PLAYER_POSTURE;
-    if (this.iframes > 0 || this.parryGrace > 0) return 'dodged';
+    dmg *= g.D.dmg;
     if (src && src === g.boss && g.bossUltOn()) dmg *= CFG.ULT.bossDmg;
+    if (opts.peril) return this._perilHit(dmg, src, opts);
+    if (this.iframes > 0 || this.parryGrace > 0) return 'dodged';
     if (opts.parryable !== false && this.parryActive && this.broken <= 0) {
       if (this.parryT < this.perfectLen) {
         const big = !!(src && src.big);
@@ -173,10 +177,41 @@ export class Player {
     return 'hit';
   }
 
+  // Perilous attacks can't be parried. Dodge (i-frames) or jump (sweeps); 'counter' dodges open a riposte.
+  _perilHit(dmg, src, opts) {
+    const g = this.g, PR = CFG.PERIL;
+    if (this.iframes > 0 || (opts.sweep && this.z > 20)) {
+      if (this.perilT > 0) return 'dodged';
+      this.perilT = 0.5;
+      this.posture = Math.max(0, this.posture - PR.dodgeRelief);
+      g.addStyle('perilDodge');
+      if (opts.peril === 'counter') {
+        this.riposteT = PR.riposte; this.riposteSrc = src;
+        this.counterT = Math.max(this.counterT, PR.riposte);
+        g.hud.ink('RIPOSTE', 'counter');
+        g.sfx.play('riposte');
+        g.slowmo(0.18);
+      } else g.hud.flash('PERILOUS DODGE', '#ff5566');
+      return 'dodged';
+    }
+    if (this.parryGrace > 0) return 'dodged';
+    if (this.parryActive) g.hud.flash("CAN'T PARRY THAT!", '#ff3344');
+    dmg *= PR.dmgMult;
+    this._damage(dmg);
+    this.parryStreak = 0;
+    this.addPosture(dmg * PR.postureMult);
+    this.parryGrace = 0.3; // one hit per perilous attack
+    g.sfx.play('hurt');
+    g.addStyle('hurt');
+    g.fx.addShake(14);
+    g.hud.hurt();
+    return 'hit';
+  }
+
   addPosture(a) {
     if (this.broken > 0 || this.dead) return;
     const P = CFG.PLAYER_POSTURE;
-    this.posture += a;
+    this.posture += a * this.g.D.posture;
     this.postureT = P.delay;
     if (this.posture >= P.max) {
       this.posture = P.max * 0.4;
@@ -234,6 +269,8 @@ export class Player {
     this.iframes = Math.max(0, this.iframes - dt);
     this.parryGrace = Math.max(0, this.parryGrace - dt);
     this.webbedT = Math.max(0, this.webbedT - dt);
+    this.riposteT = Math.max(0, this.riposteT - dt);
+    this.perilT = Math.max(0, (this.perilT || 0) - dt);
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
     this.parryCd = Math.max(0, this.parryCd - dt);
     this.shootCd = Math.max(0, this.shootCd - dt);
@@ -393,6 +430,15 @@ export class Player {
 
   _startSwing(aimYaw) {
     const S = CFG.SWORD;
+    // Riposte: snap toward the attacker and lunge in for the counter slash.
+    const rs = this.riposteT > 0 ? this.riposteSrc : null;
+    if (rs && !rs.dead) {
+      const a = Math.atan2(rs.y - this.y, rs.x - this.x), d = Math.hypot(rs.x - this.x, rs.y - this.y);
+      aimYaw = a;
+      const step = Math.max(0, Math.min(CFG.PERIL.riposteLunge, d - (rs.radius || 20) - 30));
+      this.x += Math.cos(a) * step; this.y += Math.sin(a) * step;
+      this.g.fx.burst(this.x, this.y, 20, 0xff9a1a, 8, 160, 0.3, 2);
+    }
     this.combo = this.comboT < S.comboWindow ? (this.combo + 1) % 3 : 0;
     this.swing = { step: this.combo, t: 0, hit: false, yaw: aimYaw };
     this.slashBuf = 0;

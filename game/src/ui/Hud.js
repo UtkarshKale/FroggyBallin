@@ -9,7 +9,7 @@ export class Hud {
     this.root = document.createElement('div');
     this.root.style.display = 'none';
     this.root.innerHTML = `
-      <div class="abs vignette"></div><div class="abs lowhp"></div><div class="abs sflash" id="h-sflash"></div><div class="abs pdim" id="h-pdim"></div>
+      <div class="abs vignette"></div><div class="abs lowhp"></div><div class="abs sflash" id="h-sflash"></div><div class="abs pdim" id="h-pdim"></div><div class="abs perilv" id="h-perilv"></div>
       <div class="abs hud-tl panel-shadow">
         <div class="bar hp"><i id="h-hp"></i></div>
         <div class="row"><span id="h-hptxt">100</span><span class="ammo" id="h-ammo"></span></div>
@@ -37,6 +37,7 @@ export class Hud {
       <div class="abs stylebox panel-shadow" id="h-style"><div class="rank" id="h-rank">D</div><div class="bar srank"><i id="h-srank"></i></div><div class="combo" id="h-combo"></div></div>
       <div class="abs counterp panel-shadow" id="h-counter">COUNTER!</div>
       <div class="abs pstreak panel-shadow" id="h-streak"></div>
+      <div class="abs ink" id="h-ink"><b></b><i class="sub"></i></div>
       <div class="abs cutin" id="h-cutin"><div class="cpanel"><b></b><small></small></div></div>
       <div class="abs banner panel-shadow" id="h-banner"></div>
       <div class="abs toast panel-shadow" id="h-toast"></div>`;
@@ -47,7 +48,7 @@ export class Hud {
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
       stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
-      stam: q('h-stam'), pdim: q('h-pdim'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
+      stam: q('h-stam'), pdim: q('h-pdim'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
     this.low = this.root.querySelector('.lowhp');
@@ -82,6 +83,23 @@ export class Hud {
     el.querySelector('b').textContent = word;
     el.querySelector('small').textContent = sub;
     el.className = `abs cutin ${kind}`;
+    void el.offsetWidth;
+    el.classList.add('go');
+  }
+
+  perilFlash(type) {
+    const el = this.el.perilv;
+    el.className = `abs perilv ${type}`;
+    void el.offsetWidth;
+    el.classList.add('go');
+  }
+
+  // Big centered ink-brush word (DEATHBLOW, RIPOSTE, POSTURE BROKEN, ...). kind: '' | 'counter' | 'death' | 'clear'
+  ink(word, kind = '', sub = '') {
+    const el = this.el.ink;
+    el.querySelector('b').textContent = word;
+    el.querySelector('.sub').textContent = sub;
+    el.className = `abs ink ${kind}`;
     void el.offsetWidth;
     el.classList.add('go');
   }
@@ -148,11 +166,11 @@ export class Hud {
         const dd = g.simT - best;
         pbtxt += ` <span class="delta ${dd <= 0 ? 'good' : 'bad'}">${dd <= 0 ? '' : '+'}${dd.toFixed(1)}s</span>`;
       }
-      e.pb.innerHTML = `ITERATION ${g.loopNo} · ${pbtxt}`;
+      e.pb.innerHTML = `<span class="dtag">${g.D.label}</span> ITERATION ${g.loopNo} · ${pbtxt}`;
     } else if (g.mode === 'bossrush') {
-      e.pb.innerHTML = `BOSS RUSH · PB ${g.pb != null ? fmtTime(g.pb) : '--'}`;
+      e.pb.innerHTML = `<span class="dtag">${g.D.label}</span> BOSS RUSH · PB ${g.pb != null ? fmtTime(g.pb) : '--'}`;
     } else {
-      e.pb.innerHTML = `SCORE ${Math.floor(g.score)} · BEST ${Math.floor(g.survBest || 0)}`;
+      e.pb.innerHTML = `<span class="dtag">${g.D.label}</span> SCORE ${Math.floor(g.score)} · BEST ${Math.floor(g.survBest || 0)}`;
     }
     e.obj.textContent = g.objective();
 

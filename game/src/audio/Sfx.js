@@ -89,6 +89,9 @@ class SfxEngine {
       case 'ult': this.tone({ f: 110, f2: 880, d: 0.6, type: 'sawtooth', v: 0.22 }); this.tone({ f: 220, f2: 1760, d: 0.6, type: 'square', v: 0.08, delay: 0.05 }); this.noise({ d: 0.5, v: 0.25, hp: 1500 }); break;
       case 'ultEnd': this.tone({ f: 900, f2: 60, d: 0.5, type: 'sawtooth', v: 0.18 }); this.noise({ d: 0.25, v: 0.2, hp: 3000 }); break;
       case 'ultWarn': for (let i = 0; i < 4; i++) this.tone({ f: i % 2 ? 620 : 880, d: 0.12, type: 'square', v: 0.12, delay: i * 0.14 }); break;
+      case 'peril': this.tone({ f: 1900, f2: 1500, d: 0.18, type: 'sawtooth', v: 0.16 }); this.tone({ f: 95, f2: 60, d: 0.3, type: 'sine', v: 0.3 }); this.noise({ d: 0.1, v: 0.18, hp: 4000 }); break;
+      case 'perilC': this.tone({ f: 1300, f2: 1700, d: 0.16, type: 'square', v: 0.11 }); this.tone({ f: 120, f2: 70, d: 0.25, type: 'sine', v: 0.25 }); break;
+      case 'riposte': this.tone({ f: 600, f2: 2400, d: 0.2, type: 'sawtooth', v: 0.16 }); this.noise({ d: 0.08, v: 0.2, hp: 5000 }); break;
       case 'ui': this.tone({ f: 700, d: 0.05, type: 'square', v: 0.08 }); break;
       case 'warn': this.tone({ f: 440, d: 0.08, type: 'square', v: 0.07 }); break;
       default: break;
