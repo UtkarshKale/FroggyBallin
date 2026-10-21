@@ -32,6 +32,7 @@ export class Pickups {
     }
     group.position.set(x, y, 30);
     this.g.world.scene.add(group);
+    if (type === 'droplet') this.g.world.tag(group, 'heal');
     const homing = type === 'droplet';
     this.list.push({ type, x, y, group, t: Math.random() * 6, age: 0, homing, vx: (Math.random() - 0.5) * 200, vy: (Math.random() - 0.5) * 200, life: homing ? 12 : 40 });
   }

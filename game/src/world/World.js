@@ -15,6 +15,8 @@ export class World {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 9000);
     this.camera.up.set(0, 0, 1);
+    this.camera.layers.enable(3); // layer 3: sprites kept out of the ASCII mask's depth pass
+    this.tagged = new Set();
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 1.3));
     const sun = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -198,9 +200,23 @@ export class World {
 
   snapCamera() { this.cam.init = false; }
 
+  // Semantic tag for the ASCII ult view: 'danger' (red), 'heal' (green) or null (monochrome).
+  tag(root, kind) {
+    if (!root || root.userData.tag === kind) return;
+    root.userData.tag = kind;
+    root.traverse((o) => {
+      if (!o.isMesh && !o.isSprite) return;
+      o.layers.set(o.isSprite ? 3 : 0);
+      if (kind === 'danger') o.layers.enable(1);
+      else if (kind === 'heal') o.layers.enable(2);
+    });
+    if (kind) this.tagged.add(root); else this.tagged.delete(root);
+    if (this.tagged.size > 400) for (const r of this.tagged) if (!r.parent) this.tagged.delete(r);
+  }
+
   render(dt = 0) {
     this.ascii.update(dt);
-    if (this.ascii.active) this.ascii.render(this.scene, this.camera);
+    if (this.ascii.active) this.ascii.render(this.scene, this.camera, this.ascii.amount > 0.01 ? this.tagged : null);
     else this.renderer.render(this.scene, this.camera);
   }
 }

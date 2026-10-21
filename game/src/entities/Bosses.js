@@ -88,6 +88,7 @@ class Boss {
   clearMarker() { if (this.marker) { this.marker.remove(); this.marker = null; } }
   flashSync() {
     this.teleLast = !!this.telegraph;
+    this.g.world.tag(this.root, this.telegraph || (this.state !== 'move' && this.state !== 'stunned') ? 'danger' : null);
     if (this.flashT > 0) setFlash(this.flashList, 0xffffff);
     else if (this.stunned) setFlash(this.flashList, Math.floor(this.t * 12) % 2 ? 0xaaaa00 : 0x333300);
     else if (this.telegraph) { const c = TELE_COLORS[this.atkType] || TELE_COLORS.normal; setFlash(this.flashList, Math.floor(this.t * 18) % 2 ? c[0] : c[1]); }
@@ -501,6 +502,7 @@ export class StagBeetleKing extends Boss {
       if (!r.vis) {
         r.vis = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 56), new THREE.MeshBasicMaterial({ color: 0xff7733, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
         g.world.scene.add(r.vis);
+        g.world.tag(r.vis, 'danger');
       }
       r.vis.position.set(this.x, this.y, 8);
       r.vis.scale.setScalar(r.r);

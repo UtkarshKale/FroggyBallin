@@ -60,6 +60,7 @@ export class Game {
     await preload(['tode', 'enemy', 'small_house']);
     this.world = new World(this.canvas);
     this.fx = new Fx(this.world.scene);
+    this.fx.tagger = (o, k) => this.world.tag(o, k);
     this.input = new Input(this.canvas);
     this.projectiles = new Projectiles(this);
     this.pickups = new Pickups(this);

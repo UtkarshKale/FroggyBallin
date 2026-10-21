@@ -413,6 +413,8 @@ export class Enemy {
     this.root.rotation.x = w;
     const sp = this.spawnT > 0 ? Math.max(0.05, backOut(1 - this.spawnT / SPAWN_POP)) : 1;
     this.root.scale.set(sp * (1 + Math.abs(w) * 0.4), sp * (1 + Math.abs(w) * 0.4), sp * (1 - Math.abs(w) * 0.3));
+    // ASCII-ult semantics: juicebugs are health, attacking / armed bugs are danger.
+    this.g.world.tag(this.root, this.type === 'juicebug' ? 'heal' : (this.atk || this.launch || this.latched || this.type === 'bomber') ? 'danger' : null);
     const p = this.g.player;
     const near = Math.hypot(p.x - this.x, p.y - this.y) < CFG.TONGUE.range * (p.pu.big > 0 ? 2 : 1) + 40;
     this.overhead.update(this.g.world.camera, this.x, this.y, zz + this.radius * 2 + 14, this.hp / this.maxHp, this.posture / this.postureMax, this.broken > 0, this.eatable && near);

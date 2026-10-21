@@ -27,6 +27,7 @@ export class Webs {
     grp.position.set(x, y, 1.5);
     grp.scale.setScalar(r * 0.2);
     this.g.world.scene.add(grp);
+    this.g.world.tag(grp, 'danger');
     const w = { x, y, r, life, max: life, grp, mats: [mat, fill], grow: 0 };
     this.list.push(w);
     return w;

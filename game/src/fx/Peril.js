@@ -45,8 +45,8 @@ export class PerilFx {
     if (!this.tex[type]) return;
     const spr = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tex[type], transparent: true, depthTest: false }));
     spr.renderOrder = 10;
-    spr.userData.danger = true;
     this.g.world.scene.add(spr);
+    this.g.world.tag(spr, 'danger');
     this.list.push({ spr, ent, t: dur, max: dur, h });
   }
 

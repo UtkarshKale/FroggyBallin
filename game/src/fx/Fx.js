@@ -14,6 +14,7 @@ function pmat(color) {
   return mats.get(color);
 }
 const arcCache = new Map();
+const HEAL = new Set([0x55ff55, 0x66ff66, 0x7dff6a, 0x9dff8a]);
 
 export class Fx {
   constructor(scene) {
@@ -23,12 +24,14 @@ export class Fx {
     this.dis = [];
     this.streakList = [];
     this.shake = 0;
+    this.tagger = null; // (object, kind) => World.tag, set by Game
   }
 
   burst(x, y, z, color, n = 8, speed = 180, life = 0.5, size = 3, grav = 300) {
     for (let i = 0; i < n; i++) {
       if (this.parts.length > 350) return;
       const m = new THREE.Mesh(sphere, pmat(color));
+      if (this.tagger && HEAL.has(color)) this.tagger(m, 'heal');
       const a = Math.random() * TAU;
       const el = Math.random() * 1.2;
       const v = speed * (0.4 + Math.random() * 0.6);
@@ -84,6 +87,7 @@ export class Fx {
     m.position.set(x, y, 2);
     m.scale.setScalar(r);
     const f = this._flat(m, mat, Infinity, r, r, 0.5);
+    if (this.tagger) this.tagger(m, 'danger');
     f.pulse = true;
     f.remove = () => { f.life = 0; f.max = 0.0001; f.pulse = false; };
     return f;
