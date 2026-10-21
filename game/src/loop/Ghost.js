@@ -3,6 +3,7 @@ import { CFG } from '../config.js';
 import { makeActor, ghostify } from '../core/Assets.js';
 import { lerp, lerpAngle } from '../core/math.js';
 import { initPosture, tickPosture } from '../combat/Posture.js';
+import { buildHat, buildEyes } from '../entities/Cosmetics.js';
 
 function makeLabel(text) {
   const c = document.createElement('canvas');
@@ -49,6 +50,8 @@ export class Ghost {
     const s = run.samples[0];
     this.x = s[1]; this.y = s[2]; this.z = 0; this.yaw = s[4];
     this.root = makeActor('tode', CFG.PLAYER.height, 0x66ddff);
+    // The ghost wears the outfit the run was recorded with, tinted cyan.
+    if (run.cos) this.root.add(buildHat(run.cos.hat), buildEyes(run.cos.eyes));
     this.mat = ghostify(this.root, 0x66ddff, 0.5);
     this.root.add(makeLabel(`ITERATION ${loopNo - 1}`));
     game.world.scene.add(this.root);

@@ -23,6 +23,9 @@ import { Screens } from './ui/Screens.js';
 import { Menu3D } from './ui/Menu3D.js';
 import { Hud3D } from './ui/Hud3D.js';
 import { Settings } from './core/Settings.js';
+import { Cosmetics, unlock, ACH } from './entities/Cosmetics.js';
+
+const DEFAULT_KEYS = { ...CFG.KEYS };
 import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
 
 const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null, maxCombo: 0, bestRank: 'D' });
@@ -116,11 +119,16 @@ export class Game {
   // Apply persisted options (Settings) to camera, input, audio, HUD and effects.
   applySettings() {
     const S = Settings.all();
+    Object.assign(CFG.KEYS, DEFAULT_KEYS, S.keys || {});
     CFG.CAMERA.fov = S.fov; CFG.CAMERA.gunFov = S.fov - 5; CFG.CAMERA.aimFov = S.fov - 15;
     CFG.CAMERA.dist = S.camDist; CFG.CAMERA.gunDist = S.camDist * 0.85; CFG.CAMERA.aimDist = S.camDist * 0.69;
     this.sfx.setVolumes({ master: S.master, sfx: S.sfx, music: S.music });
     this.screens.applySettings();
     this.hud.root.classList.toggle('diegetic', !!S.hud3d);
+  }
+
+  achieve(key) {
+    if (unlock(key)) { this.hud.flash(`UNLOCKED: ${ACH[key]} - new wardrobe items!`, '#ffd23f'); this.sfx.play('power'); }
   }
 
   showDmg(t, dmg, kind) {
@@ -177,6 +185,7 @@ export class Game {
     this.sfx.intensity = 0;
     this.deathVig.classList.remove('on');
 
+    this.player.applyCosmetics();
     this.player.reset(level.start.x, level.start.y);
     for (const [wx, wy, wr] of level.webs || []) this.webs.add(wx, wy, wr, Infinity);
     this.recorder.reset();
@@ -308,7 +317,9 @@ export class Game {
       this.deathVig.classList.add('on');
     } else if (reason === 'win') {
       const id = this.levelCfg.id;
-      if (this.mode === 'timeloop') Storage.set(this.sk('ghost', id), this.recorder.finish(this.simT, this.player));
+      if (this.mode === 'timeloop') Storage.set(this.sk('ghost', id), { ...this.recorder.finish(this.simT, this.player), cos: this.player.cos });
+      if (this.mode === 'bossrush') this.achieve('allbosses');
+      if (this.diffKey === 'torture') this.achieve('torture');
       const old = Storage.get(this.sk('pb', id), null);
       const best = old ? Math.min(old.best, this.simT) : this.simT;
       d.newPB = !old || this.simT < old.best;
@@ -343,6 +354,7 @@ export class Game {
   onBossDead(b) {
     if (this.mode === 'bossrush') {
       this.endBossUlt();
+      this.achieve('boss');
       const r = this.rush;
       this.hud.setBoss(null);
       this.sfx.intensity = 0;
@@ -357,6 +369,7 @@ export class Game {
       return;
     }
     this.endBossUlt();
+    this.achieve('boss');
     this.bossDead = true;
     this.sfx.intensity = 0;
     this.hud.setBoss(null);
@@ -407,7 +420,7 @@ export class Game {
       this.hud.rankUp(R[r][1], R[r][2]);
       this.sfx.play('rank');
       this.fx.addShake(6 + r * 2);
-      if (R[r][1] === CFG.FEEL.flourishRank) { this.hud.flourish(); this.sfx.play('ult'); }
+      if (R[r][1] === CFG.FEEL.flourishRank) { this.hud.flourish(); this.sfx.play('ult'); this.achieve('srank'); }
       if (r > (st.best || 0)) { st.best = r; this.stats.bestRank = R[r][1]; }
     }
     st.rank = r;
@@ -513,11 +526,12 @@ export class Game {
     const sy = proj ? proj.y : src && src.y != null ? src.y : p.y + Math.sin(p.yaw) * 40;
     const ang = Math.atan2(sy - p.y, sx - p.x);
     const cx = p.x + Math.cos(ang) * 34, cy = p.y + Math.sin(ang) * 34, cz = proj ? proj.z : 28;
-    fx.burst(cx, cy, cz, 0xffffff, big ? 34 : 18, 380, 0.35, 2.2, 60);
+    const pc = p.parryColor ?? 0xffffff;
+    fx.burst(cx, cy, cz, pc, big ? 34 : 18, 380, 0.35, 2.2, 60);
     fx.burst(cx, cy, cz, 0xffe066, big ? 22 : 10, 300, 0.45, 1.8, 140);
-    fx.streaks(cx, cy, cz, 0xffffff, big ? 18 : 10, big ? 170 : 95, big ? 0.3 : 0.22);
+    fx.streaks(cx, cy, cz, pc, big ? 18 : 10, big ? 170 : 95, big ? 0.3 : 0.22);
     fx.disc(cx, cy, cz, 0xffffff, 6, big ? 70 : 36, 0.12, 0.9);
-    fx.ring(cx, cy, cz, 0xffffff, 8, big ? 260 : 140, 0.35);
+    fx.ring(cx, cy, cz, pc, 8, big ? 260 : 140, 0.35);
     fx.ring(p.x, p.y, 3, 0xbfe9ff, 20, big ? 340 : 180, 0.45, 0.7);
     fx.addShake(big ? 22 : 10);
     this.fovPunch(big ? PA.fovPunch * 1.6 : PA.fovPunch);

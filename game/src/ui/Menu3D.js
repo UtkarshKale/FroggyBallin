@@ -5,6 +5,8 @@ import { DIFFICULTY } from '../config.js';
 import { Storage } from '../core/Storage.js';
 import { Settings } from '../core/Settings.js';
 import { fmtTime } from '../core/math.js';
+import { Cosmetics, SLOTS, ACH } from '../entities/Cosmetics.js';
+import { CFG } from '../config.js';
 
 // The menu as a 3D diorama: Tode on a lily pad at dusk, fireflies, and the options as in-world neon panels.
 // The camera glides between "rooms". Mouse hover = raycast; click / Enter activates; arrows / WASD navigate;
@@ -25,7 +27,11 @@ export class Menu3D {
     this.ray = new THREE.Raycaster();
     this.t = 0;
     this.orbit = 0;
-    this.extraRooms = {}; // name -> () => room   (wardrobe etc. register here)
+    this.scroll = 0; this.scrollT = 0; this.scrollV = 0; this.maxScroll = 0;
+    this.drag = null;
+    this.extraRooms = { wardrobe: () => this.wardrobeRoom() };
+    this.capture = null; // action name while waiting for a key to rebind
+    this.extraSettings = () => this.keyItems();
     this._buildDiorama();
     const cv = game.canvas;
     cv.addEventListener('mousemove', (e) => {
@@ -33,14 +39,29 @@ export class Menu3D {
       this.hasMouse = true;
       if (this.active) this._pick();
     });
+    cv.addEventListener('wheel', (e) => { if (!this.active || !this.maxScroll) return; e.preventDefault(); this.scrollV += e.deltaY * 0.6; }, { passive: false });
+    window.addEventListener('mousemove', (e) => { if (this.drag) { this.scrollT = Math.max(0, Math.min(this.maxScroll, this.drag.s - (e.clientY - this.drag.y) * this.drag.k)); this.drag.moved = Math.abs(e.clientY - this.drag.y) > 6; } });
+    window.addEventListener('mouseup', () => {
+      // in scrollable rooms a click activates only if it wasn't a drag
+      if (this._pendingClick && !(this.drag && this.drag.moved)) this._activate(this._pendingClick.p, this._pendingClick.dir);
+      this._pendingClick = null; this.drag = null;
+    });
     cv.addEventListener('mousedown', (e) => {
       if (!this.active) return;
+      if (this.maxScroll && e.button === 0) this.drag = { y: e.clientY, s: this.scrollT, k: this._rowH() / 60, moved: false };
       this._pick();
       const p = this.panels[this.sel];
-      if (p && p.hover && p.interactive) this._activate(p, e.button === 2 ? -1 : 1);
+      if (p && p.hover && p.interactive) { this._pendingClick = { p, dir: e.button === 2 ? -1 : 1 }; if (!this.maxScroll) { this._activate(p, this._pendingClick.dir); this._pendingClick = null; } }
     });
     window.addEventListener('keydown', (e) => {
-      if (!this.active || this.capture) return;
+      if (this.active && this.capture) {
+        e.preventDefault();
+        if (e.code !== 'Escape') { const k = { ...(Settings.get('keys') || {}) }; k[this.capture] = e.code; Settings.set('keys', k); this.g.applySettings(); }
+        this.capture = null;
+        this.g.sfx.play('ui');
+        return;
+      }
+      if (!this.active) return;
       const k = e.code;
       if (k === 'ArrowDown' || k === 'KeyS') this._move(1);
       else if (k === 'ArrowUp' || k === 'KeyW') this._move(-1);
@@ -152,8 +173,8 @@ export class Menu3D {
       next: () => { Settings.set(k, Math.min(hi, +(Settings.get(k) + step).toFixed(2))); after && after(); }, prev: () => { Settings.set(k, Math.max(lo, +(Settings.get(k) - step).toFixed(2))); after && after(); } });
     const apply = () => g.applySettings();
     return {
-      cam: V(470, -75, 420), look: V(40, -75, 410),
-      grid: { at: V(110, -150, 500), w: 140, h: 24, cols: 2, dx: 150, dz: 29 },
+      cam: V(560, -150, 420), look: V(40, -150, 422),
+      grid: { at: V(110, -300, 490), w: 140, h: 22, cols: 3, dx: 150, dz: 27 }, rows: 6,
       items: [
         tog('ui3d', '3D MENUS', () => { apply(); if (!Settings.get('ui3d')) g.toMenu(); }),
         tog('hud3d', 'HUD: IN-WORLD', apply),
@@ -172,6 +193,34 @@ export class Menu3D {
         back,
       ],
     };
+  }
+
+  wardrobeRoom() {
+    const g = this.g;
+    const refresh = () => g.player.applyCosmetics();
+    const items = Object.entries(SLOTS).map(([slot, s]) => ({
+      kind: 'option', label: s.label,
+      value: () => { const o = Cosmetics.opt(slot, Cosmetics.get()[slot]); return Cosmetics.unlocked(o) ? o[1] : 'LOCKED'; },
+      act: () => { Cosmetics.cycle(slot, 1); refresh(); },
+      next: () => { Cosmetics.cycle(slot, 1); refresh(); },
+      prev: () => { Cosmetics.cycle(slot, -1); refresh(); },
+    }));
+    const locks = Object.entries(ACH).map(([k, v]) => `${(Storage.get('ach', {}) || {})[k] ? 'UNLOCKED' : 'LOCKED'}: ${v}`).join('\n');
+    return {
+      cam: V(250, -50, 80), look: V(0, -82, 54),
+      grid: { at: V(40, -175, 96), w: 82, h: 14, cols: 2, dx: 88, dz: 16 },
+      card: { at: V(40, 60, 92), w: 70, h: 52, item: { kind: 'card', label: 'UNLOCKS', body: `Gold skin / blade: S rank\nCrown, glowing eyes, gold gun: beat a boss\nHalo: clear Boss Rush\nVoid glow: win on TORTURE\n${locks}` } },
+      items: [...items, { kind: 'button', label: 'BACK', act: () => this.go('main') }],
+    };
+  }
+
+  keyItems() {
+    const names = { forward: 'MOVE FWD', back: 'MOVE BACK', left: 'MOVE LEFT', right: 'MOVE RIGHT', jump: 'JUMP', dodge: 'DODGE', shoot: 'QUICK ACTION (F)', tongue: 'TONGUE', weapon: 'SWAP WEAPON', ult: 'ULTIMATE', pause: 'PAUSE' };
+    const short = (c) => String(c || '').replace(/^Key/, '').replace(/^Digit/, '').replace('Left', ' L').replace('Right', ' R');
+    return [
+      ...Object.entries(names).map(([a, n]) => ({ kind: 'option', label: `KEY: ${n}`, value: () => (this.capture === a ? 'PRESS A KEY' : short(CFG.KEYS[a])), act: () => { this.capture = a; } })),
+      { kind: 'button', label: 'RESET KEYS', act: () => { Settings.set('keys', {}); this.g.applySettings(); } },
+    ];
   }
 
   _cycleDiff(d) {
@@ -232,6 +281,8 @@ export class Menu3D {
   }
 
   _clearPanels() {
+    for (const b of [this.barTrack, this.barThumb]) if (b) { this.rig.remove(b); b.geometry.dispose(); b.material.dispose(); }
+    this.barTrack = this.barThumb = null;
     for (const p of this.panels) { p.mesh.parent && p.mesh.parent.remove(p.mesh); p.dispose(); }
     for (const p of this.deco || []) { p.mesh.parent && p.mesh.parent.remove(p.mesh); p.dispose(); }
     this.panels = []; this.deco = [];
@@ -258,13 +309,35 @@ export class Menu3D {
       else { const L = R.list; at = L.at.clone().add(V(0, 0, -i * L.gap)); add(it, at, L.w, L.h); }
     });
     this.sel = keepSel ? Math.min(prevSel, this.panels.length - 1) : 0;
+    // Scrollable lists: rows beyond R.rows scroll vertically (wheel / drag / keyboard focus).
+    const rowsTotal = R.grid ? Math.ceil(R.items.length / R.grid.cols) : R.items.length;
+    this.visRows = R.rows || rowsTotal;
+    this.maxScroll = Math.max(0, rowsTotal - this.visRows) * this._rowH();
+    if (!keepSel) { this.scroll = this.scrollT = 0; }
+    this.scrollT = Math.min(this.scrollT, this.maxScroll);
+    for (const p of this.panels) p.base = p.mesh.position.clone();
+    if (this.maxScroll) {
+      const L = R.grid || R.list;
+      const top = L.at.z, bottom = L.at.z - (this.visRows - 1) * this._rowH();
+      const x = L.at.x, y = L.at.y + (R.grid ? (R.grid.cols - 1) * R.grid.dx + R.grid.w / 2 + 10 : L.w / 2 + 10);
+      this.barTrack = new THREE.Mesh(new THREE.PlaneGeometry(3, top - bottom + L.h), new THREE.MeshBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.6, depthWrite: false }));
+      this.barThumb = new THREE.Mesh(new THREE.PlaneGeometry(4, Math.max(10, (top - bottom + L.h) * this.visRows / rowsTotal)), new THREE.MeshBasicMaterial({ color: 0xff2a3a, depthWrite: false }));
+      this.barTrack.position.set(x, y, (top + bottom) / 2); this.barThumb.position.set(x + 0.5, y, top);
+      this.barSpan = [top + L.h / 2, bottom - L.h / 2];
+      this.rig.add(this.barTrack, this.barThumb);
+    }
     this._face();
     this.g.sfx.play('ui');
   }
 
+  _rowH() { const R = this.room; return R.grid ? R.grid.dz : R.list ? R.list.gap : 30; }
+
   _camLocal() {
     const R = this.room;
     const c = R.cam.clone();
+    // Narrow / small windows: pull the camera back along its view line so panels stay inside the frame.
+    const aspect = window.innerWidth / window.innerHeight;
+    if (aspect < 1.7) c.sub(R.look).multiplyScalar(Math.min(1.9, 1.7 / aspect)).add(R.look);
     if (R.orbit) { const a = this.orbit; c.set(R.cam.x * Math.cos(a) - R.cam.y * Math.sin(a), R.cam.x * Math.sin(a) + R.cam.y * Math.cos(a), R.cam.z); }
     if (this.hasMouse) c.add(V(0, -this.mouse.x * 28, -this.mouse.y * 16));
     return c;
@@ -274,23 +347,37 @@ export class Menu3D {
     this.rig.updateMatrixWorld(true);
     const cw = this.rig.localToWorld(this.room.cam.clone());
     for (const p of [...this.panels, ...this.deco]) { p.mesh.up.set(0, 0, 1); p.mesh.lookAt(cw); }
+    for (const b of [this.barTrack, this.barThumb]) if (b) { b.up.set(0, 0, 1); b.lookAt(cw); }
   }
 
   _move(d) {
     const n = this.panels.length;
     if (!n) return;
     for (let k = 0; k < n; k++) { this.sel = (this.sel + d + n) % n; if (this.panels[this.sel].interactive) break; }
+    this._scrollTo(this.sel);
     this.hasMouse = false;
     this.g.sfx.play('ui');
+  }
+
+  // Keep the focused panel inside the visible rows.
+  _scrollTo(i) {
+    if (!this.maxScroll) return;
+    const R = this.room, cols = R.grid ? R.grid.cols : 1, rh = this._rowH();
+    const row = Math.floor(i / cols);
+    const first = Math.round(this.scrollT / rh);
+    if (row < first) this.scrollT = row * rh;
+    else if (row > first + this.visRows - 1) this.scrollT = (row - this.visRows + 1) * rh;
+    this.scrollT = Math.max(0, Math.min(this.maxScroll, this.scrollT));
   }
 
   _pick() {
     const cam = this.g.world.camera;
     this.ray.setFromCamera(this.mouse, cam);
     const hits = this.ray.intersectObjects(this.panels.map((p) => p.mesh), false);
-    const p = hits.length ? hits[0].object.userData.panel : null;
+    const h = hits.find((x) => x.object.userData.panel && x.object.userData.panel.vis > 0.5);
+    const p = h ? h.object.userData.panel : null;
     const i = p ? this.panels.indexOf(p) : -1;
-    if (i >= 0 && i !== this.sel) { this.sel = i; this.g.sfx.play('ui'); }
+    if (i >= 0 && i !== this.sel && this.panels[i].vis > 0.5) { this.sel = i; this.g.sfx.play('ui'); }
     this._mouseOver = i >= 0;
   }
 
@@ -332,9 +419,25 @@ export class Menu3D {
       f.visible = Math.sin(this.t * 3 + u.p) > -0.6;
     }
     if (this.hasMouse && this._mouseOver !== undefined) this._pick();
+    // inertial scroll
+    if (this.maxScroll) {
+      this.scrollT = Math.max(0, Math.min(this.maxScroll, this.scrollT + this.scrollV * dt * 4));
+      this.scrollV *= Math.exp(-8 * dt);
+      this.scroll += (this.scrollT - this.scroll) * (1 - Math.exp(-12 * dt));
+      if (this.barThumb) { const [a, b] = this.barSpan, th = this.barThumb.geometry.parameters.height; this.barThumb.position.z = a - th / 2 - (this.scroll / this.maxScroll) * (a - b - th); }
+    }
+    const rh = this._rowH(), L = this.room.grid || this.room.list;
+    const top = L ? L.at.z : 0, bottom = top - ((this.visRows || 1) - 1) * rh;
     this.panels.forEach((pn, i) => {
-      pn.hover = i === this.sel && pn.interactive && (!this.hasMouse || this._mouseOver);
-      const target = pn.hover ? 1.07 : 1;
+      pn.hover = i === this.sel && pn.interactive && (!this.hasMouse || this._mouseOver) && pn.vis > 0.5;
+      // fade + slide at the edges of the visible rows
+      let vis = 1, z = pn.base ? pn.base.z + this.scroll : pn.mesh.position.z;
+      if (this.maxScroll) { const out = Math.max(z - top, bottom - z, 0) / rh; vis = Math.max(0, 1 - out); }
+      pn.vis = vis;
+      if (pn.base) pn.mesh.position.set(pn.base.x - (1 - vis) * 12, pn.base.y, z);
+      pn.mat.opacity = vis;
+      pn.mesh.visible = vis > 0.02;
+      const target = (pn.hover ? 1.07 : 1) * (0.85 + 0.15 * vis);
       pn.pop += (target - pn.pop) * (1 - Math.exp(-18 * dt));
       pn.mesh.scale.setScalar(pn.pop || 1);
       pn.draw();

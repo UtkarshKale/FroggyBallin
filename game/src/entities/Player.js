@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CFG } from '../config.js';
 import { Settings } from '../core/Settings.js';
+import { Cosmetics, buildHat, buildEyes } from './Cosmetics.js';
 import { makeActor, collectFlash, setFlash, stdMat } from '../core/Assets.js';
 import { angDiff, lerpAngle, ease, clamp, lerp } from '../core/math.js';
 
@@ -14,6 +15,7 @@ export class Player {
     this.root = makeActor('tode', CFG.PLAYER.height, 0x4caf50);
     this.flashList = collectFlash(this.root);
     this._buildGear();
+    this.applyCosmetics();
     game.world.scene.add(this.root);
     game.world.tag(this.root, 'actor');
     this.reset(0, 0);
@@ -32,14 +34,16 @@ export class Player {
     this.bladeGlow.visible = false;
     this.tip = new THREE.Object3D();
     this.tip.position.x = 60;
-    const guard = new THREE.Mesh(new THREE.BoxGeometry(4, 18, 5), stdMat(0xffc400));
+    this.guardMat = stdMat(0xffc400);
+    const guard = new THREE.Mesh(new THREE.BoxGeometry(4, 18, 5), this.guardMat);
     guard.position.x = 10;
     const grip = new THREE.Mesh(new THREE.BoxGeometry(14, 4, 4), stdMat(0x6d4c41));
     this.pivot.add(blade, guard, grip, this.bladeGlow, this.tip);
     this.root.add(this.pivot);
     // Gun (holstered on the left hip, raised in gun mode).
     this.gun = new THREE.Group();
-    const barrel = new THREE.Mesh(new THREE.BoxGeometry(26, 6, 7), stdMat(0x444a55, { metalness: 0.6 }));
+    this.gunMat = stdMat(0x444a55, { metalness: 0.6 });
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(26, 6, 7), this.gunMat);
     barrel.position.x = 13;
     const handle = new THREE.Mesh(new THREE.BoxGeometry(7, 5, 12), stdMat(0x6d4c41));
     handle.position.set(2, 0, -7);
@@ -64,6 +68,42 @@ export class Player {
     this.tongueTip = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff7fa0 }));
     this.tongueTip.visible = false;
     this.g.world.scene.add(this.tongueMesh, this.tongueTip);
+  }
+
+  // Wardrobe: recolour the frog model in code, attach hat/eye overlays, colour sword, gun, tongue, effects.
+  applyCosmetics(c = Cosmetics.worn()) {
+    this.cos = c;
+    const skin = Cosmetics.val(c, 'skin'), glow = Cosmetics.val(c, 'glow');
+    for (const m of this.flashList) {
+      // Shader tint: only the frog's green body pixels are recoloured (eyes, mouth and outlines keep their colour).
+      if (!m.userData.skinU) {
+        m.userData.skinU = { value: new THREE.Color(1, 1, 1) };
+        m.userData.skinOn = { value: 0 };
+        m.onBeforeCompile = (sh) => {
+          sh.uniforms.uSkin = m.userData.skinU; sh.uniforms.uSkinOn = m.userData.skinOn;
+          sh.fragmentShader = 'uniform vec3 uSkin; uniform float uSkinOn;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+            '#include <color_fragment>\n{ vec3 c0 = diffuseColor.rgb; float gr = c0.g - max(c0.r, c0.b); float k = smoothstep(0.01, 0.08, gr) * uSkinOn; float l = dot(c0, vec3(0.3, 0.59, 0.11)); diffuseColor.rgb = mix(c0, uSkin * (0.15 + l * 2.2), k); }');
+        };
+        m.needsUpdate = true;
+      }
+      m.userData.skinOn.value = skin == null ? 0 : 1;
+      if (skin != null) m.userData.skinU.value.setHex(skin);
+      m.userData.e0 = glow || 0;
+      m.emissive.setHex(m.userData.e0);
+    }
+    if (this.hatG) this.root.remove(this.hatG);
+    if (this.eyeG) this.root.remove(this.eyeG);
+    this.hatG = buildHat(c.hat); this.eyeG = buildEyes(c.eyes);
+    this.root.add(this.hatG, this.eyeG);
+    this.bladeMat.color.setHex(Cosmetics.val(c, 'blade'));
+    this.guardMat.color.setHex(Cosmetics.val(c, 'hilt'));
+    this.gunMat.color.setHex(Cosmetics.val(c, 'gun'));
+    const tc = Cosmetics.val(c, 'tongue');
+    this.tongueMesh.material.color.setHex(tc);
+    this.tongueTip.material.color.setHex(new THREE.Color(tc).offsetHSL(0, 0, 0.12).getHex());
+    this.trailColor = Cosmetics.val(c, 'trail');
+    this.parryColor = Cosmetics.val(c, 'parry');
+    this.splatColor = Cosmetics.val(c, 'splat');
   }
 
   reset(x, y) {
@@ -239,7 +279,8 @@ export class Player {
     if (this.hp <= 0 && !this.dead) {
       this.hp = 0;
       this.dead = true;
-      this.g.fx.burst(this.x, this.y, 30, 0x4caf50, 24, 300, 0.8, 4);
+      this.g.fx.burst(this.x, this.y, 30, this.splatColor ?? 0x4caf50, 24, 300, 0.8, 4);
+      this.g.fx.burst(this.x, this.y, 20, this.splatColor ?? 0x4caf50, 16, 220, 1.0, 6, 900);
       this.root.visible = false;
       this.g.endRun('dead');
     }
@@ -421,7 +462,7 @@ export class Player {
     if (u < 0.18 || u > 0.75) { this.lastTip = null; return; }
     this.root.updateMatrixWorld(true);
     this.tip.getWorldPosition(tipV);
-    const col = this.counterT > 0 ? 0xffe066 : sw.step === 2 ? 0xbfe9ff : 0xffffff;
+    const col = this.counterT > 0 ? 0xffe066 : this.trailColor ?? 0xffffff;
     const fx = this.g.fx;
     if (this.lastTip) for (let i = 1; i <= 3; i++) {
       const k = i / 3;
@@ -635,7 +676,7 @@ export class Player {
     if (this.parryT >= 0) {
       const perfect = this.parryT < this.perfectLen;
       this.parryDisc.material.opacity = perfect ? 0.9 : 0.4;
-      this.parryDisc.material.color.setHex(perfect ? 0xffffff : 0x66ccff);
+      this.parryDisc.material.color.setHex(perfect ? this.parryColor ?? 0xffffff : 0x66ccff);
     }
   }
 

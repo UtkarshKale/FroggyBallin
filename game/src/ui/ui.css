@@ -279,3 +279,6 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 
 /* In-world HUD mode: the 3D scene carries HP/posture/stamina/ult, ammo, rank, boss bar and damage numbers */
 .diegetic .hud-tl, .diegetic .pstance, .diegetic .stamina, .diegetic .stylebox, .diegetic .bossbar, .diegetic .dmgs { display: none !important; }
+
+/* Classic DOM fallback: soft fade at the edges of scroll containers */
+.card, .overlay.menu { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%); scroll-behavior: smooth; }
