@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CFG } from '../config.js';
 import { makeActor, ghostify } from '../core/Assets.js';
 import { lerp, lerpAngle } from '../core/math.js';
+import { initPosture, tickPosture } from '../combat/Posture.js';
 
 function makeLabel(text) {
   const c = document.createElement('canvas');
@@ -37,6 +38,10 @@ export class Ghost {
     this.flashT = 0;
     this.burn = 0;
     this.stagger = 0;
+    this.big = true;
+    this.frozenT = 0;
+    this.stunned = false;
+    initPosture(this, 90);
     this.echoCd = CFG.GHOST.echoEvery;
     this.echoWind = 0;
     this.trailT = 0;
@@ -54,6 +59,13 @@ export class Ghost {
 
   onParried() {
     this.g.damageTarget(this, 25, { team: 'player' });
+    this.g.addPosture(this, 35);
+  }
+
+  // Posture break: the replay freezes for a few seconds.
+  stun(t) {
+    this.frozenT = t;
+    this.stunned = true;
   }
 
   update(dt) {
@@ -62,6 +74,13 @@ export class Ghost {
     this.t += dt;
     this.flashT = Math.max(0, this.flashT - dt);
     this.slowT = Math.max(0, this.slowT - dt);
+    tickPosture(this, dt, 10);
+    if (this.frozenT > 0) {
+      this.frozenT -= dt;
+      if (this.frozenT <= 0) this.stunned = false;
+      this.sync();
+      return;
+    }
     if (this.burn > 0) {
       this.burn -= dt; this.hp -= 6 * dt;
       if (this.hp <= 0) { this.die('player'); return; }

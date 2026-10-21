@@ -18,6 +18,7 @@ export class Fx {
     this.scene = scene;
     this.parts = [];
     this.flats = [];
+    this.dis = [];
     this.shake = 0;
   }
 
@@ -85,6 +86,11 @@ export class Fx {
     return f;
   }
 
+  // Shrinks a dead actor away (optionally pulled toward a point, e.g. eaten by the tongue).
+  dissolve(root, life = 0.3, tx = null, ty = null) {
+    this.dis.push({ root, life, max: life, tx, ty, x0: root.position.x, y0: root.position.y, z0: root.position.z, s0: root.scale.x });
+  }
+
   addShake(a) { this.shake = Math.max(this.shake, a); }
 
   update(dt) {
@@ -116,6 +122,18 @@ export class Fx {
         f.mat.opacity = f.op * (1 - t);
       }
     }
+    for (let i = this.dis.length - 1; i >= 0; i--) {
+      const d = this.dis[i];
+      d.life -= dt;
+      const k = Math.min(1, 1 - d.life / d.max);
+      if (d.life <= 0) { this.scene.remove(d.root); this.dis.splice(i, 1); continue; }
+      d.root.scale.setScalar(Math.max(0.01, d.s0 * (1 - k)));
+      d.root.position.z = d.z0 + 24 * k;
+      if (d.tx != null) {
+        d.root.position.x = d.x0 + (d.tx - d.x0) * k * 0.7;
+        d.root.position.y = d.y0 + (d.ty - d.y0) * k * 0.7;
+      }
+    }
     this.shake *= Math.exp(-9 * dt);
     if (this.shake < 0.05) this.shake = 0;
   }
@@ -123,6 +141,8 @@ export class Fx {
   clear() {
     for (const p of this.parts) this.scene.remove(p.m);
     for (const f of this.flats) { this.scene.remove(f.m); f.mat.dispose(); }
+    for (const d of this.dis) this.scene.remove(d.root);
+    this.dis.length = 0;
     this.parts.length = 0;
     this.flats.length = 0;
   }

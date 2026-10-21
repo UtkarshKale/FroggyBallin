@@ -212,3 +212,10 @@ Cut order if late: stretch → Level 2 → power-ups beyond Time Snail/Firefly/B
 - Build/run instructions in `README.md`.
 - `THIRD_PARTY_ASSETS.md`: every external asset, its source and license.
 - `AI_DISCLOSURE.md`: which AI tools were used for which parts.
+
+## 17. Round 2 addendum (posture, gun, tongue)
+- **Posture:** every combatant has a stance bar. Hits, blocks and parries fill it; it drains after a short delay. Full bar = broken (stunned ~2.5 s), takes x3 deathblow damage and becomes edible. Player has a stance bar too (breaks for 1.4 s).
+- **Big parry:** perfect-parrying a big enemy (shellback, bosses) freezes the game ~0.45 s (hitstop + slow-mo + white flash) and adds heavy posture damage.
+- **Gun:** Q toggles weapon (1 sword / 2 gun); gun mode uses an over-the-shoulder camera, RMB/hold aims (ADS, tighter cone), LMB fires, limited ammo.
+- **Tongue:** E lashes at the best target, preferring edible / broken / low-HP bugs (pink E marker); stamina bar limits spam.
+- **New content:** Mantis Duelist (Clockpond), Chrono Moth (Loop's End), Boss Rush, Golden Fly rewind, Overclock.

@@ -44,6 +44,7 @@ export class Screens {
       <h1 class="title">FROGGY BALLIN</h1>
       <div class="tagline">Race your past self. Parry. Slash. Eat. Don't lose to the ghost of you.</div>
       <div class="levels">${cards}</div>
+      <button class="menu-btn alt" id="b-rush">Boss Rush${Storage.get('pb.bossrush', null) ? ' (best ' + fmtTime(Storage.get('pb.bossrush', null).best) + ')' : ''}</button>
       <button class="menu-btn alt" id="b-surv">Classic Survival</button>
       <button class="menu-btn alt" id="b-how">How to Play</button>
       <button class="menu-btn alt" id="b-cred">Credits</button>
@@ -52,6 +53,7 @@ export class Screens {
       this._btn(`play-${l.id}`, () => this.g.startRun('timeloop', l.id));
       this._btn(`reset-${l.id}`, () => { Storage.set(`ghost.${l.id}`, null); Storage.set(`pb.${l.id}`, null); this.showMenu(); });
     }
+    this._btn('b-rush', () => this.g.startRun('bossrush'));
     this._btn('b-surv', () => this.g.startRun('survival'));
     this._btn('b-how', () => this.showHow());
     this._btn('b-cred', () => this.showCredits());
@@ -66,10 +68,12 @@ export class Screens {
         <tr><td>Aim camera</td><td>Mouse (click to lock pointer) or arrow keys</td></tr>
         <tr><td>Sword combo (3 hits)</td><td>Left click</td></tr>
         <tr><td>Parry</td><td>Right click, just before a hit lands</td></tr>
-        <tr><td>Gun (limited ammo)</td><td>F</td></tr>
-        <tr><td>Tongue: eat bugs, heals</td><td>E (uses stamina bar)</td></tr>
+        <tr><td>Equip gun / sword</td><td>Q (or 1 / 2). Gun: LMB fire, hold RMB to aim</td></tr>
+        <tr><td>Quick shot (any weapon)</td><td>F</td></tr>
+        <tr><td>Tongue: eat bugs, heals</td><td>E (pink E marker = edible)</td></tr>
         <tr><td>Pause / Mute</td><td>P or Esc / M</td></tr>
       </table>
+      <p><b>Posture:</b> every enemy has a stance bar. Hits and parries fill it; when it's full the enemy is <b>broken</b>: stunned, edible, and a hit becomes a <b>deathblow</b> (x3). Your own bar (bottom centre) fills when you block or get hit. Perfect-parrying something big freezes time for a moment.</p>
       <p><b>Perfect parry</b> (first 0.15s) staggers melee attackers, reflects projectiles and opens a <b>Counter</b>: your next slash crits for x3. Green <b>juicebugs</b> burst into healing droplets; weakened bugs can be eaten too. Shellbacks and the Stag King reflect bullets from the front.</p>
       <div class="btnrow"><button class="menu-btn small" id="b-back">Back</button></div></div>`, 'menu');
     this._btn('b-back', () => this.showMenu());
@@ -94,7 +98,7 @@ export class Screens {
   showStats(d) {
     const rows = [
       ['Time', fmtTime(d.time)],
-      ...(d.mode === 'timeloop' ? [['Personal best', fmtTime(d.pb)], ['Loop', d.loopNo]] : [['Score', Math.floor(d.score)]]),
+      ...(d.mode === 'timeloop' ? [['Personal best', fmtTime(d.pb)], ['Loop', d.loopNo]] : d.mode === 'bossrush' ? [['Personal best', fmtTime(d.pb)]] : [['Score', Math.floor(d.score)]]),
       ['Bugs slain (you / ghost)', `${d.kills} / ${d.ghostKills}`],
       ['Bugs eaten', d.eaten],
       ['Perfect parries', d.perfectParries],

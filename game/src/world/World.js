@@ -25,7 +25,7 @@ export class World {
     this.levelGroup = new THREE.Group();
     this.scene.add(this.levelGroup);
 
-    this.cam = { yaw: Math.PI / 4, pitch: 0.55, dist: 270, pos: new THREE.Vector3(), shakeOffset: new THREE.Vector3() };
+    this.cam = { yaw: Math.PI / 4, pitch: 0.55, dist: 270, pos: new THREE.Vector3(), shoulder: 0, shakeOffset: new THREE.Vector3() };
 
     window.addEventListener('resize', () => {
       this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -176,7 +176,8 @@ export class World {
     const c = this.cam;
     const fx = Math.cos(c.yaw), fy = Math.sin(c.yaw);
     const cp = Math.cos(c.pitch), sp = Math.sin(c.pitch);
-    const tx = target.x, ty = target.y, tz = lookZ + (target.z || 0) * 0.5;
+    const rx = Math.sin(c.yaw), ry = -Math.cos(c.yaw);
+    const tx = target.x + rx * c.shoulder, ty = target.y + ry * c.shoulder, tz = lookZ + (target.z || 0) * 0.5;
     const want = new THREE.Vector3(tx - fx * c.dist * cp, ty - fy * c.dist * cp, tz + c.dist * sp);
     // Keep camera over the arena floor.
     want.z = Math.max(want.z, 25);

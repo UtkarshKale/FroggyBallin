@@ -90,6 +90,7 @@ export class Projectiles {
     }
     if (!p.reflected && p.owner === g.player) g.stats.hits++;
     g.damageTarget(t, p.dmg, { team: 'player', burn: p.burn, from: p });
+    if (p.reflected) g.addPosture(t, CFG.POSTURE.reflectHit);
     this._remove(p);
     return true;
   }
@@ -103,6 +104,7 @@ export class Projectiles {
     if (g.ghost && this._touch(p, g.ghost)) {
       if (!p.reflected) g.stats.hits++;
       g.damageTarget(g.ghost, p.dmg, { team: 'player', burn: p.burn });
+      if (p.reflected) g.addPosture(g.ghost, CFG.POSTURE.reflectHit);
       this._remove(p);
     }
   }

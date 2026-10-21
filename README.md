@@ -6,12 +6,15 @@ A third-person 3D browser game built for the JetBrains "Build a Game with an AI 
 
 ## Features
 - **Time Loop mode:** your last winning run replays as a ghost (position, slashes, shots, all real damage) and also fires echo bolts at you. Kill it before it reaches the goal. Personal best, loop counter and a full stats screen.
-- **Sword combo + precision parry:** 3-hit combo, perfect-parry window staggers attackers, reflects projectiles back and opens a x3 counter crit. Some bugs and bosses reflect your bullets, so parry those back too.
-- **Gun (limited ammo) and tongue** (stamina bar): eat bugs to heal, weakened bugs are edible too. Juicebugs burst into healing droplets.
+- **Sword combo + precision parry:** 3-hit combo, perfect-parry window staggers attackers, reflects projectiles back and opens a x3 counter crit. Some bugs and bosses reflect your bullets, so parry those back too. Parrying something big freezes the game for a beat.
+- **Sekiro-style posture (stance) bars:** every enemy, boss and the ghost has one. Hits and parries fill it; a full bar breaks the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.
+- **Gun mode:** press Q to equip. Over-the-shoulder camera, LMB fires (hold to auto-fire), hold RMB to aim down sights for bonus damage. Limited ammo.
+- **Tongue** (stamina bar): auto-targets edible bugs (pink **E** marker); broken bugs are always edible. Eating heals. Juicebugs burst into healing droplets.
 - **Bugs:** Gnat swarms, Juicebugs, Spitter Wasps, Shellbacks, Ant Grunts.
-- **Bosses with animated preludes:** Hornet Queen (Level 1), Stag Beetle King (Level 2).
-- **Power-ups:** Firefly, Dragonfly, Beetle Shell, Time Snail, Big Mouth, Ammo Moth.
-- **Comic-panel cutscenes**, main menu, **Classic Survival** mode (endless arena).
+- **Four levels, four bosses with animated preludes:** Hornet Queen (Teatime Meadow), Stag Beetle King (Rotwood Hollow), Mantis Duelist (The Clockpond), Chrono Moth (Loop's End).
+- **Modes:** Time Loop (per level, with ghost), **Boss Rush** (all four in a row), Classic Survival (endless arena).
+- **Power-ups:** Firefly, Dragonfly, Beetle Shell, Time Snail, Big Mouth, Ammo Moth, Golden Fly (rewind 3s), Overclock (double parry window).
+- **Comic-panel cutscenes**, main menu.
 - Juice: hitstop, screenshake, slow-mo on perfect parry, synthesized sound effects and a small procedural music loop.
 
 ## Controls
@@ -19,9 +22,10 @@ A third-person 3D browser game built for the JetBrains "Build a Game with an AI 
 |---|---|
 | WASD | Move |
 | Mouse (click to lock) / arrow keys | Aim camera |
-| Left click | Sword combo |
-| Right click | Parry (just before a hit lands) |
-| F | Shoot |
+| Left click | Sword combo (gun mode: fire) |
+| Right click | Parry just before a hit lands (gun mode: hold to aim) |
+| Q (or 1 / 2) | Equip gun / sword |
+| F | Quick shot (either weapon) |
 | E | Tongue (eat) |
 | Space | Jump (double jump with Dragonfly) |
 | Shift | Dodge roll |

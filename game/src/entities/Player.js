@@ -26,14 +26,17 @@ export class Player {
     const grip = new THREE.Mesh(new THREE.BoxGeometry(14, 4, 4), stdMat(0x6d4c41));
     this.pivot.add(blade, guard, grip);
     this.root.add(this.pivot);
-    // Gun on the left side.
+    // Gun (holstered on the left hip, raised in gun mode).
     this.gun = new THREE.Group();
-    this.gun.position.set(10, 15, 20);
-    const barrel = new THREE.Mesh(new THREE.BoxGeometry(22, 5, 6), stdMat(0x444a55));
-    barrel.position.x = 11;
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(6, 5, 10), stdMat(0x6d4c41));
-    handle.position.set(2, 0, -6);
-    this.gun.add(barrel, handle);
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(26, 6, 7), stdMat(0x444a55, { metalness: 0.6 }));
+    barrel.position.x = 13;
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(7, 5, 12), stdMat(0x6d4c41));
+    handle.position.set(2, 0, -7);
+    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(7, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffdd66, transparent: true, opacity: 0.9 }));
+    muzzle.position.x = 30;
+    muzzle.visible = false;
+    this.muzzle = muzzle;
+    this.gun.add(barrel, handle, muzzle);
     this.root.add(this.gun);
     // Parry shield disc
     this.parryDisc = new THREE.Mesh(
@@ -76,7 +79,16 @@ export class Player {
     this.flashT = 0;
     this.moving = false;
     this.faceHold = 0;
-    this.pu = { fire: 0, dragon: 0, big: 0, shell: 0 };
+    this.weapon = 'sword';
+    this.aiming = false;
+    this.muzzleT = 0;
+    this.posture = 0;
+    this.postureT = 0;
+    this.broken = 0;
+    this.dustT = 0;
+    this.hist = [];
+    this.histT = 0;
+    this.pu = { fire: 0, dragon: 0, big: 0, shell: 0, over: 0 };
     this.hitWall = false;
     this.root.visible = true;
     this.tongueMesh.visible = false;
@@ -84,32 +96,37 @@ export class Player {
   }
 
   get parryActive() { return this.parryT >= 0; }
-  get perfectWindow() { return this.parryT >= 0 && this.parryT < CFG.PARRY.perfect; }
+  get perfectLen() { return CFG.PARRY.perfect * (this.pu.over > 0 ? 2 : 1); }
+  get blockLen() { return CFG.PARRY.block * (this.pu.over > 0 ? 1.4 : 1); }
 
   // Returns 'hit' | 'block' | 'perfect' | 'dodged' | 'shell'
   takeHit(dmg, src, opts = {}) {
     if (this.dead) return 'dodged';
-    const g = this.g;
+    const g = this.g, P = CFG.PLAYER_POSTURE;
     if (this.iframes > 0) return 'dodged';
-    if (opts.parryable !== false && this.parryActive) {
-      if (this.parryT < CFG.PARRY.perfect) {
+    if (opts.parryable !== false && this.parryActive && this.broken <= 0) {
+      if (this.parryT < this.perfectLen) {
+        const big = !!(src && src.big);
         this.counterT = CFG.PARRY.counterWindow;
+        this.posture = Math.max(0, this.posture - P.perfectRelief);
         g.stats.perfectParries++;
         g.sfx.play('perfect');
-        g.fx.ring(this.x, this.y, 20, 0xffffff, 10, 120, 0.4);
-        g.fx.burst(this.x, this.y, 30, 0xffffff, 14, 260, 0.4, 2.5);
-        g.fx.addShake(10);
-        g.slowmo(CFG.PARRY.slowmo);
-        g.hud.flash('PERFECT PARRY', '#fff');
+        g.fx.ring(this.x, this.y, 20, 0xffffff, 10, big ? 220 : 120, 0.4);
+        g.fx.burst(this.x, this.y, 30, 0xffffff, big ? 30 : 14, 260, 0.4, 2.5);
+        g.fx.addShake(big ? 22 : 10);
+        // Parrying something big freezes the whole game for a beat.
+        g.hitstop(big ? 0.45 : 0.09);
+        g.slowmo(big ? 0.4 : CFG.PARRY.slowmo);
+        if (big) g.hud.screenFlash();
+        g.hud.flash(big ? 'PERFECT PARRY!!' : 'PERFECT PARRY', '#fff');
         if (src && src.onParried) src.onParried();
         return 'perfect';
       }
-      if (this.parryT < CFG.PARRY.block) {
-        dmg *= CFG.PARRY.blockReduce;
+      if (this.parryT < this.blockLen) {
         g.sfx.play('block');
         g.fx.burst(this.x, this.y, 30, 0x66ccff, 6, 140, 0.3, 2);
-        if (opts.proj) { /* blocked projectile is consumed by caller */ }
-        this._damage(dmg);
+        this.addPosture(dmg * P.blockMult + P.blockAdd);
+        this._damage(dmg * CFG.PARRY.blockReduce);
         return 'block';
       }
     }
@@ -120,10 +137,27 @@ export class Player {
       return 'shell';
     }
     this._damage(dmg);
+    this.addPosture(dmg * P.hitMult);
     g.sfx.play('hurt');
     g.fx.addShake(8);
     g.hud.hurt();
     return 'hit';
+  }
+
+  addPosture(a) {
+    if (this.broken > 0 || this.dead) return;
+    const P = CFG.PLAYER_POSTURE;
+    this.posture += a;
+    this.postureT = P.delay;
+    if (this.posture >= P.max) {
+      this.posture = P.max * 0.4;
+      this.broken = P.brokenTime;
+      this.swing = null; this.parryT = -1; this.tongue = null; this.dashT = 0;
+      this.g.hud.flash('POSTURE BROKEN', '#ff9944');
+      this.g.sfx.play('break');
+      this.g.fx.addShake(12);
+      this.g.fx.ring(this.x, this.y, 20, 0xffaa33, 10, 100, 0.4);
+    }
   }
 
   heal(n) {
@@ -132,6 +166,7 @@ export class Player {
   }
 
   _damage(dmg) {
+    if (this.broken > 0) dmg *= 1.5;
     this.hp -= dmg;
     this.flashT = 0.12;
     this.g.stats.damageTaken += dmg;
@@ -142,6 +177,22 @@ export class Player {
       this.root.visible = false;
       this.g.endRun('dead');
     }
+  }
+
+  // Golden Fly: jump back ~3 seconds in time.
+  rewind() {
+    const h = this.hist;
+    if (!h.length) return;
+    const target = this.t - 3;
+    let e = h[0];
+    for (const s of h) { if (s.t <= target) e = s; else break; }
+    this.g.fx.ring(this.x, this.y, 20, 0xffd700, 10, 160, 0.5);
+    this.x = e.x; this.y = e.y; this.z = 0; this.vz = 0; this.vx = this.vy = 0;
+    this.hp = Math.max(this.hp, e.hp);
+    this.posture = 0;
+    this.g.fx.ring(this.x, this.y, 20, 0xffd700, 160, 10, 0.5);
+    this.g.sfx.play('rewind');
+    this.g.world.snapCamera();
   }
 
   update(dt, input, cam) {
@@ -159,43 +210,79 @@ export class Player {
     this.comboT += dt;
     this.slashBuf = Math.max(0, this.slashBuf - dt);
     this.faceHold = Math.max(0, this.faceHold - dt);
+    this.muzzleT = Math.max(0, this.muzzleT - dt);
     if (this.parryT >= 0) {
       this.parryT += dt;
-      if (this.parryT > CFG.PARRY.block) this.parryT = -1;
+      if (this.parryT > this.blockLen) this.parryT = -1;
     }
+    // History for Golden Fly rewind
+    this.histT -= dt;
+    if (this.histT <= 0) {
+      this.histT = 0.1;
+      this.hist.push({ t: this.t, x: this.x, y: this.y, hp: this.hp });
+      if (this.hist.length > 45) this.hist.shift();
+    }
+    // Player posture
+    const PP = CFG.PLAYER_POSTURE;
+    if (this.broken > 0) this.broken = Math.max(0, this.broken - dt);
+    else if (this.postureT > 0) this.postureT -= dt;
+    else this.posture = Math.max(0, this.posture - PP.regen * dt);
+    const locked = this.broken > 0;
 
     // Stamina regen
     this.staminaDelay -= dt;
     if (this.staminaDelay <= 0) this.stamina = Math.min(100, this.stamina + CFG.TONGUE.regen * dt);
 
-    const aimYaw = cam.yaw;
+    // Over-the-shoulder camera in gun mode: aim at the point under the crosshair, not parallel to it.
+    const aimYaw = cam.yaw - (this.weapon === 'gun' ? Math.atan2(cam.shoulder || 0, 700) : 0);
     const fx = Math.cos(cam.yaw), fy = Math.sin(cam.yaw);
     const rx = Math.sin(cam.yaw), ry = -Math.cos(cam.yaw);
     const f = (input.down(K.forward) ? 1 : 0) - (input.down(K.back) ? 1 : 0);
     const r = (input.down(K.right) ? 1 : 0) - (input.down(K.left) ? 1 : 0);
     let mx = fx * f + rx * r, my = fy * f + ry * r;
     const ml = Math.hypot(mx, my);
-    this.moving = ml > 0.01;
-    if (this.moving) { mx /= ml; my /= ml; }
+    this.moving = ml > 0.01 && !locked;
+    if (ml > 0.01) { mx /= ml; my /= ml; }
+
+    // Weapon switching
+    if (!locked && (input.pressed(K.weapon) || input.pressed(K.sword) || input.pressed(K.gun))) {
+      let want = this.weapon === 'sword' ? 'gun' : 'sword';
+      if (input.pressed(K.sword)) want = 'sword';
+      if (input.pressed(K.gun)) want = 'gun';
+      if (want !== this.weapon) {
+        this.weapon = want;
+        this.swing = null; this.parryT = -1; this.slashBuf = 0;
+        g.sfx.play('equip');
+        g.hud.flash(want === 'gun' ? 'GUN EQUIPPED: LMB fire, hold RMB to aim' : 'SWORD EQUIPPED', '#fff');
+      }
+    }
+    const gunMode = this.weapon === 'gun';
+    this.aiming = gunMode && input.mDown(2) && !locked;
 
     // Actions
-    if (input.mPressed(0)) this.slashBuf = 0.22;
-    if (this.slashBuf > 0 && !this.swing && this.parryT < 0 && !this.tongue && this.dashT <= 0) this._startSwing(aimYaw);
-    if (input.mPressed(2) && this.parryCd <= 0 && !this.tongue) this._startParry(aimYaw);
-    if (input.pressed(K.shoot)) this._shoot(aimYaw);
-    if (input.pressed(K.tongue)) this._startTongue(aimYaw);
-    if (input.pressed(K.dodge) && this.dodgeCd <= 0 && this.dashT <= 0) {
-      this.dashT = CFG.DODGE.dur;
-      this.dodgeCd = CFG.DODGE.cooldown * (this.pu.dragon > 0 ? 0.6 : 1);
-      this.iframes = CFG.DODGE.iframes;
-      this.dashDir = this.moving ? Math.atan2(my, mx) : this.yaw;
-      g.sfx.play('dodge');
-      g.recorder.event('d');
-      g.fx.burst(this.x, this.y, 10, 0xffffff, 6, 80, 0.3, 2);
-    }
-    if (input.pressed(K.jump)) {
-      if (this.z <= 0.5) { this.vz = CFG.PLAYER.jumpV; this.jumps = 1; g.sfx.play('jump'); }
-      else if (this.pu.dragon > 0 && this.jumps < 2) { this.vz = CFG.PLAYER.jumpV * 0.9; this.jumps = 2; g.sfx.play('jump'); g.fx.ring(this.x, this.y, this.z, 0x44ddff, 8, 40, 0.3); }
+    if (!locked) {
+      if (!gunMode) {
+        if (input.mPressed(0)) this.slashBuf = 0.22;
+        if (this.slashBuf > 0 && !this.swing && this.parryT < 0 && !this.tongue && this.dashT <= 0) this._startSwing(aimYaw);
+        if (input.mPressed(2) && this.parryCd <= 0 && !this.tongue) this._startParry(aimYaw);
+      } else if (input.mDown(0)) {
+        this._shoot(aimYaw);
+      }
+      if (input.pressed(K.shoot)) this._shoot(aimYaw);
+      if (input.pressed(K.tongue)) this._startTongue(aimYaw);
+      if (input.pressed(K.dodge) && this.dodgeCd <= 0 && this.dashT <= 0) {
+        this.dashT = CFG.DODGE.dur;
+        this.dodgeCd = CFG.DODGE.cooldown * (this.pu.dragon > 0 ? 0.6 : 1);
+        this.iframes = CFG.DODGE.iframes;
+        this.dashDir = this.moving ? Math.atan2(my, mx) : this.yaw;
+        g.sfx.play('dodge');
+        g.recorder.event('d');
+        g.fx.burst(this.x, this.y, 10, 0xffffff, 6, 80, 0.3, 2);
+      }
+      if (input.pressed(K.jump)) {
+        if (this.z <= 0.5) { this.vz = CFG.PLAYER.jumpV; this.jumps = 1; g.sfx.play('jump'); }
+        else if (this.pu.dragon > 0 && this.jumps < 2) { this.vz = CFG.PLAYER.jumpV * 0.9; this.jumps = 2; g.sfx.play('jump'); g.fx.ring(this.x, this.y, this.z, 0x44ddff, 8, 40, 0.3); }
+      }
     }
 
     // Movement
@@ -203,7 +290,8 @@ export class Player {
     if (this.swing) speed *= 0.5;
     if (this.parryT >= 0) speed *= 0.6;
     if (this.tongue) speed *= 0.6;
-    let tvx = mx * speed, tvy = my * speed;
+    if (this.aiming) speed *= 0.5;
+    let tvx = locked ? 0 : mx * speed, tvy = locked ? 0 : my * speed;
     if (this.dashT > 0) {
       this.dashT -= dt;
       tvx = Math.cos(this.dashDir) * speed * CFG.DODGE.speedMult;
@@ -217,15 +305,23 @@ export class Player {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     // Jump physics
+    const wasAir = this.z > 0;
     if (this.z > 0 || this.vz > 0) {
       this.vz -= CFG.PLAYER.gravity * dt;
       this.z += this.vz * dt;
       if (this.z <= 0) { this.z = 0; this.vz = 0; this.jumps = 0; }
     }
+    if (wasAir && this.z === 0) g.fx.burst(this.x, this.y, 3, 0xd8d2b0, 6, 90, 0.35, 2.5, 120);
     g.world.resolve(this);
 
-    // Facing
-    const busy = this.swing || this.parryT >= 0 || this.tongue || this.faceHold > 0;
+    // Footstep dust
+    if (this.moving && this.z <= 0 && Math.hypot(this.vx, this.vy) > 120) {
+      this.dustT -= dt;
+      if (this.dustT <= 0) { this.dustT = 0.17; g.fx.burst(this.x, this.y, 3, 0xd8d2b0, 2, 50, 0.35, 2, 40); }
+    }
+
+    // Facing: gun mode always faces the crosshair (third-person shooter style)
+    const busy = this.swing || this.parryT >= 0 || this.tongue || this.faceHold > 0 || gunMode;
     if (busy) this.yaw = lerpAngle(this.yaw, aimYaw, 1 - Math.exp(-30 * dt));
     else if (this.moving) this.yaw = lerpAngle(this.yaw, Math.atan2(my, mx), 1 - Math.exp(-16 * dt));
 
@@ -270,11 +366,12 @@ export class Player {
   _shoot(aimYaw) {
     const g = this.g;
     if (this.shootCd > 0 || this.tongue) return;
-    if (this.ammo <= 0) { g.sfx.play('empty'); this.shootCd = 0.3; return; }
+    if (this.ammo <= 0) { g.sfx.play('empty'); this.shootCd = 0.3; g.hud.flash('OUT OF AMMO', '#ffcc66'); return; }
     this.ammo--;
     this.shootCd = CFG.GUN.cooldown;
-    // Light aim assist toward the nearest target in the crosshair cone.
-    let ang = aimYaw, best = CFG.GUN.assistCone;
+    const aimed = this.aiming;
+    // Aim assist toward the nearest target in the crosshair cone (tighter when aiming down sights).
+    let ang = aimYaw, best = aimed ? CFG.GUN.aimCone : CFG.GUN.assistCone;
     const targets = [...g.enemies];
     if (g.boss && g.boss.active) targets.push(g.boss);
     if (g.ghost && !g.ghost.dead) targets.push(g.ghost);
@@ -285,21 +382,27 @@ export class Player {
       if (d < best) { best = d; ang = a; }
     }
     this.yaw = ang;
-    this.faceHold = 0.25;
+    this.faceHold = 0.3;
     const fire = this.pu.fire > 0;
     g.projectiles.spawn({
-      x: this.x + Math.cos(ang) * 30, y: this.y + Math.sin(ang) * 30, z: 26,
-      angle: ang, speed: CFG.GUN.speed, dmg: CFG.GUN.dmg * (fire ? 1.4 : 1), team: 'player', radius: CFG.GUN.radius,
+      x: this.x + Math.cos(ang) * 34, y: this.y + Math.sin(ang) * 34, z: 26,
+      angle: ang, speed: CFG.GUN.speed * (aimed ? CFG.GUN.aimSpeedMult : 1),
+      dmg: CFG.GUN.dmg * (fire ? 1.4 : 1) * (aimed ? CFG.GUN.aimMult : 1), team: 'player', radius: CFG.GUN.radius,
       color: fire ? 0xff7a1a : 0xffee66, owner: this, burn: fire,
     });
     g.stats.shots++;
     g.sfx.play('shoot');
     g.recorder.event('g', +ang.toFixed(3));
-    g.fx.burst(this.x + Math.cos(ang) * 32, this.y + Math.sin(ang) * 32, 26, 0xffdd55, 4, 100, 0.15, 2);
+    g.fx.burst(this.x + Math.cos(ang) * 36, this.y + Math.sin(ang) * 36, 26, 0xffdd55, 4, 100, 0.15, 2);
+    g.fx.addShake(aimed ? 1 : 2.5);
+    this.muzzleT = 0.05;
   }
 
   _startTongue(aimYaw) {
-    if (this.tongue || this.stamina < CFG.TONGUE.cost || this.swing || this.parryT >= 0) return;
+    if (this.tongue || this.stamina < CFG.TONGUE.cost || this.swing || this.parryT >= 0) {
+      if (!this.tongue && this.stamina < CFG.TONGUE.cost) this.g.hud.flash('Tongue tired...', '#ff9fb8');
+      return;
+    }
     this.stamina -= CFG.TONGUE.cost;
     this.staminaDelay = CFG.TONGUE.regenDelay;
     this.yaw = aimYaw;
@@ -329,6 +432,7 @@ export class Player {
     if (tg.t >= T.dur) { this.tongue = null; this.tongueMesh.visible = false; }
   }
 
+  // Auto-targets the closest edible bug in a wide cone; broken (posture-stunned) bugs are always edible.
   _resolveTongue(tg, range) {
     const g = this.g;
     const maxEat = this.pu.big > 0 ? 3 : 1;
@@ -336,27 +440,31 @@ export class Player {
     for (const e of g.enemies) {
       if (e.dead) continue;
       const d = Math.hypot(e.x - this.x, e.y - this.y);
-      if (d > range) continue;
-      if (Math.abs(angDiff(tg.yaw, Math.atan2(e.y - this.y, e.x - this.x))) > CFG.TONGUE.halfArc) continue;
-      cands.push({ e, d });
+      if (d > range + e.radius) continue;
+      const a = Math.atan2(e.y - this.y, e.x - this.x);
+      if (Math.abs(angDiff(tg.yaw, a)) > CFG.TONGUE.halfArc * (d < 90 ? 2 : 1)) continue;
+      cands.push({ e, d, a });
     }
-    cands.sort((a, b) => a.d - b.d);
+    cands.sort((a, b) => (Number(b.e.eatable) - Number(a.e.eatable)) || (a.d - b.d));
     let ate = 0;
-    for (const { e } of cands) {
+    for (const { e, a } of cands) {
       if (ate >= maxEat) break;
-      if (e.edible || e.hp / e.maxHp <= 0.25) {
-        if (!tg.target) tg.target = e;
+      if (e.eatable) {
+        if (!tg.target) { tg.target = e; tg.yaw = a; }
+        if (e.broken > 0) this.stamina = 100;
         e.eaten();
         ate++;
       } else if (ate === 0) {
         g.damageTarget(e, 5, { team: 'player' });
+        g.addPosture(e, 10);
         e.stagger = Math.max(e.stagger, 0.3);
-        tg.target = e;
+        tg.target = e; tg.yaw = a;
+        g.hud.flash('Too big to eat - break its posture!', '#ff9fb8');
         break;
       }
     }
     // Boss / ghost: small damage, ghost gets slowed
-    if (!ate) {
+    if (!ate && !tg.target) {
       for (const big of [g.boss && g.boss.active ? g.boss : null, g.ghost]) {
         if (!big || big.dead) continue;
         const d = Math.hypot(big.x - this.x, big.y - this.y);
@@ -372,8 +480,10 @@ export class Player {
   }
 
   _updateGear(dt) {
-    const sw = this.swing;
+    const gunMode = this.weapon === 'gun';
     const p = this.pivot;
+    p.visible = !gunMode;
+    const sw = this.swing;
     if (sw) {
       const dur = CFG.SWORD.dur[sw.step];
       const k = ease(clamp(sw.t / dur, 0, 1));
@@ -388,12 +498,23 @@ export class Player {
     } else {
       p.rotation.set(0, 0.9, -0.5);
     }
-    this.parryDisc.visible = this.parryT >= 0;
-    if (this.parryT >= 0) {
-      this.parryDisc.material.opacity = this.parryT < CFG.PARRY.perfect ? 0.9 : 0.4;
-      this.parryDisc.material.color.setHex(this.parryT < CFG.PARRY.perfect ? 0xffffff : 0x66ccff);
+    // Gun: raised in front in gun mode, holstered on the hip otherwise
+    if (gunMode) {
+      this.gun.position.set(10, -8, 26);
+      this.gun.rotation.set(0, this.aiming ? -0.02 : 0.05, 0);
+      this.gun.scale.setScalar(1.15);
+    } else {
+      this.gun.position.set(2, 16, 14);
+      this.gun.rotation.set(0, 1.2, 0);
+      this.gun.scale.setScalar(0.8);
     }
-    this.gun.visible = this.ammo > 0 || true;
+    this.muzzle.visible = this.muzzleT > 0;
+    this.parryDisc.visible = this.parryT >= 0 && !gunMode;
+    if (this.parryT >= 0) {
+      const perfect = this.parryT < this.perfectLen;
+      this.parryDisc.material.opacity = perfect ? 0.9 : 0.4;
+      this.parryDisc.material.color.setHex(perfect ? 0xffffff : 0x66ccff);
+    }
   }
 
   sync() {
@@ -405,6 +526,8 @@ export class Player {
     if (this.flashT > 0) {
       this.flashT -= 1 / 60;
       setFlash(this.flashList, 0xff3333);
+    } else if (this.broken > 0) {
+      setFlash(this.flashList, Math.floor(this.t * 10) % 2 ? 0xaa6600 : 0x331a00);
     } else if (this.counterT > 0) {
       setFlash(this.flashList, 0x225577);
     } else {

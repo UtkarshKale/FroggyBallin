@@ -15,7 +15,7 @@ import { Pickups } from './entities/Pickups.js';
 import { makeBoss } from './entities/Bosses.js';
 import { Recorder } from './loop/Recorder.js';
 import { Ghost } from './loop/Ghost.js';
-import { LEVELS, SURVIVAL_LEVEL } from './levels/levels.js';
+import { LEVELS, SURVIVAL_LEVEL, BOSSRUSH_LEVEL } from './levels/levels.js';
 import { Hud } from './ui/Hud.js';
 import { Screens } from './ui/Screens.js';
 import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
@@ -82,12 +82,14 @@ export class Game {
     this.player.reset(lv.start.x, lv.start.y);
     this.world.cam.pitch = 0.35;
     this.world.cam.dist = 330;
+    this.world.cam.shoulder = 0;
+    this.world.camera.fov = CFG.CAMERA.fov; this.world.camera.updateProjectionMatrix();
     this.world.snapCamera();
     this.screens.showMenu();
   }
 
   cleanup() {
-    for (const e of this.enemies) this.world.scene.remove(e.root);
+    for (const e of this.enemies) { this.world.scene.remove(e.root); e.overhead && e.overhead.remove(); }
     this.enemies = [];
     if (this.boss) { this.boss.clearMarker?.(); this.world.scene.remove(this.boss.root); this.boss.rings?.forEach((r) => r.vis && this.world.scene.remove(r.vis)); }
     this.boss = null;
@@ -105,13 +107,14 @@ export class Game {
     this.sfx.startMusic();
     this.cleanup();
     this.mode = mode;
-    const level = mode === 'survival' ? SURVIVAL_LEVEL : LEVELS.find((l) => l.id === levelId) || LEVELS[0];
+    const level = mode === 'survival' ? SURVIVAL_LEVEL : mode === 'bossrush' ? BOSSRUSH_LEVEL : LEVELS.find((l) => l.id === levelId) || LEVELS[0];
     this.levelCfg = level;
     this.world.buildLevel(level);
     this.stats = newStats();
     this.simT = 0;
     this.score = 0;
-    this.bossDead = !level.boss;
+    this.bossDead = mode === 'bossrush' ? false : !level.boss;
+    this.rush = { i: 0, t: 1.2, done: false };
     this.bossStarted = false;
     this.zoneDone = (level.zones || []).map(() => false);
     this._goalOpen = null;
@@ -123,13 +126,18 @@ export class Game {
     this.recorder.reset();
     const cam = this.world.cam;
     cam.yaw = Math.atan2(-level.start.y || 0.01, -level.start.x || 0.01);
-    cam.pitch = 0.55; cam.dist = 270;
+    cam.pitch = 0.55; cam.dist = CFG.CAMERA.dist; cam.shoulder = 0;
+    this.world.camera.fov = CFG.CAMERA.fov; this.world.camera.updateProjectionMatrix();
     this.world.snapCamera();
     this.player.yaw = cam.yaw;
 
     this.ghost = null;
     this.pb = null;
     this.loopNo = 1;
+    if (mode === 'bossrush') {
+      const pbObj = Storage.get(`pb.${level.id}`, null);
+      this.pb = pbObj ? pbObj.best : null;
+    }
     if (mode === 'timeloop') {
       const pbObj = Storage.get(`pb.${level.id}`, null);
       this.pb = pbObj ? pbObj.best : null;
@@ -162,6 +170,7 @@ export class Game {
     this.input.requestLock();
     this.clock.getDelta();
     if (this.mode === 'survival') this.hud.banner('SURVIVE', 'Slash, parry, eat. How long can you last?', '#7dff7d');
+    else if (this.mode === 'bossrush') this.hud.banner('BOSS RUSH', 'Four bosses. No loops. Break their posture!', '#ff7a7a', 3);
     else if (this.ghost) this.hud.banner(`LOOP ${this.loopNo}`, 'Kill your past self, beat the boss, reach the goal first!', '#66ddff', 3.2);
     else this.hud.banner('FIRST RUN', 'Clear the level to record your ghost', '#7dff7d', 3);
     this.sfx.play('ui');
@@ -190,6 +199,7 @@ export class Game {
   // ------------------------------------------------------------ run end
   objective() {
     if (this.mode === 'survival') return 'Survive!';
+    if (this.mode === 'bossrush') return this.boss && !this.boss.dead ? `Defeat the ${this.boss.name} (${this.rush.i + 1}/${this.levelCfg.rush.length})` : 'Next boss incoming...';
     const o = [];
     if (!this.bossDead) o.push(this.bossStarted && this.boss ? `Defeat the ${this.boss.name}` : 'Fight toward the boss');
     if (this.ghost && !this.ghost.dead) o.push('Destroy your past self');
@@ -214,15 +224,16 @@ export class Game {
       this.sfx.play('lose'); delay = 900;
     } else if (reason === 'win') {
       const id = this.levelCfg.id;
-      const run = this.recorder.finish(this.simT, this.player);
-      Storage.set(`ghost.${id}`, run);
+      if (this.mode === 'timeloop') Storage.set(`ghost.${id}`, this.recorder.finish(this.simT, this.player));
       const old = Storage.get(`pb.${id}`, null);
       const best = old ? Math.min(old.best, this.simT) : this.simT;
       d.newPB = !old || this.simT < old.best;
       Storage.set(`pb.${id}`, { best, wins: (old ? old.wins : 0) + 1 });
       d.pb = best;
       this.pb = best;
-      Object.assign(d, { win: true, title: 'LOOP CLEARED', why: this.ghost ? 'You beat your past self.' : 'Run recorded. Your ghost awaits in the next loop.' });
+      Object.assign(d, this.mode === 'bossrush'
+        ? { win: true, title: 'BOSS RUSH CLEARED', why: 'All four bosses defeated.' }
+        : { win: true, title: 'LOOP CLEARED', why: this.ghost ? 'You beat your past self.' : 'Run recorded. Your ghost awaits in the next loop.' });
       this.sfx.play('win');
     } else if (reason === 'ghost') {
       Object.assign(d, { win: false, title: 'THE PAST WAS FASTER', why: 'Your ghost reached the goal first.' });
@@ -236,13 +247,27 @@ export class Game {
   }
 
   onBossDead(b) {
+    if (this.mode === 'bossrush') {
+      const r = this.rush;
+      this.hud.setBoss(null);
+      this.sfx.intensity = 0;
+      r.i++;
+      this.boss = null;
+      if (r.i >= this.levelCfg.rush.length) { r.done = true; this.endRun('win'); return; }
+      this.player.heal(40);
+      this.player.ammo = Math.min(CFG.PLAYER.maxAmmo, this.player.ammo + 4);
+      this.hud.banner('BOSS DEFEATED', 'Patched up. The next boss approaches...', '#ffd23f', 3);
+      for (let i = 0; i < 4; i++) this.pickups.spawn('droplet', b.x, b.y);
+      r.t = 3.5;
+      return;
+    }
     this.bossDead = true;
     this.sfx.intensity = 0;
     this.hud.setBoss(null);
     this.hud.banner('BOSS DEFEATED', this.ghost && !this.ghost.dead ? 'Now finish off your past self' : 'The goal is open!', '#ffd23f', 3);
     for (let i = 0; i < 6; i++) this.pickups.spawn('droplet', b.x, b.y);
     this.pickups.spawn('ammo', b.x + 40, b.y);
-    const pu = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth'];
+    const pu = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth', 'over'];
     this.pickups.spawn(pu[Math.floor(Math.random() * pu.length)], b.x - 40, b.y);
   }
 
@@ -268,7 +293,7 @@ export class Game {
 
   maybeDrop(x, y) {
     if (Math.random() > CFG.POWERUP.dropChance) return;
-    const types = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth', 'ammo'];
+    const types = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth', 'ammo', 'golden', 'over'];
     this.pickups.spawn(types[Math.floor(Math.random() * types.length)], x, y);
   }
 
@@ -284,6 +309,8 @@ export class Game {
       case 'bigmouth': p.pu.big = P.duration; break;
       case 'shell': p.pu.shell = 3; break;
       case 'snail': this.snailT = P.snail; break;
+      case 'golden': p.rewind(); break;
+      case 'over': p.pu.over = 8; break;
       default: break;
     }
     const def = POWERUPS[type];
@@ -295,6 +322,7 @@ export class Game {
   damageTarget(t, dmg, o = {}) {
     if (t.dead) return;
     if (t.stunned) dmg *= 1.5;
+    if (t.broken > 0) { dmg *= CFG.POSTURE.deathblow; this.hud.flash('DEATHBLOW!', '#ffcc33'); this.fx.addShake(8); }
     t.hp -= dmg;
     t.flashT = 0.1;
     if (o.burn) t.burn = 3;
@@ -303,6 +331,30 @@ export class Game {
     this.sfx.play(o.crit ? 'crit' : 'hit');
     if (t.hp <= 0) t.die(o.team);
     else if (t.onDamaged) t.onDamaged(dmg);
+  }
+
+  // Sekiro-style posture: fill the bar to break the target (stun + deathblow window).
+  addPosture(t, amt) {
+    if (!t || t.dead || !t.postureMax || t.broken > 0 || t.stunned) return;
+    t.posture += amt;
+    t.postureT = CFG.POSTURE.delay;
+    this.fx.ring(t.x, t.y, 30, 0xffffff, 6, 30, 0.2, 0.7);
+    if (t.posture >= t.postureMax) {
+      t.posture = 0;
+      this.breakPosture(t);
+    }
+  }
+
+  breakPosture(t) {
+    this.sfx.play('break');
+    this.fx.ring(t.x, t.y, 25, 0xffaa33, 10, t.big ? 220 : 120, 0.5);
+    this.fx.burst(t.x, t.y, 30, 0xffcc44, 20, 280, 0.5, 3);
+    this.fx.addShake(t.big ? 16 : 8);
+    this.hitstop(t.big ? 0.4 : 0.15);
+    this.hud.flash('POSTURE BROKEN!', '#ffaa33');
+    if (t.isBoss) t.stun(CFG.POSTURE.bossStun);
+    else if (t.stun) t.stun(3);
+    else { t.broken = CFG.POSTURE.brokenTime; t.stagger = t.broken; t.atk = null; }
   }
 
   swordStrike({ team, x, y, yaw, step, src }) {
@@ -337,6 +389,7 @@ export class Game {
       } else {
         const wasBug = t.team === 'bug';
         this.damageTarget(t, dmg, { team, knock: true, ang: a, crit });
+        if (team === 'player' && !t.dead) this.addPosture(t, CFG.POSTURE.sword[step] * (crit ? CFG.POSTURE.critMult : 1));
         hits++;
         if (crit && wasBug && t.dead) this.pickups.spawn('bullet', t.x, t.y);
       }
@@ -368,13 +421,12 @@ export class Game {
     this.sfx.play('buzz');
   }
 
-  startPrelude() {
-    const lv = this.levelCfg;
+  startPrelude(type, bx, by) {
     this.bossStarted = true;
-    this.boss = makeBoss(lv.boss.type, this, lv.boss.x, lv.boss.y);
+    this.boss = makeBoss(type, this, bx, by);
     this.state = 'PRELUDE';
     this.hud.show(false);
-    this.pre = { t: 0, dur: 5.2, a0: Math.atan2(this.player.y - lv.boss.y, this.player.x - lv.boss.x) };
+    this.pre = { t: 0, dur: 5.2, a0: Math.atan2(this.player.y - by, this.player.x - bx) };
     this.sfx.play('boss');
     this.screens.preludeStart(this.boss, () => {
       this.boss.active = true;
@@ -432,7 +484,8 @@ export class Game {
       default: break;
     }
     this.world.render();
-    inp.endFrame();
+    if (!this._holdInput) inp.endFrame();
+    this._holdInput = false;
   }
 
   preludeStep(raw) {
@@ -454,7 +507,8 @@ export class Game {
     const cam = this.world.cam;
     // Camera input
     const [mdx, mdy] = inp.takeMouse();
-    cam.yaw -= mdx * 0.0024;
+    const pl0 = this.player;
+    cam.yaw -= mdx * 0.0024 * (pl0.aiming ? 0.55 : 1);
     cam.pitch = clamp(cam.pitch + mdy * 0.002, 0.15, 1.25);
     if (inp.down('ArrowLeft')) cam.yaw += 2.2 * raw;
     if (inp.down('ArrowRight')) cam.yaw -= 2.2 * raw;
@@ -465,6 +519,7 @@ export class Game {
 
     if (this.hitstopT > 0) {
       this.hitstopT -= raw;
+      this._holdInput = true; // don't swallow key presses made during the freeze
       this.world.followCamera(this.player, raw, this.fx.shake);
       this.hud.update(this, raw);
       return;
@@ -478,6 +533,15 @@ export class Game {
     this.recorder.t = this.simT;
 
     const pl = this.player;
+    {
+      const C = CFG.CAMERA, kd = 1 - Math.exp(-10 * raw);
+      const gun = pl.weapon === 'gun';
+      cam.dist += ((pl.aiming ? C.aimDist : gun ? C.gunDist : C.dist) - cam.dist) * kd;
+      cam.shoulder += ((gun ? C.shoulder : 0) - cam.shoulder) * kd;
+      const cm = this.world.camera;
+      cm.fov += ((pl.aiming ? C.aimFov : gun ? C.gunFov : C.fov) - cm.fov) * kd;
+      cm.updateProjectionMatrix();
+    }
     pl.update(dt, inp, cam);
     if (this.state !== 'PLAYING') return;
 
@@ -487,10 +551,11 @@ export class Game {
       if (!this.zoneDone[i] && Math.hypot(pl.x - z.x, pl.y - z.y) < z.r * 0.7) this.triggerZone(i);
     });
     if (lv.boss && !this.bossStarted && Math.hypot(pl.x - lv.bossZone.x, pl.y - lv.bossZone.y) < lv.bossZone.r * 0.7) {
-      this.startPrelude();
+      this.startPrelude(lv.boss.type, lv.boss.x, lv.boss.y);
       return;
     }
     if (this.mode === 'survival') this.survivalUpdate(dt);
+    if (this.mode === 'bossrush') this.rushUpdate(dt);
 
     for (const e of this.enemies) e.update(dt * es);
     if (this.boss && this.boss.active) this.boss.update(dt * es);
@@ -516,6 +581,16 @@ export class Game {
 
     this.world.followCamera(pl, raw, this.fx.shake);
     this.hud.update(this, raw);
+  }
+
+  rushUpdate(dt) {
+    const r = this.rush;
+    if (this.boss || r.done) return;
+    r.t -= dt;
+    if (r.t <= 0) {
+      const b = this.levelCfg.rush[r.i];
+      this.startPrelude(b.type, b.x, b.y);
+    }
   }
 
   survivalUpdate(dt) {

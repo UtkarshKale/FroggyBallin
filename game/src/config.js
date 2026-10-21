@@ -16,7 +16,11 @@ export const CFG = {
     knock: 46,
   },
   PARRY: { perfect: 0.15, block: 0.35, cooldown: 0.7, blockReduce: 0.3, counterWindow: 1.0, slowmo: 0.12 },
-  GUN: { dmg: 15, speed: 720, cooldown: 0.22, radius: 8, assistCone: 0.14 },
+  GUN: { dmg: 15, speed: 720, cooldown: 0.22, radius: 8, assistCone: 0.14, aimMult: 1.5, aimSpeedMult: 1.2, aimCone: 0.06 },
+  // Sekiro-style posture: filling an enemy's bar breaks it (stunned, deathblow x3). Player has one too.
+  POSTURE: { regen: 14, delay: 1.6, brokenTime: 2.5, deathblow: 3, sword: [8, 8, 16], critMult: 2, parryMin: 25, parryFrac: 0.5, reflectHit: 25, bossStun: 3.5 },
+  PLAYER_POSTURE: { max: 100, regen: 18, delay: 1.0, blockMult: 1.6, blockAdd: 4, hitMult: 0.6, perfectRelief: 25, brokenTime: 1.4 },
+  CAMERA: { dist: 270, gunDist: 230, aimDist: 185, fov: 55, gunFov: 50, aimFov: 40, shoulder: 38 },
   TONGUE: { range: 200, cost: 25, regen: 35, regenDelay: 0.4, dur: 0.3, resolveAt: 0.12, halfArc: 0.45 },
   DODGE: { dur: 0.22, speedMult: 3.2, iframes: 0.3, cooldown: 0.8 },
   GHOST: { hp: 150, echoEvery: 4, echoRange: 900, echoDmg: 10 },
@@ -26,6 +30,7 @@ export const CFG = {
   KEYS: {
     forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
     jump: 'Space', dodge: 'ShiftLeft', shoot: 'KeyF', tongue: 'KeyE', pause: 'KeyP', mute: 'KeyM',
+    weapon: 'KeyQ', sword: 'Digit1', gun: 'Digit2',
   },
 };
 
@@ -36,4 +41,6 @@ export const POWERUPS = {
   snail:    { color: 0xcc88ff, label: 'Time Snail',   desc: 'Slows ghost + bugs' },
   bigmouth: { color: 0xff6688, label: 'Big Mouth',    desc: 'Long tongue' },
   ammo:     { color: 0xffee44, label: 'Ammo Moth',    desc: '+6 ammo' },
+  golden:   { color: 0xffd700, label: 'Golden Fly',   desc: 'Rewind 3 seconds' },
+  over:     { color: 0xff5555, label: 'Overclock',    desc: 'Parry window x2' },
 };

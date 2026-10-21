@@ -1,13 +1,17 @@
 import * as THREE from 'three';
 import { makeModel, blob, stdMat, collectFlash, setFlash } from '../core/Assets.js';
 import { angDiff, lerpAngle, TAU } from '../core/math.js';
+import { CFG } from '../config.js';
+import { initPosture, tickPosture } from '../combat/Posture.js';
+import { Overhead } from '../fx/Overhead.js';
 
 export const ENEMY_TYPES = {
-  gnat:      { hp: 10, r: 12, speed: 200, fly: true,  edible: true,  heal: 8 },
-  juicebug:  { hp: 24, r: 18, speed: 95,  fly: false, edible: true,  heal: 25 },
-  wasp:      { hp: 32, r: 16, speed: 130, fly: true,  edible: false, heal: 10 },
-  shellback: { hp: 64, r: 24, speed: 80,  fly: false, edible: false, heal: 15, shell: true },
-  ant:       { hp: 28, r: 20, speed: 120, fly: false, edible: false, heal: 12 },
+  gnat:      { hp: 10, r: 12, speed: 200, fly: true,  edible: true,  heal: 8,  posture: 16 },
+  juicebug:  { hp: 24, r: 18, speed: 95,  fly: false, edible: true,  heal: 25, posture: 24 },
+  wasp:      { hp: 32, r: 16, speed: 130, fly: true,  edible: false, heal: 10, posture: 36 },
+  shellback: { hp: 64, r: 24, speed: 80,  fly: false, edible: false, heal: 15, posture: 80, shell: true, big: true },
+  ant:       { hp: 28, r: 20, speed: 120, fly: false, edible: false, heal: 12, posture: 40 },
+  echo:      { hp: 18, r: 12, speed: 190, fly: true,  edible: false, heal: 5,  posture: 12 },
 };
 
 function wing(color, size, x, y, z) {
@@ -25,8 +29,9 @@ function buildBug(type) {
   const g = new THREE.Group();
   const wings = [];
   switch (type) {
+    case 'echo':
     case 'gnat':
-      g.add(blob(0x2b2b3a, 8, 1.3, 0.8, 0.8, 0, 0, 0));
+      g.add(blob(type === 'echo' ? 0x66ddff : 0x2b2b3a, 8, 1.3, 0.8, 0.8, 0, 0, 0));
       g.add(blob(0x111118, 5, 1, 1, 1, 9, 0, 1));
       g.add(blob(0xff4455, 1.8, 1, 1, 1, 12, 3, 3));
       g.add(blob(0xff4455, 1.8, 1, 1, 1, 12, -3, 3));
@@ -88,6 +93,8 @@ export class Enemy {
     this.edible = !!T.edible;
     this.shell = !!T.shell;
     this.healAmt = T.heal;
+    this.big = !!T.big;
+    initPosture(this, T.posture);
     this.dead = false;
     this.stagger = 0;
     this.atk = null;
@@ -102,14 +109,18 @@ export class Enemy {
     this.wings = this.root.userData.wings || [];
     this.flashList = collectFlash(this.root);
     game.world.scene.add(this.root);
+    this.overhead = new Overhead(game.world.scene);
     this.sync();
   }
 
+  get eatable() { return this.edible || this.broken > 0 || this.hp / this.maxHp <= 0.3; }
+
   onParried() {
-    this.stagger = 1.3;
+    this.stagger = Math.max(this.stagger, 1.0);
     this.atk = null;
     this.atkCd = 1.3;
     this.g.fx.burst(this.x, this.y, 30, 0xffff66, 8, 150, 0.4, 2.5);
+    this.g.addPosture(this, Math.max(CFG.POSTURE.parryMin, this.postureMax * CFG.POSTURE.parryFrac));
   }
 
   knock(ang, amt) { this.kx += Math.cos(ang) * amt * 6; this.ky += Math.sin(ang) * amt * 6; }
@@ -127,6 +138,8 @@ export class Enemy {
     }
     this.flashT = Math.max(0, this.flashT - dt);
     this.atkCd -= dt;
+    tickPosture(this, dt, CFG.POSTURE.regen);
+    if (this.broken > 0) { this.stagger = Math.max(this.stagger, 0.05); this.atk = null; }
     // knock decay
     this.x += this.kx * dt; this.y += this.ky * dt;
     this.kx *= Math.exp(-8 * dt); this.ky *= Math.exp(-8 * dt);
@@ -149,6 +162,7 @@ export class Enemy {
     const d = Math.hypot(dx, dy);
     const ang = Math.atan2(dy, dx);
     switch (this.type) {
+      case 'echo':
       case 'gnat': {
         this._face(ang, 10, dt);
         const wob = Math.sin(this.t * 6 + this.x) * 0.5;
@@ -230,7 +244,11 @@ export class Enemy {
     const zz = this.fly ? 34 + Math.sin(this.t * 6 + this.x * 0.01) * 4 : 0;
     this.root.position.set(this.x, this.y, zz);
     this.root.rotation.z = this.yaw;
+    const p = this.g.player;
+    const near = Math.hypot(p.x - this.x, p.y - this.y) < CFG.TONGUE.range * (p.pu.big > 0 ? 2 : 1) + 40;
+    this.overhead.update(this.g.world.camera, this.x, this.y, zz + this.radius * 2 + 14, this.hp / this.maxHp, this.posture / this.postureMax, this.broken > 0, this.eatable && near);
     if (this.flashT > 0) setFlash(this.flashList, 0xffffff);
+    else if (this.broken > 0) setFlash(this.flashList, Math.floor(this.t * 10) % 2 ? 0xffaa00 : 0x442200);
     else if (this.atk && this.atk.k === 'wind') setFlash(this.flashList, Math.floor(this.t * 20) % 2 ? 0xff2200 : 0x660000);
     else if (this.stagger > 0) setFlash(this.flashList, 0x888800);
     else if (this.burn > 0) setFlash(this.flashList, 0x773300);
@@ -241,7 +259,8 @@ export class Enemy {
     if (this.dead) return;
     this.dead = true;
     const g = this.g;
-    this.g.world.scene.remove(this.root);
+    this.overhead.remove();
+    g.fx.dissolve(this.root, 0.25, g.player.x, g.player.y);
     g.fx.burst(this.x, this.y, 30, 0x66ff66, 10, 160, 0.4, 3);
     g.player.heal(this.healAmt);
     g.stats.eaten++;
@@ -253,7 +272,8 @@ export class Enemy {
     if (this.dead) return;
     this.dead = true;
     const g = this.g;
-    g.world.scene.remove(this.root);
+    this.overhead.remove();
+    g.fx.dissolve(this.root, 0.3);
     const col = { gnat: 0x333344, juicebug: 0x7dff6a, wasp: 0xffd400, shellback: 0x4a5acc, ant: 0x884422 }[this.type] || 0xffffff;
     g.fx.burst(this.x, this.y, 30, col, 14, 240, 0.5, 3.5);
     if (team === 'player') g.stats.kills++;
@@ -261,7 +281,7 @@ export class Enemy {
     g.sfx.play('hit');
     if (this.type === 'juicebug') for (let i = 0; i < 4; i++) g.pickups.spawn('droplet', this.x, this.y);
     if (this.type === 'shellback') { g.pickups.spawn('bullet', this.x + 12, this.y); g.pickups.spawn('bullet', this.x - 12, this.y); }
-    g.maybeDrop(this.x, this.y);
+    if (this.type !== 'echo') g.maybeDrop(this.x, this.y);
     g.score += 10;
   }
 }

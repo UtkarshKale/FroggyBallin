@@ -34,7 +34,60 @@ export const LEVELS = [
     bossZone: { x: -580, y: 580, r: 460 },
     boss: { type: 'stag', x: -620, y: 620 },
   },
+  {
+    id: 'clockpond',
+    name: 'The Clockpond',
+    blurb: 'Night water and floating clock-faces. A duelist waits.',
+    seed: 4242,
+    half: 1100,
+    houses: 5,
+    theme: { c1: '#10243a', c2: '#1d4766', sky: 0x0b1630, skirt: 0x08101f, post: 0x6b7a8f, prop: 0x66ddff },
+    start: { x: -900, y: 900 },
+    goal: { x: 900, y: -900 },
+    zones: [
+      { x: -450, y: 450, r: 450, spawns: [['gnat', 8], ['wasp', 3], ['ant', 4], ['juicebug', 2]], pickups: [['ammo', 30, 30], ['golden', -70, 40]] },
+      { x: 0, y: 0, r: 500, spawns: [['gnat', 6], ['wasp', 3], ['shellback', 2], ['ant', 5], ['juicebug', 2]], pickups: [['ammo', 0, 80], ['over', 70, -40], ['shell', -90, 20]] },
+    ],
+    bossZone: { x: 580, y: -580, r: 460 },
+    boss: { type: 'mantis', x: 620, y: -620 },
+  },
+  {
+    id: 'loopsend',
+    name: "Loop's End",
+    blurb: 'The void between loops. The final boss eats time itself.',
+    seed: 31337,
+    half: 1100,
+    houses: 4,
+    theme: { c1: '#2a1448', c2: '#4a2a7a', sky: 0x120826, skirt: 0x0a0414, post: 0x8a6cff, prop: 0xffd700 },
+    start: { x: 0, y: -950 },
+    goal: { x: 0, y: 950 },
+    zones: [
+      { x: -300, y: -450, r: 450, spawns: [['gnat', 10], ['wasp', 3], ['ant', 5], ['shellback', 1], ['juicebug', 2]], pickups: [['ammo', 30, 30], ['firefly', -60, 40]] },
+      { x: 250, y: 0, r: 500, spawns: [['gnat', 8], ['wasp', 4], ['shellback', 2], ['ant', 5], ['juicebug', 3]], pickups: [['ammo', 0, 80], ['dragon', 70, -40], ['golden', -90, 20]] },
+    ],
+    bossZone: { x: 0, y: 600, r: 460 },
+    boss: { type: 'moth', x: 0, y: 650 },
+  },
 ];
+
+export const BOSSRUSH_LEVEL = {
+  id: 'bossrush',
+  name: 'Boss Rush',
+  seed: 909,
+  half: 900,
+  houses: 2,
+  theme: { c1: '#3a1420', c2: '#5a2234', sky: 0x1a0a10, skirt: 0x120609, post: 0x804040, prop: 0xff4455 },
+  start: { x: 0, y: -650 },
+  goal: { x: 5000, y: 5000 },
+  zones: [],
+  // Bosses are fought in order; the frog is patched up between fights.
+  rush: [
+    { type: 'hornet', x: 0, y: 350 },
+    { type: 'stag', x: 0, y: 350 },
+    { type: 'mantis', x: 0, y: 350 },
+    { type: 'moth', x: 0, y: 350 },
+  ],
+};
 
 export const SURVIVAL_LEVEL = {
   id: 'survival',

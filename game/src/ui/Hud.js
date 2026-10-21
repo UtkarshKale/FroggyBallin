@@ -9,10 +9,11 @@ export class Hud {
     this.root = document.createElement('div');
     this.root.style.display = 'none';
     this.root.innerHTML = `
-      <div class="abs vignette"></div><div class="abs lowhp"></div>
+      <div class="abs vignette"></div><div class="abs lowhp"></div><div class="abs sflash" id="h-sflash"></div>
       <div class="abs hud-tl panel-shadow">
         <div class="bar hp"><i id="h-hp"></i></div>
         <div class="row"><span id="h-hptxt">100</span><span class="ammo" id="h-ammo"></span></div>
+        <div class="row"><span class="wpn" id="h-wpn"></span></div>
       </div>
       <div class="abs hud-top panel-shadow">
         <div class="timer" id="h-time">00:00.00</div>
@@ -22,14 +23,16 @@ export class Hud {
       <div class="abs hud-tr panel-shadow" id="h-ghostbox">
         <div class="tag" id="h-ghosttag">GHOST</div>
         <div class="bar ghost"><i id="h-ghp"></i></div>
+        <div class="stance" id="h-gstance" style="margin:5px 0 0 auto"><i class="sl"></i><i class="sr"></i></div>
         <div class="sub" style="margin:6px 0 2px;color:#ffd23f">Ghost reaches the goal</div>
         <div class="bar prog"><i id="h-gprog"></i></div>
       </div>
-      <div class="abs bossbar panel-shadow" id="h-boss"><div class="name" id="h-bossname"></div><div class="bar boss"><i id="h-bosshp"></i></div></div>
+      <div class="abs bossbar panel-shadow" id="h-boss"><div class="name" id="h-bossname"></div><div class="bar boss"><i id="h-bosshp"></i></div><div class="stance" id="h-bossstance" style="margin:6px auto 0"><i class="sl"></i><i class="sr"></i></div></div>
       <div class="abs crosshair" id="h-cross"></div>
+      <div class="abs stance pstance" id="h-stance"><i class="sl"></i><i class="sr"></i></div>
       <div class="abs stamina" id="h-stam"><div class="bar stam"><i id="h-stami"></i></div></div>
       <div class="abs powers panel-shadow" id="h-powers"></div>
-      <div class="abs help panel-shadow">WASD move · Mouse aim · LMB slash · RMB parry · F shoot · E tongue · Space jump · Shift dodge · P pause · M mute</div>
+      <div class="abs help panel-shadow">WASD move · Mouse aim · LMB slash · RMB parry · F shoot · E tongue · Space jump · Shift dodge · P pause · Q gun/sword · RMB hold (gun) aim · M mute</div>
       <div class="abs banner panel-shadow" id="h-banner"></div>
       <div class="abs toast panel-shadow" id="h-toast"></div>`;
     root.appendChild(this.root);
@@ -38,6 +41,7 @@ export class Hud {
       hp: q('h-hp'), hptxt: q('h-hptxt'), ammo: q('h-ammo'), time: q('h-time'), pb: q('h-pb'), obj: q('h-obj'),
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
+      stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
       stam: q('h-stam'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
@@ -51,6 +55,12 @@ export class Hud {
   hurt() {
     this.vig.style.opacity = 1;
     setTimeout(() => { this.vig.style.opacity = 0; }, 120);
+  }
+
+  screenFlash() {
+    this.el.sflash.style.transition = 'none';
+    this.el.sflash.style.opacity = 0.85;
+    requestAnimationFrame(() => { this.el.sflash.style.transition = 'opacity .5s'; this.el.sflash.style.opacity = 0; });
   }
 
   flash(text, color = '#fff') {
@@ -80,6 +90,14 @@ export class Hud {
     e.ammo.innerHTML = `<b>${'●'.repeat(p.ammo)}</b>${'○'.repeat(Math.max(0, CFG.PLAYER.maxAmmo - p.ammo))}`;
     e.time.textContent = fmtTime(g.simT);
     e.cross.style.display = 'block';
+    e.cross.className = 'abs crosshair' + (p.weapon === 'gun' ? ' gun' : '') + (p.aiming ? ' aim' : '');
+    e.wpn.innerHTML = p.weapon === 'gun' ? '[Q] <b style="color:#ffd23f">GUN</b> · RMB aim' : '[Q] <b style="color:#dfe8f0">SWORD</b> · RMB parry';
+    const setStance = (el, frac, broken) => {
+      el.firstElementChild.style.width = el.lastElementChild.style.width = `${(broken ? 1 : Math.min(1, frac)) * 50}%`;
+      el.classList.toggle('broken', !!broken);
+      el.classList.toggle('hot', frac > 0.7);
+    };
+    setStance(e.stance, p.posture / 100, p.broken > 0);
 
     const tl = g.mode === 'timeloop';
     e.ghostbox.style.display = tl && g.ghost ? 'block' : 'none';
@@ -91,6 +109,8 @@ export class Hud {
         pbtxt += ` <span class="delta ${dd <= 0 ? 'good' : 'bad'}">${dd <= 0 ? '' : '+'}${dd.toFixed(1)}s</span>`;
       }
       e.pb.innerHTML = `LOOP ${g.loopNo} · ${pbtxt}`;
+    } else if (g.mode === 'bossrush') {
+      e.pb.innerHTML = `BOSS RUSH · PB ${g.pb != null ? fmtTime(g.pb) : '--'}`;
     } else {
       e.pb.innerHTML = `SCORE ${Math.floor(g.score)} · BEST ${Math.floor(g.survBest || 0)}`;
     }
@@ -102,6 +122,8 @@ export class Hud {
       e.ghp.style.width = `${Math.max(0, (gh.hp / gh.maxHp) * 100)}%`;
       e.gprog.style.width = `${gh.dead ? 0 : gh.progress * 100}%`;
     }
+    if (g.ghost && !g.ghost.dead) setStance(e.gstance, g.ghost.posture / g.ghost.postureMax, g.ghost.stunned);
+    if (g.boss && g.boss.active && !g.boss.dead) setStance(e.bossstance, g.boss.posture / g.boss.postureMax, g.boss.stunned);
     if (g.boss && g.boss.active && !g.boss.dead) e.bosshp.style.width = `${Math.max(0, (g.boss.hp / g.boss.maxHp) * 100)}%`;
 
     // Floating stamina bar above the frog's head
@@ -124,6 +146,7 @@ export class Hud {
     if (p.pu.big > 0) chip('bigmouth', 'Big Mouth', p.pu.big.toFixed(0) + 's');
     if (p.pu.shell > 0) chip('shell', 'Beetle Shell', 'x' + p.pu.shell);
     if (g.snailT > 0) chip('snail', 'Time Snail', g.snailT.toFixed(0) + 's');
+    if (p.pu.over > 0) chip('over', 'Overclock', p.pu.over.toFixed(0) + 's');
     if (p.counterT > 0) html += `<div class="chip" style="border-color:#fff">COUNTER READY</div>`;
     if (html !== this.lastPow) { e.powers.innerHTML = html; this.lastPow = html; }
 
