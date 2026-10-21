@@ -276,3 +276,6 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 .diff-btn:hover:not(.on), .diff-btn:focus-visible { background: #1c0306; border-color: #fff; color: #fff; outline: none; }
 .hud-tl, .hud-top, .hud-tr, .stylebox, .toast, .banner, .bossbar, .powers, .help, .counterp, .pstreak { text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 0 6px #000; }
 .objective { color: #ffd23f; }
+
+/* In-world HUD mode: the 3D scene carries HP/posture/stamina/ult, ammo, rank, boss bar and damage numbers */
+.diegetic .hud-tl, .diegetic .pstance, .diegetic .stamina, .diegetic .stylebox, .diegetic .bossbar, .diegetic .dmgs { display: none !important; }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CFG } from '../config.js';
+import { Settings } from '../core/Settings.js';
 import { makeActor, collectFlash, setFlash, stdMat } from '../core/Assets.js';
 import { angDiff, lerpAngle, ease, clamp, lerp } from '../core/math.js';
 
@@ -479,7 +480,7 @@ export class Player {
     this.shootCd = CFG.GUN.cooldown / (ult ? CFG.ULT.atkSpeed : 1);
     const aimed = this.aiming;
     // Aim assist toward the nearest target in the crosshair cone (tighter when aiming down sights).
-    let ang = aimYaw, best = aimed ? CFG.GUN.aimCone : CFG.GUN.assistCone;
+    let ang = aimYaw, best = (aimed ? CFG.GUN.aimCone : CFG.GUN.assistCone) * Settings.get('aimAssist');
     const targets = [...g.enemies];
     if (g.boss && g.boss.active) targets.push(g.boss);
     if (g.ghost && !g.ghost.dead) targets.push(g.ghost);

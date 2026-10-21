@@ -15,14 +15,25 @@ class SfxEngine {
       this.master = this.ctx.createGain();
       this.master.gain.value = this.muted ? 0 : 0.6;
       this.master.connect(this.ctx.destination);
+      this.sfxBus = this.ctx.createGain(); this.sfxBus.connect(this.master);
+      this.musicBus = this.ctx.createGain(); this.musicBus.connect(this.master);
+      this.setVolumes(this.vol || {});
       this.noiseBuf = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate);
       const d = this.noiseBuf.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     } catch { this.ctx = null; }
   }
+  // vol: { master, sfx, music } in 0..1
+  setVolumes(v) {
+    this.vol = v;
+    if (!this.ctx) return;
+    this.master.gain.value = this.muted ? 0 : (v.master ?? 0.6);
+    this.sfxBus.gain.value = v.sfx ?? 1;
+    this.musicBus.gain.value = v.music ?? 1;
+  }
   toggleMute() {
     this.muted = !this.muted;
-    if (this.master) this.master.gain.value = this.muted ? 0 : 0.6;
+    if (this.master) this.master.gain.value = this.muted ? 0 : (this.vol && this.vol.master != null ? this.vol.master : 0.6);
     return this.muted;
   }
   tone({ f = 440, f2 = null, d = 0.1, type = 'square', v = 0.15, delay = 0, bus = null }) {
@@ -35,7 +46,7 @@ class SfxEngine {
     if (f2) o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), t + d);
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + d);
-    o.connect(g); g.connect(bus || this.master);
+    o.connect(g); g.connect(bus || this.sfxBus || this.master);
     o.start(t); o.stop(t + d + 0.02);
   }
   noise({ d = 0.1, v = 0.2, lp = 3000, hp = 0, delay = 0 }) {
@@ -49,7 +60,7 @@ class SfxEngine {
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + d);
-    s.connect(f); f.connect(g); g.connect(this.master);
+    s.connect(f); f.connect(g); g.connect(this.sfxBus || this.master);
     s.start(t); s.stop(t + d + 0.02);
   }
   play(name) {
@@ -117,8 +128,9 @@ class SfxEngine {
       const i = this.step++;
       const bar = Math.floor(i / 8) % bass.length;
       const mul = this.intensity > 0.5 ? 0.89 : 1;
-      if (i % 4 === 0) this.tone({ f: bass[bar] * mul, d: 0.22, type: 'triangle', v: 0.07 });
-      if (i % 2 === 0 || this.intensity > 0.5) this.tone({ f: arp[i % arp.length] * mul * (bar % 2 ? 1.125 : 1), d: 0.12, type: 'square', v: 0.018 });
+      const mb = this.musicBus;
+      if (i % 4 === 0) this.tone({ f: bass[bar] * mul, d: 0.22, type: 'triangle', v: 0.07, bus: mb });
+      if (i % 2 === 0 || this.intensity > 0.5) this.tone({ f: arp[i % arp.length] * mul * (bar % 2 ? 1.125 : 1), d: 0.12, type: 'square', v: 0.018, bus: mb });
       if (this.intensity > 0.5 && i % 2 === 1) this.noise({ d: 0.04, v: 0.03, hp: 6000 });
     }, 150);
   }

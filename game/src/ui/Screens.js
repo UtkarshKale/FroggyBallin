@@ -2,6 +2,7 @@ import { fmtTime } from '../core/math.js';
 import { LEVELS } from '../levels/levels.js';
 import { Storage } from '../core/Storage.js';
 import { DIFFICULTY } from '../config.js';
+import { Settings } from '../core/Settings.js';
 
 // Menu, pause, stats, comic cutscenes, boss prelude. All DOM overlays.
 export class Screens {
@@ -43,14 +44,14 @@ export class Screens {
 
   // Red/black skewed wipe; fn runs while the screen is covered.
   wipe(fn) {
-    if (Storage.get('set.reduce', false)) { fn(); return; }
+    if (Settings.get('reduce')) { fn(); return; }
     const w = this.wipeEl;
     w.classList.remove('go'); void w.offsetWidth; w.classList.add('go');
     setTimeout(fn, 330);
   }
 
   applySettings() {
-    const reduce = Storage.get('set.reduce', false), crt = Storage.get('set.crt', true);
+    const reduce = Settings.get('reduce'), crt = Settings.get('crt');
     document.body.classList.toggle('reduce', reduce);
     document.body.classList.toggle('crt', crt);
     if (this.g.hud) this.g.hud.reduce = reduce;
@@ -58,14 +59,16 @@ export class Screens {
   }
 
   showSettings() {
-    const reduce = Storage.get('set.reduce', false), crt = Storage.get('set.crt', true);
+    const reduce = Settings.get('reduce'), crt = Settings.get('crt');
     this._set(`<div class="card" style="min-width:min(480px,90vw)"><h2>Settings</h2>
       <div class="setrow"><span>CRT overlay (scanlines, vignette, colour fringe on big hits)</span><button class="menu-btn small ${crt ? '' : 'alt'}" id="s-crt">${crt ? 'ON' : 'OFF'}</button></div>
       <div class="setrow"><span>Reduce flashing / effects (no screen flashes, softer shake, short wipes)</span><button class="menu-btn small ${reduce ? '' : 'alt'}" id="s-red">${reduce ? 'ON' : 'OFF'}</button></div>
+      <div class="setrow"><span>3D menus and in-world HUD</span><button class="menu-btn small alt" id="s-3d">Switch to 3D</button></div>
       <div class="setrow"><span>Sound</span><button class="menu-btn small ${this.g.sfx.muted ? 'alt' : ''}" id="s-snd">${this.g.sfx.muted ? 'OFF' : 'ON'}</button></div>
       <div class="btnrow"><button class="menu-btn small" id="b-back">Back</button></div></div>`, 'menu');
-    this._btn('s-crt', () => { Storage.set('set.crt', !crt); this.applySettings(); this.showSettings(); });
-    this._btn('s-red', () => { Storage.set('set.reduce', !reduce); this.applySettings(); this.showSettings(); });
+    this._btn('s-crt', () => { Settings.set('crt', !crt); this.g.applySettings(); this.showSettings(); });
+    this._btn('s-red', () => { Settings.set('reduce', !reduce); this.g.applySettings(); this.showSettings(); });
+    this._btn('s-3d', () => { Settings.set('ui3d', true); this.g.applySettings(); this.g.toMenu(); });
     this._btn('s-snd', () => { this.g.sfx.toggleMute(); this.showSettings(); });
     this._btn('b-back', () => this.showMenu());
   }
@@ -149,8 +152,8 @@ export class Screens {
     this._btn('b-menu', () => this.g.toMenu());
   }
 
-  showStats(d) {
-    const rows = [
+  statsRows(d) {
+    return [
       ['Difficulty', d.diff],
       ['Time', fmtTime(d.time)],
       ...(d.mode === 'timeloop' ? [['Personal best', fmtTime(d.pb)], ['Iteration', d.loopNo]] : d.mode === 'bossrush' ? [['Personal best', fmtTime(d.pb)]] : [['Score', Math.floor(d.score)]]),
@@ -162,6 +165,10 @@ export class Screens {
       ['Damage taken', Math.round(d.damageTaken)],
       ...(d.mode === 'timeloop' && d.hadGhost ? [['Ghost', d.ghostKilledAt != null ? `killed at ${fmtTime(d.ghostKilledAt)}` : d.ghostWon ? 'reached the goal first' : 'still alive']] : []),
     ];
+  }
+
+  showStats(d) {
+    const rows = this.statsRows(d);
     this._set(`<div class="card" style="min-width:min(520px,90vw)">
       <div class="stats-head"><h1 class="${d.win ? 'win' : 'lose'}">${d.title}</h1><div class="why">${d.why}${d.newPB ? ' <span class="newpb">NEW PERSONAL BEST!</span>' : ''}</div></div>
       <table>${rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>

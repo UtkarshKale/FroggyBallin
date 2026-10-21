@@ -20,6 +20,9 @@ import { PerilFx } from './fx/Peril.js';
 import { LEVELS, SURVIVAL_LEVEL, BOSSRUSH_LEVEL } from './levels/levels.js';
 import { Hud } from './ui/Hud.js';
 import { Screens } from './ui/Screens.js';
+import { Menu3D } from './ui/Menu3D.js';
+import { Hud3D } from './ui/Hud3D.js';
+import { Settings } from './core/Settings.js';
 import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
 
 const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null, maxCombo: 0, bestRank: 'D' });
@@ -69,7 +72,9 @@ export class Game {
     this.recorder = new Recorder();
     this.hud = new Hud(this.uiRoot);
     this.screens = new Screens(this.uiRoot, this);
-    this.screens.applySettings();
+    this.menu3d = new Menu3D(this);
+    this.hud3d = new Hud3D(this);
+    this.applySettings();
     this.deathVig = document.createElement('div'); this.deathVig.className = 'deathvig'; this.uiRoot.appendChild(this.deathVig);
     this.world.buildLevel(LEVELS[0]);
     this.player = new Player(this);
@@ -104,7 +109,25 @@ export class Game {
     this.world.cam.roll = 0;
     this.world.camera.fov = CFG.CAMERA.fov; this.world.camera.updateProjectionMatrix();
     this.world.snapCamera();
-    this.screens.showMenu();
+    if (Settings.get('ui3d')) { this.screens.hide(); this.menu3d.open('main'); }
+    else { this.menu3d.close(); this.screens.showMenu(); }
+  }
+
+  // Apply persisted options (Settings) to camera, input, audio, HUD and effects.
+  applySettings() {
+    const S = Settings.all();
+    CFG.CAMERA.fov = S.fov; CFG.CAMERA.gunFov = S.fov - 5; CFG.CAMERA.aimFov = S.fov - 15;
+    CFG.CAMERA.dist = S.camDist; CFG.CAMERA.gunDist = S.camDist * 0.85; CFG.CAMERA.aimDist = S.camDist * 0.69;
+    this.sfx.setVolumes({ master: S.master, sfx: S.sfx, music: S.music });
+    this.screens.applySettings();
+    this.hud.root.classList.toggle('diegetic', !!S.hud3d);
+  }
+
+  showDmg(t, dmg, kind) {
+    if (!Settings.get('dmgNums')) return;
+    const z = (t.z || 0) + (t.radius || 20) * 2 + 20;
+    if (Settings.get('hud3d')) this.hud3d.dmgNum(t.x, t.y, z, dmg, kind);
+    else this.hud.dmgNum(this.world.camera, t.x, t.y, z, dmg, kind);
   }
 
   cleanup() {
@@ -131,6 +154,7 @@ export class Game {
   startRun(mode, levelId) {
     this.sfx.init();
     this.sfx.startMusic();
+    this.menu3d.close();
     this.cleanup();
     this.mode = mode;
     const level = mode === 'survival' ? SURVIVAL_LEVEL : mode === 'bossrush' ? BOSSRUSH_LEVEL : LEVELS.find((l) => l.id === levelId) || LEVELS[0];
@@ -307,7 +331,13 @@ export class Game {
       this.deathVig.classList.add('on');
     }
     this.sfx.intensity = 0;
-    setTimeout(() => { if (this.state === 'STATS') { this.hud.show(false); this.deathVig.classList.remove('on'); this.screens.showStats(d); } }, delay);
+    setTimeout(() => {
+      if (this.state !== 'STATS') return;
+      this.hud.show(false); this.deathVig.classList.remove('on');
+      // Stats as a 3D moment around the frog (classic DOM card if 3D menus are off)
+      if (Settings.get('ui3d')) this.menu3d.openStats(d, this.screens.statsRows(d));
+      else this.screens.showStats(d);
+    }, delay);
   }
 
   onBossDead(b) {
@@ -566,7 +596,7 @@ export class Game {
     t.flashT = 0.1;
     if (mine || o.team === 'ghost') {
       const big = t.broken > 0 || dmg >= 60;
-      this.hud.dmgNum(this.world.camera, t.x, t.y, (t.z || 0) + (t.radius || 20) * 2 + 20, dmg, big ? 'big' : o.crit ? 'crit' : '');
+      this.showDmg(t, dmg, big ? 'big' : o.crit ? 'crit' : '');
       if (mine) this.hud.hitConfirm(big || o.crit);
     }
     const wasBroken = t.broken > 0;
@@ -758,14 +788,19 @@ export class Game {
       case 'STATS':
       case 'CUTSCENE':
         this.fx.update(raw);
-        this.world.cam.yaw += raw * 0.25;
-        this.player.yaw += raw * 0.4;
-        if (this.state === 'MENU') this.player.sync();
-        this.world.followCamera(this.player, raw, 0);
+        if (this.menu3d.active && this.state !== 'CUTSCENE') this.menu3d.update(raw);
+        else {
+          this.world.cam.yaw += raw * 0.25;
+          this.player.yaw += raw * 0.4;
+          if (this.state === 'MENU') this.player.sync();
+          this.world.followCamera(this.player, raw, 0);
+        }
         if (this.state === 'STATS' && inp.pressed('KeyR')) this.restart();
         break;
       default: break;
     }
+    this.hud3d.setOn(!!Settings.get('hud3d') && (this.state === 'PLAYING' || this.state === 'PAUSED'));
+    this.hud3d.update(raw);
     this.world.ascii.center.set(this.player.x, this.player.y);
     this.world.render(raw);
     if (!this._holdInput) inp.endFrame();
@@ -792,8 +827,9 @@ export class Game {
     // Camera input
     const [mdx, mdy] = inp.takeMouse();
     const pl0 = this.player;
-    cam.yaw -= mdx * 0.0024 * (pl0.aiming ? 0.55 : 1);
-    cam.pitch = clamp(cam.pitch + mdy * 0.002, 0.15, 1.25);
+    const sens = Settings.get('sens');
+    cam.yaw -= mdx * 0.0024 * sens * (pl0.aiming ? 0.55 : 1);
+    cam.pitch = clamp(cam.pitch + mdy * 0.002 * sens * (Settings.get('invertY') ? -1 : 1), 0.15, 1.25);
     if (inp.down('ArrowLeft')) cam.yaw += 2.2 * raw;
     if (inp.down('ArrowRight')) cam.yaw -= 2.2 * raw;
     if (inp.down('ArrowUp')) cam.pitch = clamp(cam.pitch - 1.2 * raw, 0.15, 1.25);
