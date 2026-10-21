@@ -266,3 +266,12 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 .prelude-title { background: linear-gradient(100deg, transparent 0 6%, rgba(0,0,0,.92) 6% 94%, transparent 94%); padding: 18px 0 22px; clip-path: polygon(0 12%, 100% 0, 100% 88%, 0 100%); }
 .prelude-title h1 { font-family: 'Arial Black', Impact, sans-serif; font-style: italic; color: #fff; -webkit-text-stroke: 2px #000; text-shadow: 6px 6px 0 #c8101e, 0 0 30px #f00; transform: skewX(-12deg); }
 .prelude-title h2 { font-family: 'Consolas', monospace; color: #ff9aa4; }
+
+/* Contrast fixes: highlights never fill an element red behind its text */
+.hlbar { height: 5px !important; background: #ff2a3a; box-shadow: 0 0 10px #ff2a3a; }
+.menu-btn:hover, .menu-btn:focus-visible { background: #1c0306; border-color: #fff; color: #fff; outline: none; }
+.menu-btn.alt:hover, .menu-btn.alt:focus-visible { background: #03141c; border-color: #fff; }
+.diff-btn.on { background: #fff; color: #0a0a0a; border-color: #ff2a3a; box-shadow: 0 0 12px rgba(255,42,58,.7); }
+.diff-btn:hover:not(.on), .diff-btn:focus-visible { background: #1c0306; border-color: #fff; color: #fff; outline: none; }
+.hud-tl, .hud-top, .hud-tr, .stylebox, .toast, .banner, .bossbar, .powers, .help, .counterp, .pstreak { text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 0 6px #000; }
+.objective { color: #ffd23f; }

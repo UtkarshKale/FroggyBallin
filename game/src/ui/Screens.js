@@ -35,8 +35,8 @@ export class Screens {
     const bar = this.overlay.querySelector('.hlbar');
     this.overlay.querySelectorAll('.menu-btn, .diff-btn').forEach((b) => b.addEventListener('mouseenter', () => {
       const o = this.overlay.getBoundingClientRect(), r = b.getBoundingClientRect();
-      bar.style.left = `${r.left - o.left + this.overlay.scrollLeft - 6}px`; bar.style.top = `${r.top - o.top + this.overlay.scrollTop + 4}px`;
-      bar.style.width = `${r.width + 12}px`; bar.style.height = `${r.height}px`;
+      bar.style.left = `${r.left - o.left + this.overlay.scrollLeft}px`; bar.style.top = `${r.bottom - o.top + this.overlay.scrollTop + 3}px`;
+      bar.style.width = `${r.width}px`;
       bar.classList.add('on');
     }));
   }
