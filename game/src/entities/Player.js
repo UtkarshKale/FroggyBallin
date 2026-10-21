@@ -115,7 +115,8 @@ export class Player {
   }
 
   get parryActive() { return this.parryT >= 0; }
-  get perfectLen() { return CFG.PARRY.perfect * (this.pu.over > 0 ? 2 : 1); }
+  get perfectLen() { return CFG.PARRY.perfect * (this.pu.over > 0 ? 2 : 1) * (this.g.bossUltOn('tightParry') ? 0.5 : 1); }
+  get ultOn() { return this.g.playerUlt; }
   get blockLen() { return CFG.PARRY.block * (this.pu.over > 0 ? 1.4 : 1); }
 
   // Returns 'hit' | 'block' | 'perfect' | 'dodged' | 'shell'
@@ -123,6 +124,7 @@ export class Player {
     if (this.dead) return 'dodged';
     const g = this.g, P = CFG.PLAYER_POSTURE;
     if (this.iframes > 0 || this.parryGrace > 0) return 'dodged';
+    if (src && src === g.boss && g.bossUltOn()) dmg *= CFG.ULT.bossDmg;
     if (opts.parryable !== false && this.parryActive && this.broken <= 0) {
       if (this.parryT < this.perfectLen) {
         const big = !!(src && src.big);
@@ -257,7 +259,7 @@ export class Player {
     const PP = CFG.PLAYER_POSTURE;
     if (this.broken > 0) this.broken = Math.max(0, this.broken - dt);
     else if (this.postureT > 0) this.postureT -= dt;
-    else this.posture = Math.max(0, this.posture - PP.regen * dt);
+    else if (!g.bossUltOn('noRegen')) this.posture = Math.max(0, this.posture - PP.regen * dt);
     const locked = this.broken > 0;
 
     // Stamina regen
@@ -269,7 +271,7 @@ export class Player {
     const fx = Math.cos(cam.yaw), fy = Math.sin(cam.yaw);
     const rx = Math.sin(cam.yaw), ry = -Math.cos(cam.yaw);
     const f = (input.down(K.forward) ? 1 : 0) - (input.down(K.back) ? 1 : 0);
-    const r = (input.down(K.right) ? 1 : 0) - (input.down(K.left) ? 1 : 0);
+    const r = ((input.down(K.right) ? 1 : 0) - (input.down(K.left) ? 1 : 0)) * (g.bossUltOn('reverse') ? -1 : 1);
     let mx = fx * f + rx * r, my = fy * f + ry * r;
     const ml = Math.hypot(mx, my);
     this.moving = ml > 0.01 && !locked;
@@ -325,6 +327,7 @@ export class Player {
     if (this.parryT >= 0) speed *= 0.6;
     if (this.tongue) speed *= 0.6;
     if (this.aiming) speed *= 0.5;
+    if (this.ultOn) speed *= CFG.ULT.moveMult;
     // Webs (ground patches + web shots) and latched leeches slow the frog
     if (this.z <= 0) speed *= g.webs.slowAt(this.x, this.y);
     if (this.webbedT > 0) speed *= CFG.WEB.shotSlow;
@@ -402,7 +405,7 @@ export class Player {
     const sw = this.swing;
     if (!sw) return;
     const S = CFG.SWORD;
-    sw.t += dt;
+    sw.t += dt * (this.ultOn ? CFG.ULT.atkSpeed : 1);
     const dur = S.dur[sw.step];
     if (!sw.hit && sw.t >= dur * S.hitAt) {
       sw.hit = true;
@@ -413,7 +416,7 @@ export class Player {
 
   _startParry(aimYaw) {
     this.parryT = 0;
-    this.parryCd = CFG.PARRY.cooldown;
+    this.parryCd = CFG.PARRY.cooldown / (this.ultOn ? CFG.ULT.atkSpeed : 1);
     this.swing = null;
     this.yaw = aimYaw;
     this.g.sfx.play('parry');
@@ -424,8 +427,9 @@ export class Player {
     const g = this.g;
     if (this.shootCd > 0 || this.tongue) return;
     if (this.ammo <= 0) { g.sfx.play('empty'); this.shootCd = 0.3; g.hud.flash('OUT OF AMMO', '#ffcc66'); return; }
-    this.ammo--;
-    this.shootCd = CFG.GUN.cooldown;
+    const ult = this.ultOn;
+    if (!ult) this.ammo--;
+    this.shootCd = CFG.GUN.cooldown / (ult ? CFG.ULT.atkSpeed : 1);
     const aimed = this.aiming;
     // Aim assist toward the nearest target in the crosshair cone (tighter when aiming down sights).
     let ang = aimYaw, best = aimed ? CFG.GUN.aimCone : CFG.GUN.assistCone;
@@ -444,7 +448,7 @@ export class Player {
     g.projectiles.spawn({
       x: this.x + Math.cos(ang) * 34, y: this.y + Math.sin(ang) * 34, z: 26,
       angle: ang, speed: CFG.GUN.speed * (aimed ? CFG.GUN.aimSpeedMult : 1),
-      dmg: CFG.GUN.dmg * (fire ? 1.4 : 1) * (aimed ? CFG.GUN.aimMult : 1), team: 'player', radius: CFG.GUN.radius,
+      dmg: CFG.GUN.dmg * (fire ? 1.4 : 1) * (aimed ? CFG.GUN.aimMult : 1) * (ult ? CFG.ULT.mult : 1), team: 'player', radius: CFG.GUN.radius,
       color: fire ? 0xff7a1a : 0xffee66, owner: this, burn: fire,
     });
     g.stats.shots++;
@@ -472,7 +476,7 @@ export class Player {
     const tg = this.tongue;
     if (!tg) { this.tongueMesh.visible = false; this.tongueTip.visible = false; return; }
     const T = CFG.TONGUE;
-    const range = T.range * (this.pu.big > 0 ? 2 : 1);
+    const range = T.range * (this.pu.big > 0 ? 2 : 1) * (this.ultOn ? CFG.ULT.mult : 1);
     tg.t += dt;
     if (!tg.resolved && tg.t >= T.resolveAt) {
       tg.resolved = true;
@@ -517,8 +521,9 @@ export class Player {
         e.eaten();
         ate++;
       } else if (ate === 0) {
-        g.damageTarget(e, 5, { team: 'player' });
-        g.addPosture(e, 10);
+        const k = this.ultOn ? CFG.ULT.mult : 1;
+        g.damageTarget(e, 5 * k, { team: 'player' });
+        g.addPosture(e, 10 * k);
         e.stagger = Math.max(e.stagger, 0.3);
         tg.target = e; tg.yaw = a;
         g.hud.flash('Too big to eat - break its posture!', '#ff9fb8');

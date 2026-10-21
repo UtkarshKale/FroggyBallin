@@ -23,6 +23,7 @@ import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
 
 const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null, maxCombo: 0, bestRank: 'D' });
 const newStyle = () => ({ pts: 0, idle: 0, combo: 0, comboT: 0, rank: 0 });
+const newUlt = () => ({ meter: 0, t: 0 });
 
 export class Game {
   constructor(canvas, uiRoot) {
@@ -35,6 +36,8 @@ export class Game {
     this.ghost = null;
     this.stats = newStats();
     this.style = newStyle();
+    this.ult = newUlt();
+    this.bossUlt = null;
     this.simT = 0;
     this.score = 0;
     this.mode = 'timeloop';
@@ -109,6 +112,10 @@ export class Game {
     this.fx.clear();
     this.hud.setBoss(null);
     this.snailT = 0;
+    this.bossUlt = null;
+    if (this.ult) this.ult.t = 0;
+    const a = this.world.ascii;
+    a.set(false); a.amount = 0; a.kickT = 0; a.extra = 0;
   }
 
   startRun(mode, levelId) {
@@ -121,6 +128,7 @@ export class Game {
     this.world.buildLevel(level);
     this.stats = newStats();
     this.style = newStyle();
+    this.ult = newUlt();
     this.simT = 0;
     this.score = 0;
     this.bossDead = mode === 'bossrush' ? false : !level.boss;
@@ -259,6 +267,7 @@ export class Game {
 
   onBossDead(b) {
     if (this.mode === 'bossrush') {
+      this.endBossUlt();
       const r = this.rush;
       this.hud.setBoss(null);
       this.sfx.intensity = 0;
@@ -272,6 +281,7 @@ export class Game {
       r.t = 3.5;
       return;
     }
+    this.endBossUlt();
     this.bossDead = true;
     this.sfx.intensity = 0;
     this.hud.setBoss(null);
@@ -301,6 +311,11 @@ export class Game {
     st.pts = clamp(st.pts + v, 0, S.max);
     if (v > 0) {
       st.idle = 0;
+      if (this.ult.t <= 0) {
+        const was = this.ult.meter;
+        this.ult.meter = Math.min(100, this.ult.meter + v * CFG.ULT.gain);
+        if (was < 100 && this.ult.meter >= 100) { this.hud.flash('ULTIMATE READY - press G', '#66ffcc'); this.sfx.play('rank'); }
+      }
       if (kind !== 'eat') { st.combo++; st.comboT = S.comboWindow; this.stats.maxCombo = Math.max(this.stats.maxCombo, st.combo); }
     } else { st.combo = 0; st.comboT = 0; }
     this._rankCheck();
@@ -324,6 +339,88 @@ export class Game {
     if (st.idle > S.idle) st.pts = Math.max(0, st.pts - S.decay * dt);
     if (st.comboT > 0) { st.comboT -= dt; if (st.comboT <= 0) st.combo = 0; }
     this._rankCheck();
+  }
+
+  // ------------------------------------------------------------ ultimates (ASCII mode)
+  get playerUlt() { return this.ult && this.ult.t > 0; }
+  bossUltOn(fx) { const u = this.bossUlt; return !!u && u.phase === 'active' && (!fx || u.fx === fx); }
+
+  startUlt() {
+    const u = this.ult;
+    if (u.t > 0) return;
+    if (u.meter < 100) { this.hud.flash('Ultimate not ready', '#99a'); return; }
+    if (this.bossUlt) { this.hud.flash('Boss ult in progress!', '#ff5566'); return; }
+    u.t = CFG.ULT.duration;
+    this.world.ascii.set(true, CFG.ULT.playerTint);
+    this.hud.cutIn('ULTIMATE', 'Everything x3. Go.', 'player');
+    this.sfx.play('ult');
+    this.fx.ring(this.player.x, this.player.y, 10, 0x66ffcc, 20, 400, 0.6);
+    this.fx.addShake(14);
+    this.fovPunch(10);
+  }
+
+  endUlt() {
+    this.ult.t = 0; this.ult.meter = 0;
+    const a = this.world.ascii;
+    a.set(false); a.kick(0.6);
+    this.hud.screenFlash();
+    this.sfx.play('ultEnd');
+  }
+
+  updateUlt(dt) {
+    const u = this.ult, p = this.player;
+    if (u.t > 0) {
+      u.t -= dt;
+      u.meter = Math.max(0, 100 * u.t / CFG.ULT.duration);
+      p.stamina = 100;
+      if (u.t <= 0) this.endUlt();
+    }
+    const b = this.boss;
+    const bu = this.bossUlt;
+    if (!b || !b.active || b.dead) { if (bu) this.endBossUlt(); return; }
+    if (!bu) {
+      if (b.ultDone === b.phase || b.stunned) return;
+      if (b.ultT == null) { const [lo, hi] = CFG.ULT.bossDelay; b.ultT = lo + Math.random() * (hi - lo); }
+      b.ultT -= dt;
+      if (b.ultT <= 0 && u.t <= 0 && b.state === 'move') this.startBossUlt(b);
+      return;
+    }
+    bu.t -= dt;
+    if (bu.phase === 'wind') {
+      b.telegraph = true; b.flashSync();
+      this.fx.addShake(3);
+      if (bu.t <= 0) {
+        bu.phase = 'active'; bu.t = CFG.ULT.bossDuration; bu.tick = 0;
+        this.world.ascii.set(true, CFG.ULT.bossTint);
+        if (bu.fx === 'shift') this.world.ascii.extra = 0.3;
+        this.hud.cutIn(`${b.name} ULT`, { noRegen: 'Your posture will not recover', reverse: 'Controls half-reversed', tightParry: 'Parry window halved', shift: 'Reality glitch: attacks drift', webs: 'Webs spin under your feet' }[bu.fx] || '', 'boss');
+        this.sfx.play('ult');
+        this.fx.ring(b.x, b.y, 10, 0xff3344, 20, 500, 0.6);
+        this.fx.addShake(16);
+      }
+    } else {
+      bu.tick -= dt;
+      if (bu.fx === 'webs' && bu.tick <= 0) { bu.tick = 1.6; this.webs.add(p.x + p.vx * 0.5, p.y + p.vy * 0.5, CFG.WEB.r, 5); }
+      if (bu.t <= 0) this.endBossUlt();
+    }
+  }
+
+  startBossUlt(b) {
+    b.ultDone = b.phase; b.ultT = null;
+    this.bossUlt = { b, phase: 'wind', t: CFG.ULT.bossWindup, fx: CFG.ULT.bossEffects[b.kind] || 'noRegen' };
+    this.hud.banner('ULT INCOMING', b.name, '#ff3344', 1.3);
+    this.sfx.play('ultWarn');
+    this.fx.ring(b.x, b.y, 10, 0xff3344, 160, 20, 1.0);
+  }
+
+  endBossUlt(reason) {
+    if (!this.bossUlt) return;
+    const was = this.bossUlt.phase === 'active';
+    this.bossUlt = null;
+    const a = this.world.ascii;
+    a.extra = 0;
+    if (was) { a.set(false); a.kick(0.6); this.sfx.play('ultEnd'); }
+    if (reason === 'broken') { this.hud.banner('ULT BROKEN!', 'The boss staggers', '#ffd23f', 2); this.hud.screenFlash(); }
   }
 
   fovPunch(a) { this.punchAmt = a; this.punchT = CFG.PARRY.punchTime; }
@@ -443,7 +540,8 @@ export class Game {
     this.fx.addShake(t.big ? 16 : 8);
     this.hitstop(t.big ? 0.3 : 0.15);
     this.hud.flash('POSTURE BROKEN!', '#ffaa33');
-    if (t.isBoss) t.stun(CFG.POSTURE.bossStun);
+    if (t.isBoss && this.bossUlt && this.bossUlt.b === t) { this.endBossUlt('broken'); t.stun(CFG.POSTURE.bossStun * 1.6); this.fx.addShake(22); }
+    else if (t.isBoss) t.stun(CFG.POSTURE.bossStun);
     else if (t.stun) t.stun(3);
     else { t.broken = CFG.POSTURE.brokenTime; t.stagger = t.broken; t.atk = null; }
   }
@@ -451,7 +549,7 @@ export class Game {
   swordStrike({ team, x, y, yaw, step, src }) {
     const S = CFG.SWORD;
     const range = S.range[step], half = S.halfArc[step];
-    let dmg = S.dmg[step];
+    let dmg = S.dmg[step] * (team === 'player' && this.playerUlt ? CFG.ULT.mult : 1);
     const crit = team === 'player' && src.counterT > 0;
     if (crit) {
       dmg *= S.critMult;
@@ -481,7 +579,7 @@ export class Game {
       } else {
         const wasBug = t.team === 'bug';
         this.damageTarget(t, dmg, { team, knock: true, ang: a, crit });
-        if (team === 'player' && !t.dead) this.addPosture(t, CFG.POSTURE.sword[step] * (crit ? CFG.POSTURE.critMult : 1));
+        if (team === 'player' && !t.dead) this.addPosture(t, CFG.POSTURE.sword[step] * (crit ? CFG.POSTURE.critMult : 1) * (this.playerUlt ? CFG.ULT.mult : 1));
         hits++;
         if (crit && wasBug && t.dead) this.pickups.spawn('bullet', t.x, t.y);
       }
@@ -537,6 +635,7 @@ export class Game {
   startPrelude(type, bx, by) {
     this.bossStarted = true;
     this.boss = makeBoss(type, this, bx, by);
+    this.boss.kind = type;
     this.state = 'PRELUDE';
     this.hud.show(false);
     this.pre = { t: 0, dur: CFG.BOSS.preludeDur, a0: Math.atan2(this.player.y - by, this.player.x - bx) };
@@ -603,7 +702,7 @@ export class Game {
         break;
       default: break;
     }
-    this.world.render();
+    this.world.render(raw);
     if (!this._holdInput) inp.endFrame();
     this._holdInput = false;
   }
@@ -673,11 +772,14 @@ export class Game {
       return;
     }
     this.updateWaves(dt);
+    if (inp.pressed(K.ult)) this.startUlt();
+    this.updateUlt(dt);
     if (this.mode === 'survival') this.survivalUpdate(dt);
     if (this.mode === 'bossrush') this.rushUpdate(dt);
 
     for (const e of this.enemies) e.update(dt * es);
-    if (this.boss && this.boss.active) this.boss.update(dt * es);
+    const bu = this.bossUlt;
+    if (this.boss && this.boss.active && !(bu && bu.phase === 'wind')) this.boss.update(dt * es * (bu ? CFG.ULT.bossSpeed : 1));
     if (this.ghost && !this.ghost.dead) this.ghost.update(dt * es);
     if (this.state !== 'PLAYING') return;
     this.projectiles.update(dt, es);

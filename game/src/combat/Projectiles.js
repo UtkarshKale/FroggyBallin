@@ -58,6 +58,8 @@ export class Projectiles {
       p.y += p.vy * dt * k;
       p.life -= dt;
       p.mesh.position.set(p.x, p.y, p.z);
+      // Boss 'shift' ult: hostile shots are drawn off from where they really are.
+      if (p.team === 'bug' && g.bossUltOn('shift')) { const s = g.simT; p.mesh.position.x += Math.sin(s * 3 + p.y * 0.01) * 45; p.mesh.position.y += Math.cos(s * 2.3 + p.x * 0.01) * 45; }
       const half = g.world.level?.half || CFG.ARENA_HALF;
       if (p.life <= 0 || Math.abs(p.x) > half + 100 || Math.abs(p.y) > half + 100 || g.world.blocked(p.x, p.y, p.radius * 0.5)) {
         this._remove(p);

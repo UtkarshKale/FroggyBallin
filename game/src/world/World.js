@@ -3,6 +3,7 @@ import { CFG } from '../config.js';
 import { makeModel, stdMat } from '../core/Assets.js';
 import { Rng } from '../core/Rng.js';
 import { clamp } from '../core/math.js';
+import { AsciiPass } from '../fx/Ascii.js';
 
 // Owns renderer, scene, lights, camera rig, floor, obstacles (houses) and the goal pad.
 export class World {
@@ -24,6 +25,8 @@ export class World {
     this.obstacles = [];
     this.levelGroup = new THREE.Group();
     this.scene.add(this.levelGroup);
+
+    this.ascii = new AsciiPass(this.renderer);
 
     this.cam = { yaw: Math.PI / 4, pitch: 0.55, dist: 270, pos: new THREE.Vector3(), shoulder: 0, shakeOffset: new THREE.Vector3() };
 
@@ -195,5 +198,9 @@ export class World {
 
   snapCamera() { this.cam.init = false; }
 
-  render() { this.renderer.render(this.scene, this.camera); }
+  render(dt = 0) {
+    this.ascii.update(dt);
+    if (this.ascii.active) this.ascii.render(this.scene, this.camera);
+    else this.renderer.render(this.scene, this.camera);
+  }
 }

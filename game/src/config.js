@@ -39,12 +39,18 @@ export const CFG = {
   BOMBER: { fuse: 1.0, hopSpeed: 420, hopTime: 0.4, radius: 120, dmg: 18, launchSpeed: 640, launchTime: 0.5, bugDmg: 45 },
   LEECH: { drain: 3, slowEach: 0.2, minSlow: 0.5, latchDmg: 4 },
   WEB: { r: 95, life: 9, slow: 0.45, shotSlow: 0.6, shotSlowTime: 1.2 },
+  // Ultimate (ASCII mode). Player ult: G when the meter is full. Every stat x mult; move/attack speed use their own
+  // multipliers (3x speed was unplayable in testing, tune here). Bosses ult once per phase; never overlaps the player's.
+  ULT: { cell: 9, glitchTime: 0.35, gain: 0.25, duration: 10, mult: 3, moveMult: 2, atkSpeed: 2.2,
+    bossWindup: 1.0, bossDuration: 8, bossDelay: [5, 10], bossSpeed: 1.5, bossDmg: 2.5,
+    playerTint: 0x66ffcc, bossTint: 0xff3344,
+    bossEffects: { hornet: 'noRegen', stag: 'reverse', mantis: 'tightParry', moth: 'shift', spider: 'webs' } },
   SAMPLE_DT: 0.05,
 
   KEYS: {
     forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
     jump: 'Space', dodge: 'ShiftLeft', shoot: 'KeyF', tongue: 'KeyE', pause: 'KeyP', mute: 'KeyM',
-    weapon: 'KeyQ', sword: 'Digit1', gun: 'Digit2',
+    weapon: 'KeyQ', sword: 'Digit1', gun: 'Digit2', ult: 'KeyG',
   },
 };
 

@@ -14,6 +14,7 @@ export class Hud {
         <div class="bar hp"><i id="h-hp"></i></div>
         <div class="row"><span id="h-hptxt">100</span><span class="ammo" id="h-ammo"></span></div>
         <div class="row"><span class="wpn" id="h-wpn"></span></div>
+        <div class="ultbox" id="h-ultbox"><div class="bar ult"><i id="h-ult"></i></div><span class="ultlbl">ULT [G]</span></div>
       </div>
       <div class="abs hud-top panel-shadow">
         <div class="timer" id="h-time">00:00.00</div>
@@ -36,6 +37,7 @@ export class Hud {
       <div class="abs stylebox panel-shadow" id="h-style"><div class="rank" id="h-rank">D</div><div class="bar srank"><i id="h-srank"></i></div><div class="combo" id="h-combo"></div></div>
       <div class="abs counterp panel-shadow" id="h-counter">COUNTER!</div>
       <div class="abs pstreak panel-shadow" id="h-streak"></div>
+      <div class="abs cutin" id="h-cutin"><div class="cpanel"><b></b><small></small></div></div>
       <div class="abs banner panel-shadow" id="h-banner"></div>
       <div class="abs toast panel-shadow" id="h-toast"></div>`;
     root.appendChild(this.root);
@@ -45,7 +47,7 @@ export class Hud {
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
       stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
-      stam: q('h-stam'), pdim: q('h-pdim'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
+      stam: q('h-stam'), pdim: q('h-pdim'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
     this.low = this.root.querySelector('.lowhp');
@@ -72,6 +74,16 @@ export class Hud {
     el.style.transition = 'none';
     el.style.opacity = 1;
     requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = `opacity ${dur}s ease-out`; el.style.opacity = 0; }));
+  }
+
+  // Skewed panel that slides in from the side with a big italic word (ults, boss cards, level clear).
+  cutIn(word, sub = '', kind = 'player') {
+    const el = this.el.cutin;
+    el.querySelector('b').textContent = word;
+    el.querySelector('small').textContent = sub;
+    el.className = `abs cutin ${kind}`;
+    void el.offsetWidth;
+    el.classList.add('go');
   }
 
   rankUp(letter, color) {
@@ -169,6 +181,13 @@ export class Hud {
       e.counter.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth}px`;
       e.counter.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight}px`;
     } else e.counter.style.display = 'none';
+
+    // Ult meter
+    if (g.ult) {
+      e.ult.style.width = `${g.ult.meter}%`;
+      e.ultbox.classList.toggle('full', g.ult.meter >= 100 && g.ult.t <= 0);
+      e.ultbox.classList.toggle('on', g.ult.t > 0);
+    }
 
     // Style rank + combo
     if (g.style) {
