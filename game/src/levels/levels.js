@@ -53,8 +53,8 @@ export const LEVELS = [
   },
   {
     id: 'loopsend',
-    name: "Loop's End",
-    blurb: 'The void between loops. The final boss eats time itself.',
+    name: 'Final Iteration',
+    blurb: 'The void between iterations. The final boss eats time itself.',
     seed: 31337,
     half: 1100,
     houses: 4,

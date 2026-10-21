@@ -687,7 +687,7 @@ export class MantisDuelist extends Boss {
 // Final boss: heals by "rewinding" unless you slay its time-echoes.
 export class ChronoMoth extends Boss {
   constructor(game, x, y) {
-    super(game, { name: 'THE CHRONO MOTH', title: 'Devourer of Loops', hp: 800, r: 58, posture: 150 });
+    super(game, { name: 'THE CHRONO MOTH', title: 'Devourer of Iterations', hp: 800, r: 58, posture: 150 });
     this.x = x; this.y = y; this.z = 110;
     const g = new THREE.Group();
     g.add(blob(0x6a4fd8, 40, 1.5, 0.9, 0.9, 0, 0, 0));

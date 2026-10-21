@@ -40,6 +40,7 @@ export class Game {
     this.snailT = 0;
     this.slowT = 0;
     this.hitstopT = 0;
+    this.freezeGap = 0;
     this.survBest = Storage.get('surv.best', 0);
     this.clock = new THREE.Clock();
   }
@@ -119,7 +120,7 @@ export class Game {
     this.zoneDone = (level.zones || []).map(() => false);
     this._goalOpen = null;
     this.surv = { t: 0, spawnT: 1.5, ammoT: 20 };
-    this.slowT = 0; this.hitstopT = 0;
+    this.slowT = 0; this.hitstopT = 0; this.freezeGap = 0;
     this.sfx.intensity = 0;
 
     this.player.reset(level.start.x, level.start.y);
@@ -282,6 +283,7 @@ export class Game {
   // ------------------------------------------------------------ helpers
   slowmo(t) { this.slowT = Math.max(this.slowT, t); }
   hitstop(t) { this.hitstopT = Math.max(this.hitstopT, t); }
+  bigFreeze() { if (this.freezeGap > 0) return false; this.hitstopT = Math.max(this.hitstopT, 0.45); this.freezeGap = 1.5; return true; }
 
   spawnEnemy(type, x, y) {
     const half = (this.levelCfg.half || CFG.ARENA_HALF) - 40;
@@ -350,7 +352,7 @@ export class Game {
     this.fx.ring(t.x, t.y, 25, 0xffaa33, 10, t.big ? 220 : 120, 0.5);
     this.fx.burst(t.x, t.y, 30, 0xffcc44, 20, 280, 0.5, 3);
     this.fx.addShake(t.big ? 16 : 8);
-    this.hitstop(t.big ? 0.4 : 0.15);
+    this.hitstop(t.big ? 0.3 : 0.15);
     this.hud.flash('POSTURE BROKEN!', '#ffaa33');
     if (t.isBoss) t.stun(CFG.POSTURE.bossStun);
     else if (t.stun) t.stun(3);
@@ -517,6 +519,7 @@ export class Game {
 
     if (inp.pressed(K.pause)) { this.pause(); return; }
 
+    if (this.freezeGap > 0 && !(this.hitstopT > 0)) this.freezeGap -= raw;
     if (this.hitstopT > 0) {
       this.hitstopT -= raw;
       this._holdInput = true; // don't swallow key presses made during the freeze

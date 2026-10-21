@@ -75,6 +75,7 @@ export class Player {
     this.dashT = 0;
     this.dodgeCd = 0;
     this.iframes = 0;
+    this.parryGrace = 0;
     this.jumps = 0;
     this.flashT = 0;
     this.moving = false;
@@ -103,7 +104,7 @@ export class Player {
   takeHit(dmg, src, opts = {}) {
     if (this.dead) return 'dodged';
     const g = this.g, P = CFG.PLAYER_POSTURE;
-    if (this.iframes > 0) return 'dodged';
+    if (this.iframes > 0 || this.parryGrace > 0) return 'dodged';
     if (opts.parryable !== false && this.parryActive && this.broken <= 0) {
       if (this.parryT < this.perfectLen) {
         const big = !!(src && src.big);
@@ -115,9 +116,9 @@ export class Player {
         g.fx.burst(this.x, this.y, 30, 0xffffff, big ? 30 : 14, 260, 0.4, 2.5);
         g.fx.addShake(big ? 22 : 10);
         // Parrying something big freezes the whole game for a beat.
-        g.hitstop(big ? 0.45 : 0.09);
-        g.slowmo(big ? 0.4 : CFG.PARRY.slowmo);
-        if (big) g.hud.screenFlash();
+        this.parryGrace = big ? 0.7 : 0.35;
+        if (big && g.bigFreeze()) { g.slowmo(0.4); g.hud.screenFlash(); }
+        else { g.hitstop(0.09); g.slowmo(CFG.PARRY.slowmo); }
         g.hud.flash(big ? 'PERFECT PARRY!!' : 'PERFECT PARRY', '#fff');
         if (src && src.onParried) src.onParried();
         return 'perfect';
@@ -203,6 +204,7 @@ export class Player {
     this.hitWall = false;
     for (const k of Object.keys(this.pu)) if (k !== 'shell') this.pu[k] = Math.max(0, this.pu[k] - dt);
     this.iframes = Math.max(0, this.iframes - dt);
+    this.parryGrace = Math.max(0, this.parryGrace - dt);
     this.dodgeCd = Math.max(0, this.dodgeCd - dt);
     this.parryCd = Math.max(0, this.parryCd - dt);
     this.shootCd = Math.max(0, this.shootCd - dt);

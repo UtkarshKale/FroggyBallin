@@ -122,7 +122,7 @@ Each level is a short course on a themed checkerboard map with houses/obstacles:
 | 1 | Teatime Meadow | Tode's garden from the course, green checkerboard + houses | Hornet Queen |
 | 2 | Rotwood Hollow | dark mossy log forest, mushrooms | Stag Beetle King |
 | 3 | The Clockpond (stretch) | night pond with floating clock-face lily pads | Mantis Duelist |
-| 4 | Loop's End (stretch) | void-like arena | The Chrono Moth |
+| 4 | Final Iteration (stretch) | void-like arena | The Chrono Moth |
 
 MVP target: **Level 1 fully done**, Level 2 if time allows.
 
@@ -218,4 +218,4 @@ Cut order if late: stretch → Level 2 → power-ups beyond Time Snail/Firefly/B
 - **Big parry:** perfect-parrying a big enemy (shellback, bosses) freezes the game ~0.45 s (hitstop + slow-mo + white flash) and adds heavy posture damage.
 - **Gun:** Q toggles weapon (1 sword / 2 gun); gun mode uses an over-the-shoulder camera, RMB/hold aims (ADS, tighter cone), LMB fires, limited ammo.
 - **Tongue:** E lashes at the best target, preferring edible / broken / low-HP bugs (pink E marker); stamina bar limits spam.
-- **New content:** Mantis Duelist (Clockpond), Chrono Moth (Loop's End), Boss Rush, Golden Fly rewind, Overclock.
+- **New content:** Mantis Duelist (Clockpond), Chrono Moth (Final Iteration), Boss Rush, Golden Fly rewind, Overclock.
