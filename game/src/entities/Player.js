@@ -386,7 +386,7 @@ export class Player {
     } else if (this.parryT >= 0) {
       p.rotation.set(0, -0.9, 0);
     } else {
-      p.rotation.set(0, 0.3, -1.45);
+      p.rotation.set(0, 0.9, -0.5);
     }
     this.parryDisc.visible = this.parryT >= 0;
     if (this.parryT >= 0) {

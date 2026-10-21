@@ -373,11 +373,13 @@ export class Game {
     this.bossStarted = true;
     this.boss = makeBoss(lv.boss.type, this, lv.boss.x, lv.boss.y);
     this.state = 'PRELUDE';
+    this.hud.show(false);
     this.pre = { t: 0, dur: 5.2, a0: Math.atan2(this.player.y - lv.boss.y, this.player.x - lv.boss.x) };
     this.sfx.play('boss');
     this.screens.preludeStart(this.boss, () => {
       this.boss.active = true;
       this.boss.entrance(1);
+      this.hud.show(true);
       this.hud.setBoss(this.boss);
       this.sfx.intensity = 1;
       this.state = 'PLAYING';

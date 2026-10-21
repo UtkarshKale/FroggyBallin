@@ -153,12 +153,12 @@ export class HornetQueen extends Boss {
     switch (this.state) {
       case 'move': {
         this.yaw = lerpAngle(this.yaw, ang, 1 - Math.exp(-5 * dt));
-        const want = 330;
+        const want = 300;
         const sp = ph2 ? 220 : 170;
         if (d > want + 70) { this.x += Math.cos(ang) * sp * dt; this.y += Math.sin(ang) * sp * dt; }
         else if (d < want - 70) { this.x -= Math.cos(ang) * sp * dt; this.y -= Math.sin(ang) * sp * dt; }
         else { this.x += Math.cos(ang + Math.PI / 2) * 110 * dt * Math.sign(Math.sin(this.t * 0.5)); this.y += Math.sin(ang + Math.PI / 2) * 110 * dt * Math.sign(Math.sin(this.t * 0.5)); }
-        this.z = lerp(this.z, 110 + Math.sin(this.t * 3) * 10, 1 - Math.exp(-4 * dt));
+        this.z = lerp(this.z, 95 + Math.sin(this.t * 3) * 10, 1 - Math.exp(-4 * dt));
         this.cd -= dt;
         if (this.cd <= 0) this.pickAttack(d);
         break;
