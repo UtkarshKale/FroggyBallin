@@ -97,10 +97,10 @@ export class Hud {
   hitConfirm(strong) {
     this._replay(this.el.cross, strong ? 'hitc2' : 'hitc');
     if (!this.reduce && strong && document.body.classList.contains('crt')) {
-      const c = document.querySelector('canvas.game');
-      c.classList.add('fringe');
+      if (!this._edge) { this._edge = document.createElement('div'); this._edge.className = 'crtedge'; document.body.appendChild(this._edge); }
+      this._edge.classList.add('on');
       clearTimeout(this._fr);
-      this._fr = setTimeout(() => c.classList.remove('fringe'), CFG.FEEL.hitFringe * 1000);
+      this._fr = setTimeout(() => this._edge.classList.remove('on'), CFG.FEEL.hitFringe * 1000);
     }
   }
 
@@ -114,8 +114,10 @@ export class Hud {
   screenFlash() {
     if (this.reduce) return;
     this.el.sflash.style.transition = 'none';
-    this.el.sflash.style.opacity = 0.85;
-    requestAnimationFrame(() => { this.el.sflash.style.transition = 'opacity .5s'; this.el.sflash.style.opacity = 0; });
+    this.el.sflash.style.opacity = 0.45;
+    requestAnimationFrame(() => { this.el.sflash.style.transition = 'opacity .4s'; this.el.sflash.style.opacity = 0; });
+    clearTimeout(this._sfT);
+    this._sfT = setTimeout(() => { this.el.sflash.style.transition = 'none'; this.el.sflash.style.opacity = 0; }, CFG.PARRY.overlayMax * 1000);
   }
 
   // Perfect parry: desaturate + darken the screen edges for a beat (no black bars).
@@ -124,6 +126,8 @@ export class Hud {
     el.style.transition = 'none';
     el.style.opacity = 1;
     requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = `opacity ${dur}s ease-out`; el.style.opacity = 0; }));
+    clearTimeout(this._pdT);
+    this._pdT = setTimeout(() => { el.style.transition = 'none'; el.style.opacity = 0; }, CFG.PARRY.overlayMax * 1000);
   }
 
   // Skewed panel that slides in from the side with a big italic word (ults, boss cards, level clear).

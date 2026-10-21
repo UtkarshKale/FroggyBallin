@@ -142,8 +142,8 @@ export class Player {
         g.parryFx(this, src, opts.proj, big, this.parryStreak);
         // Parrying something big freezes the whole game for a beat.
         this.parryGrace = big ? 0.7 : 0.35;
-        if (big && g.bigFreeze()) { g.slowmo(0.4); g.hud.screenFlash(); }
-        else { g.hitstop(0.09); g.slowmo(CFG.PARRY.slowmo); }
+        if (big && g.bigFreeze()) { g.slowmo(CFG.PARRY.bigSlow); g.hud.screenFlash(); }
+        else { g.hitstop(CFG.PARRY.hitstop); g.slowmo(CFG.PARRY.slowmo); }
         g.hud.flash(big ? 'PERFECT PARRY!!' : 'PERFECT PARRY', '#fff');
         if (src && src.onParried) src.onParried();
         return 'perfect';
@@ -191,7 +191,7 @@ export class Player {
         this.counterT = Math.max(this.counterT, PR.riposte);
         g.hud.ink('RIPOSTE', 'counter');
         g.sfx.play('riposte');
-        g.slowmo(0.18);
+        g.slowmo(0.1);
       } else g.hud.flash('PERILOUS DODGE', '#ff5566');
       return 'dodged';
     }

@@ -347,7 +347,10 @@ export class Game {
 
   // ------------------------------------------------------------ helpers
   slowmo(t) { this.slowT = Math.max(this.slowT, t); }
-  hitstop(t) { this.hitstopT = Math.max(this.hitstopT, t); }
+  hitstop(t) {
+    if (!(this.hitstopT > 0)) this._hsStart = performance.now();
+    this.hitstopT = Math.min(CFG.PARRY.maxHitstop, Math.max(this.hitstopT || 0, t));
+  }
   // Style meter: points for aggression and skill, combo counter for chained hits.
   addStyle(kind) {
     const S = CFG.STYLE, st = this.style;
@@ -515,7 +518,7 @@ export class Game {
     cm.updateProjectionMatrix();
   }
 
-  bigFreeze() { if (this.freezeGap > 0) return false; this.hitstopT = Math.max(this.hitstopT, 0.45); this.freezeGap = 1.5; return true; }
+  bigFreeze() { if (this.freezeGap > 0) return false; this.hitstop(CFG.PARRY.bigHitstop); this.freezeGap = 1.5; return true; }
 
   spawnEnemy(type, x, y) {
     const half = (this.levelCfg.half || CFG.ARENA_HALF) - 40;
@@ -592,7 +595,7 @@ export class Game {
     this.fx.ring(t.x, t.y, 25, 0xffaa33, 10, t.big ? 220 : 120, 0.5);
     this.fx.burst(t.x, t.y, 30, 0xffcc44, 20, 280, 0.5, 3);
     this.fx.addShake(t.big ? 16 : 8);
-    this.hitstop(t.big ? 0.3 : 0.15);
+    this.hitstop(t.big ? CFG.PARRY.bigBreakHitstop : CFG.PARRY.breakHitstop);
     this.hud.ink('POSTURE BROKEN');
     this.hud.postureSlash();
     if (t.isBoss && this.bossUlt && this.bossUlt.b === t) { this.endBossUlt('broken'); t.stun(CFG.POSTURE.bossStun * 1.6); this.fx.addShake(22); }
@@ -610,7 +613,7 @@ export class Game {
     if (crit) {
       dmg *= S.critMult;
       src.counterT = 0;
-      if (rip) { src.riposteT = 0; this.hud.flash('RIPOSTE!', '#ff9a1a'); this.addStyle('riposte'); this.fx.addShake(14); this.fovPunch(8); this.hitstop(0.12); }
+      if (rip) { src.riposteT = 0; this.hud.flash('RIPOSTE!', '#ff9a1a'); this.addStyle('riposte'); this.fx.addShake(14); this.fovPunch(8); this.hitstop(CFG.PARRY.hitstop); }
       else this.hud.flash('COUNTER!', '#ffee55');
       this.addStyle('counter');
     }
@@ -746,7 +749,10 @@ export class Game {
     const inp = this.input;
     if (inp.pressed(CFG.KEYS.mute)) this.sfx.toggleMute();
     switch (this.state) {
-      case 'PLAYING': this.step(raw); break;
+      case 'PLAYING':
+        // A throw inside the animation-loop callback would stop the loop for good (looks like a freeze): contain it.
+        try { this.step(raw); } catch (e) { if (!this._errShown) { this._errShown = true; console.error('step failed', e); } this.hitstopT = 0; this.slowT = 0; }
+        break;
       case 'PRELUDE': this.preludeStep(raw); break;
       case 'MENU':
       case 'STATS':
@@ -795,11 +801,18 @@ export class Game {
 
     if (inp.pressed(K.pause)) { this.pause(); return; }
 
+    if (!isFinite(this.hitstopT)) this.hitstopT = 0;
+    if (!isFinite(this.slowT)) this.slowT = 0;
     if (this.freezeGap > 0 && !(this.hitstopT > 0)) this.freezeGap -= raw;
     if (this.hitstopT > 0) {
       this.hitstopT -= raw;
+      // Hard wall-clock cap so a hitstop can never hang the game.
+      if (performance.now() - (this._hsStart || 0) > CFG.PARRY.maxHitstop * 1000) this.hitstopT = 0;
       this._holdInput = true; // don't swallow key presses made during the freeze
+      // Only gameplay pauses: camera, particles, glyphs and HUD keep animating.
       this.camFov(raw);
+      this.fx.update(raw * 0.35);
+      this.perilFx.update(raw);
       this.world.followCamera(this.player, raw, this.fx.shake);
       this.hud.update(this, raw);
       return;

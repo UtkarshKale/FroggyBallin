@@ -16,8 +16,10 @@ export const CFG = {
     critMult: 3,
     knock: 46,
   },
-  PARRY: { perfect: 0.15, block: 0.35, cooldown: 0.7, blockReduce: 0.3, counterWindow: 1.0, slowmo: 0.12,
+  PARRY: { perfect: 0.15, block: 0.35, cooldown: 0.7, blockReduce: 0.3, counterWindow: 1.0, slowmo: 0.06,
     // Perfect-parry feel: camera zoom punch, edge dim, streak counter, refunds, attacker knockback.
+    // Hitstops are short punches (wall-clock capped by maxHitstop); big parries punch then slow-mo.
+    hitstop: 0.06, bigHitstop: 0.18, bigSlow: 0.3, breakHitstop: 0.08, bigBreakHitstop: 0.12, maxHitstop: 0.25, overlayMax: 0.6,
     fovPunch: 6, punchTime: 0.25, dimTime: 0.35, streakWindow: 3, staminaRefund: 15, knock: 70, blockPush: 140 },
   GUN: { dmg: 15, speed: 720, cooldown: 0.22, radius: 8, assistCone: 0.14, aimMult: 1.5, aimSpeedMult: 1.2, aimCone: 0.06 },
   // Sekiro-style posture: filling an enemy's bar breaks it (stunned, deathblow x3). Player has one too.
