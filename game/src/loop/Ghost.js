@@ -50,7 +50,7 @@ export class Ghost {
     this.x = s[1]; this.y = s[2]; this.z = 0; this.yaw = s[4];
     this.root = makeActor('tode', CFG.PLAYER.height, 0x66ddff);
     this.mat = ghostify(this.root, 0x66ddff, 0.5);
-    this.root.add(makeLabel(`LOOP ${loopNo - 1}`));
+    this.root.add(makeLabel(`ITERATION ${loopNo - 1}`));
     game.world.scene.add(this.root);
     this.sync();
   }

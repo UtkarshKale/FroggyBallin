@@ -62,7 +62,7 @@ export class Screens {
 
   showHow() {
     this._set(`<div class="card"><h2>How to Play</h2>
-      <p><b>Time Loop:</b> Beat the level and your run becomes a <b style="color:#66ddff">ghost</b>. Next loop it replays every move, slash and shot, and it hunts you with echo bolts. Kill the ghost, defeat the boss, and reach the goal before the ghost does. If the ghost reaches the goal first, it's over.</p>
+      <p><b>Time Loop:</b> Beat the level and your run becomes a <b style="color:#66ddff">ghost</b>. Next iteration it replays every move, slash and shot, and it hunts you with echo bolts. Kill the ghost, defeat the boss, and reach the goal before the ghost does. If the ghost reaches the goal first, it's over.</p>
       <table>
         <tr><td>Move / Jump / Dodge</td><td>WASD / Space / Shift</td></tr>
         <tr><td>Aim camera</td><td>Mouse (click to lock pointer) or arrow keys</td></tr>
@@ -89,7 +89,7 @@ export class Screens {
 
   showPause() {
     this._set(`<div class="card" style="text-align:center"><h2>Paused</h2><p>Click Resume to lock the mouse and continue.</p>
-      <div class="btnrow"><button class="menu-btn" id="b-res">Resume</button><button class="menu-btn alt" id="b-restart">Restart Loop</button><button class="menu-btn alt" id="b-menu">Main Menu</button></div></div>`);
+      <div class="btnrow"><button class="menu-btn" id="b-res">Resume</button><button class="menu-btn alt" id="b-restart">Restart Iteration</button><button class="menu-btn alt" id="b-menu">Main Menu</button></div></div>`);
     this._btn('b-res', () => this.g.resume());
     this._btn('b-restart', () => this.g.restart());
     this._btn('b-menu', () => this.g.toMenu());
@@ -98,7 +98,7 @@ export class Screens {
   showStats(d) {
     const rows = [
       ['Time', fmtTime(d.time)],
-      ...(d.mode === 'timeloop' ? [['Personal best', fmtTime(d.pb)], ['Loop', d.loopNo]] : d.mode === 'bossrush' ? [['Personal best', fmtTime(d.pb)]] : [['Score', Math.floor(d.score)]]),
+      ...(d.mode === 'timeloop' ? [['Personal best', fmtTime(d.pb)], ['Iteration', d.loopNo]] : d.mode === 'bossrush' ? [['Personal best', fmtTime(d.pb)]] : [['Score', Math.floor(d.score)]]),
       ['Bugs slain (you / ghost)', `${d.kills} / ${d.ghostKills}`],
       ['Bugs eaten', d.eaten],
       ['Perfect parries', d.perfectParries],
@@ -109,7 +109,7 @@ export class Screens {
     this._set(`<div class="card" style="min-width:min(520px,90vw)">
       <div class="stats-head"><h1 class="${d.win ? 'win' : 'lose'}">${d.title}</h1><div class="why">${d.why}${d.newPB ? ' <span class="newpb">NEW PERSONAL BEST!</span>' : ''}</div></div>
       <table>${rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>
-      <div class="btnrow"><button class="menu-btn" id="b-again">${d.mode === 'timeloop' ? 'Loop Again (R)' : 'Try Again (R)'}</button><button class="menu-btn alt" id="b-menu">Main Menu</button></div></div>`);
+      <div class="btnrow"><button class="menu-btn" id="b-again">${d.mode === 'timeloop' ? 'Next Iteration (R)' : 'Try Again (R)'}</button><button class="menu-btn alt" id="b-menu">Main Menu</button></div></div>`);
     this._btn('b-again', () => this.g.restart());
     this._btn('b-menu', () => this.g.toMenu());
   }

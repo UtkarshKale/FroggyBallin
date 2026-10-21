@@ -171,7 +171,7 @@ export class Game {
     this.clock.getDelta();
     if (this.mode === 'survival') this.hud.banner('SURVIVE', 'Slash, parry, eat. How long can you last?', '#7dff7d');
     else if (this.mode === 'bossrush') this.hud.banner('BOSS RUSH', 'Four bosses. No loops. Break their posture!', '#ff7a7a', 3);
-    else if (this.ghost) this.hud.banner(`LOOP ${this.loopNo}`, 'Kill your past self, beat the boss, reach the goal first!', '#66ddff', 3.2);
+    else if (this.ghost) this.hud.banner(`ITERATION ${this.loopNo}`, 'Kill your past self, beat the boss, reach the goal first!', '#66ddff', 3.2);
     else this.hud.banner('FIRST RUN', 'Clear the level to record your ghost', '#7dff7d', 3);
     this.sfx.play('ui');
   }
@@ -233,7 +233,7 @@ export class Game {
       this.pb = best;
       Object.assign(d, this.mode === 'bossrush'
         ? { win: true, title: 'BOSS RUSH CLEARED', why: 'All four bosses defeated.' }
-        : { win: true, title: 'LOOP CLEARED', why: this.ghost ? 'You beat your past self.' : 'Run recorded. Your ghost awaits in the next loop.' });
+        : { win: true, title: 'ITERATION CLEARED', why: this.ghost ? 'You beat your past self.' : 'Run recorded. Your ghost awaits in the next iteration.' });
       this.sfx.play('win');
     } else if (reason === 'ghost') {
       Object.assign(d, { win: false, title: 'THE PAST WAS FASTER', why: 'Your ghost reached the goal first.' });

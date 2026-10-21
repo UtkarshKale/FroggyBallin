@@ -94,7 +94,7 @@ All keys live in one `controls` config so they can be rebound quickly.
 The ghost you race is your **previous winning run** (most recent). The PB time is tracked separately and shown on the HUD.
 
 ### 6.2 The Ghost
-- Looks like Tode but translucent cyan/purple with an afterimage trail and a "LOOP n-1" tag above it.
+- Looks like Tode but translucent cyan/purple with an afterimage trail and an "ITERATION n-1" tag above it (runs are called iterations in all player-facing text; the mode is still "Time Loop").
 - **Replays exactly**: position, facing, jumps, and every action (slash, shot, parry, tongue) at the original timestamps.
 - **Its actions are real.** Its slashes and bullets damage *you* and live insects. It steals your kills and can hurt the boss.
 - **It hunts you.** On top of the replay, the Ghost fires an "echo bolt" at you every ~4 s when you're within 15 units (parryable; perfect parry reflects it back at the Ghost for heavy damage). This makes the past version actively try to kill you, as the brief requires.
@@ -107,7 +107,7 @@ The ghost you race is your **previous winning run** (most recent). The PB time i
 - Spawns use a **seeded RNG** per level so the world matches between loops (it won't be perfectly deterministic and doesn't need to be).
 
 ### 6.4 Stats screen
-Time, PB, delta vs PB (green/red), loop number, kills (you vs ghost), perfect parries, accuracy, damage taken, bugs eaten, "Ghost killed at mm:ss.ms" or "Ghost reached goal". Buttons: **Loop Again** (R), **Main Menu**.
+Time, PB, delta vs PB (green/red), iteration number, kills (you vs ghost), perfect parries, accuracy, damage taken, bugs eaten, "Ghost killed at mm:ss.ms" or "Ghost reached goal". Buttons: **Next Iteration** (R), **Main Menu**.
 
 ## 7. Other modes
 - **Classic Survival** (the course game, upgraded): endless arena with increasing difficulty and score, now with the full moveset. Keeps the original course loop playable and gives a fallback mode if Time Loop scope slips.

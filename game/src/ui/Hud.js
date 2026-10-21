@@ -108,7 +108,7 @@ export class Hud {
         const dd = g.simT - best;
         pbtxt += ` <span class="delta ${dd <= 0 ? 'good' : 'bad'}">${dd <= 0 ? '' : '+'}${dd.toFixed(1)}s</span>`;
       }
-      e.pb.innerHTML = `LOOP ${g.loopNo} · ${pbtxt}`;
+      e.pb.innerHTML = `ITERATION ${g.loopNo} · ${pbtxt}`;
     } else if (g.mode === 'bossrush') {
       e.pb.innerHTML = `BOSS RUSH · PB ${g.pb != null ? fmtTime(g.pb) : '--'}`;
     } else {
@@ -118,7 +118,7 @@ export class Hud {
 
     if (g.ghost) {
       const gh = g.ghost;
-      e.ghosttag.textContent = gh.dead ? 'GHOST DEFEATED' : `PAST SELF · LOOP ${g.loopNo - 1}`;
+      e.ghosttag.textContent = gh.dead ? 'GHOST DEFEATED' : `PAST SELF · ITERATION ${g.loopNo - 1}`;
       e.ghp.style.width = `${Math.max(0, (gh.hp / gh.maxHp) * 100)}%`;
       e.gprog.style.width = `${gh.dead ? 0 : gh.progress * 100}%`;
     }
