@@ -78,6 +78,9 @@ function buildBug(type) {
   return root;
 }
 
+const SPAWN_POP = 0.35, WOBBLE = 0.35;
+const backOut = (t) => 1 + 2.7 * Math.pow(t - 1, 3) + 1.7 * Math.pow(t - 1, 2);
+
 export class Enemy {
   constructor(game, type, x, y) {
     const T = ENEMY_TYPES[type];
@@ -110,8 +113,16 @@ export class Enemy {
     this.flashList = collectFlash(this.root);
     game.world.scene.add(this.root);
     this.overhead = new Overhead(game.world.scene);
+    // Spawn-in pop: grows in with overshoot, can't act until it lands.
+    this.spawnT = SPAWN_POP;
+    this.wobT = 0;
+    this.stagger = Math.max(this.stagger, SPAWN_POP);
+    game.fx.ring(x, y, 3, 0xffffff, 4, this.radius * 3, 0.3, 0.6);
+    game.fx.burst(x, y, 4, 0xd8d2b0, 5, 90, 0.35, 2.5, 120);
     this.sync();
   }
+
+  onDamaged() { this.wobT = WOBBLE; }
 
   get eatable() { return this.edible || this.broken > 0 || this.hp / this.maxHp <= 0.3; }
 
@@ -137,6 +148,8 @@ export class Enemy {
       if (this.hp <= 0) { this.die('player'); return; }
     }
     this.flashT = Math.max(0, this.flashT - dt);
+    this.spawnT = Math.max(0, this.spawnT - dt);
+    this.wobT = Math.max(0, this.wobT - dt);
     this.atkCd -= dt;
     tickPosture(this, dt, CFG.POSTURE.regen);
     if (this.broken > 0) { this.stagger = Math.max(this.stagger, 0.05); this.atk = null; }
@@ -244,6 +257,11 @@ export class Enemy {
     const zz = this.fly ? 34 + Math.sin(this.t * 6 + this.x * 0.01) * 4 : 0;
     this.root.position.set(this.x, this.y, zz);
     this.root.rotation.z = this.yaw;
+    // Hit wobble + spawn pop
+    const w = this.wobT > 0 ? Math.sin(this.wobT * 45) * 0.35 * (this.wobT / WOBBLE) : 0;
+    this.root.rotation.x = w;
+    const sp = this.spawnT > 0 ? Math.max(0.05, backOut(1 - this.spawnT / SPAWN_POP)) : 1;
+    this.root.scale.set(sp * (1 + Math.abs(w) * 0.4), sp * (1 + Math.abs(w) * 0.4), sp * (1 - Math.abs(w) * 0.3));
     const p = this.g.player;
     const near = Math.hypot(p.x - this.x, p.y - this.y) < CFG.TONGUE.range * (p.pu.big > 0 ? 2 : 1) + 40;
     this.overhead.update(this.g.world.camera, this.x, this.y, zz + this.radius * 2 + 14, this.hp / this.maxHp, this.posture / this.postureMax, this.broken > 0, this.eatable && near);
@@ -264,6 +282,7 @@ export class Enemy {
     g.fx.burst(this.x, this.y, 30, 0x66ff66, 10, 160, 0.4, 3);
     g.player.heal(this.healAmt);
     g.stats.eaten++;
+    g.addStyle('eat');
     g.sfx.play('gulp');
     g.hud.flash(`+${this.healAmt} HP`, '#7dff7d');
   }
@@ -273,9 +292,13 @@ export class Enemy {
     this.dead = true;
     const g = this.g;
     this.overhead.remove();
-    g.fx.dissolve(this.root, 0.3);
+    this.root.scale.setScalar(1);
+    g.fx.dissolve(this.root, 0.45, null, null, 14);
     const col = { gnat: 0x333344, juicebug: 0x7dff6a, wasp: 0xffd400, shellback: 0x4a5acc, ant: 0x884422 }[this.type] || 0xffffff;
     g.fx.burst(this.x, this.y, 30, col, 14, 240, 0.5, 3.5);
+    // juicy droplets that arc out and splash down
+    g.fx.burst(this.x, this.y, 24, this.type === 'juicebug' ? 0x9dff8a : 0xc8f0ff, 10, 230, 0.75, 2.4, 760);
+    g.fx.ring(this.x, this.y, 3, col, 6, this.radius * 4, 0.35, 0.6);
     if (team === 'player') g.stats.kills++;
     else if (team === 'ghost') g.stats.ghostKills++;
     g.sfx.play('hit');

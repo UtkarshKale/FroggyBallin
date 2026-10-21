@@ -32,6 +32,9 @@ export const CFG = {
   BOSS: { ph2Speed: 1.3, cdMult: 0.8, preludeDur: 4.2 },
   GHOST: { hp: 150, echoEvery: 4, echoRange: 900, echoDmg: 10 },
   POWERUP: { duration: 12, snail: 6, dropChance: 0.12 },
+  // Style meter (D..S): rewards hits, kills, parries, deathblows; decays when idle, drops when hurt.
+  STYLE: { hit: 4, kill: 12, parry: 30, deathblow: 35, counter: 20, eat: 10, hurt: -60, decay: 16, idle: 2.0, comboWindow: 2.5, max: 460,
+    ranks: [[0, 'D', '#9aa'], [50, 'C', '#7dff7d'], [120, 'B', '#66ddff'], [220, 'A', '#ffd23f'], [340, 'S', '#ff5a8a']] },
   SAMPLE_DT: 0.05,
 
   KEYS: {

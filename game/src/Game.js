@@ -20,7 +20,8 @@ import { Hud } from './ui/Hud.js';
 import { Screens } from './ui/Screens.js';
 import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
 
-const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null });
+const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null, maxCombo: 0, bestRank: 'D' });
+const newStyle = () => ({ pts: 0, idle: 0, combo: 0, comboT: 0, rank: 0 });
 
 export class Game {
   constructor(canvas, uiRoot) {
@@ -32,6 +33,7 @@ export class Game {
     this.boss = null;
     this.ghost = null;
     this.stats = newStats();
+    this.style = newStyle();
     this.simT = 0;
     this.score = 0;
     this.mode = 'timeloop';
@@ -85,6 +87,7 @@ export class Game {
     this.world.cam.pitch = 0.35;
     this.world.cam.dist = 330;
     this.world.cam.shoulder = 0;
+    this.world.cam.roll = 0;
     this.world.camera.fov = CFG.CAMERA.fov; this.world.camera.updateProjectionMatrix();
     this.world.snapCamera();
     this.screens.showMenu();
@@ -114,6 +117,7 @@ export class Game {
     this.levelCfg = level;
     this.world.buildLevel(level);
     this.stats = newStats();
+    this.style = newStyle();
     this.simT = 0;
     this.score = 0;
     this.bossDead = mode === 'bossrush' ? false : !level.boss;
@@ -129,7 +133,7 @@ export class Game {
     this.recorder.reset();
     const cam = this.world.cam;
     cam.yaw = Math.atan2(-level.start.y || 0.01, -level.start.x || 0.01);
-    cam.pitch = 0.55; cam.dist = CFG.CAMERA.dist; cam.shoulder = 0;
+    cam.pitch = 0.55; cam.dist = CFG.CAMERA.dist; cam.shoulder = 0; cam.roll = 0;
     this.world.camera.fov = CFG.CAMERA.fov; this.world.camera.updateProjectionMatrix();
     this.world.snapCamera();
     this.player.yaw = cam.yaw;
@@ -285,6 +289,39 @@ export class Game {
   // ------------------------------------------------------------ helpers
   slowmo(t) { this.slowT = Math.max(this.slowT, t); }
   hitstop(t) { this.hitstopT = Math.max(this.hitstopT, t); }
+  // Style meter: points for aggression and skill, combo counter for chained hits.
+  addStyle(kind) {
+    const S = CFG.STYLE, st = this.style;
+    if (!st || this.state !== 'PLAYING') return;
+    const v = S[kind] || 0;
+    st.pts = clamp(st.pts + v, 0, S.max);
+    if (v > 0) {
+      st.idle = 0;
+      if (kind !== 'eat') { st.combo++; st.comboT = S.comboWindow; this.stats.maxCombo = Math.max(this.stats.maxCombo, st.combo); }
+    } else { st.combo = 0; st.comboT = 0; }
+    this._rankCheck();
+  }
+
+  _rankCheck() {
+    const R = CFG.STYLE.ranks, st = this.style;
+    let r = 0;
+    for (let i = 0; i < R.length; i++) if (st.pts >= R[i][0]) r = i;
+    if (r > st.rank) {
+      this.hud.rankUp(R[r][1], R[r][2]);
+      this.sfx.play('rank');
+      if (r > (st.best || 0)) { st.best = r; this.stats.bestRank = R[r][1]; }
+    }
+    st.rank = r;
+  }
+
+  updateStyle(dt) {
+    const S = CFG.STYLE, st = this.style;
+    st.idle += dt;
+    if (st.idle > S.idle) st.pts = Math.max(0, st.pts - S.decay * dt);
+    if (st.comboT > 0) { st.comboT -= dt; if (st.comboT <= 0) st.combo = 0; }
+    this._rankCheck();
+  }
+
   fovPunch(a) { this.punchAmt = a; this.punchT = CFG.PARRY.punchTime; }
 
   // Perfect parry juice at the contact point: sparks, speed lines, shockwave, zoom punch, edge dim, layered clang.
@@ -305,6 +342,7 @@ export class Game {
     this.hud.parryDim(big ? 0.65 : PA.dimTime);
     this.hud.parryStreak(streak);
     this.sfx.parry(streak, big);
+    this.addStyle('parry');
     if (src && !proj && src.team !== 'player') {
       src.flashT = 0.18;
       if (!src.isBoss && src.knock) src.knock(ang, PA.knock);
@@ -369,14 +407,16 @@ export class Game {
   damageTarget(t, dmg, o = {}) {
     if (t.dead) return;
     if (t.stunned) dmg *= 1.5;
-    if (t.broken > 0) { dmg *= CFG.POSTURE.deathblow; this.hud.flash('DEATHBLOW!', '#ffcc33'); this.fx.addShake(8); }
+    const mine = o.team === 'player';
+    if (t.broken > 0) { dmg *= CFG.POSTURE.deathblow; this.hud.flash('DEATHBLOW!', '#ffcc33'); this.fx.addShake(8); if (mine) this.addStyle('deathblow'); }
+    if (mine) this.addStyle('hit');
     t.hp -= dmg;
     t.flashT = 0.1;
     if (o.burn) t.burn = 3;
     if (o.knock && t.knock && !t.isBoss) t.knock(o.ang, CFG.SWORD.knock);
     this.fx.burst(t.x, t.y, 30, 0xffffff, 5, 150, 0.25, 2);
     this.sfx.play(o.crit ? 'crit' : 'hit');
-    if (t.hp <= 0) t.die(o.team);
+    if (t.hp <= 0) { t.die(o.team); if (mine) this.addStyle('kill'); }
     else if (t.onDamaged) t.onDamaged(dmg);
   }
 
@@ -413,6 +453,7 @@ export class Game {
       dmg *= S.critMult;
       src.counterT = 0;
       this.hud.flash('COUNTER!', '#ffee55');
+      this.addStyle('counter');
     }
     const col = crit ? 0xffee55 : team === 'ghost' ? 0x66ddff : 0xffffff;
     this.fx.slash(x, y, 16, yaw, range, half, col);
@@ -606,6 +647,10 @@ export class Game {
     this.camFov(raw);
     pl.update(dt, inp, cam);
     if (this.state !== 'PLAYING') return;
+    // Camera roll leaning into dodges
+    const rollT = pl.dashT > 0 ? -pl.dashLat * CFG.DODGE.roll : 0;
+    cam.roll = (cam.roll || 0) + (rollT - (cam.roll || 0)) * (1 - Math.exp(-14 * raw));
+    this.updateStyle(dt);
 
     const lv = this.levelCfg;
     // Zone triggers

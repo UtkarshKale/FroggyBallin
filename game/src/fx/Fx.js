@@ -90,8 +90,9 @@ export class Fx {
   }
 
   // Shrinks a dead actor away (optionally pulled toward a point, e.g. eaten by the tongue).
-  dissolve(root, life = 0.3, tx = null, ty = null) {
-    this.dis.push({ root, life, max: life, tx, ty, x0: root.position.x, y0: root.position.y, z0: root.position.z, s0: root.scale.x });
+  // spin > 0: death pop (swell, spin up and shrink away).
+  dissolve(root, life = 0.3, tx = null, ty = null, spin = 0) {
+    this.dis.push({ root, life, max: life, tx, ty, spin, x0: root.position.x, y0: root.position.y, z0: root.position.z, s0: root.scale.x });
   }
 
   // Radial speed lines bursting out of a contact point (perfect parry).
@@ -154,8 +155,15 @@ export class Fx {
       d.life -= dt;
       const k = Math.min(1, 1 - d.life / d.max);
       if (d.life <= 0) { this.scene.remove(d.root); this.dis.splice(i, 1); continue; }
-      d.root.scale.setScalar(Math.max(0.01, d.s0 * (1 - k)));
-      d.root.position.z = d.z0 + 24 * k;
+      if (d.spin) {
+        const sw = k < 0.2 ? 1 + k * 1.2 : 1.24 * (1 - (k - 0.2) / 0.8);
+        d.root.scale.setScalar(Math.max(0.01, d.s0 * sw));
+        d.root.rotation.z += d.spin * dt * (0.4 + k);
+        d.root.position.z = d.z0 + 40 * Math.sin(k * Math.PI);
+      } else {
+        d.root.scale.setScalar(Math.max(0.01, d.s0 * (1 - k)));
+        d.root.position.z = d.z0 + 24 * k;
+      }
       if (d.tx != null) {
         d.root.position.x = d.x0 + (d.tx - d.x0) * k * 0.7;
         d.root.position.y = d.y0 + (d.ty - d.y0) * k * 0.7;

@@ -102,6 +102,7 @@ export class Screens {
       ['Bugs slain (you / ghost)', `${d.kills} / ${d.ghostKills}`],
       ['Bugs eaten', d.eaten],
       ['Perfect parries', d.perfectParries],
+      ['Best style rank / max combo', `${d.bestRank} / x${d.maxCombo}`],
       ['Gun accuracy', d.shots ? `${Math.round((d.hits / d.shots) * 100)}%` : '-'],
       ['Damage taken', Math.round(d.damageTaken)],
       ...(d.mode === 'timeloop' && d.hadGhost ? [['Ghost', d.ghostKilledAt != null ? `killed at ${fmtTime(d.ghostKilledAt)}` : d.ghostWon ? 'reached the goal first' : 'still alive']] : []),

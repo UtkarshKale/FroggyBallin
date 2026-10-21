@@ -112,3 +112,11 @@
 .pstreak { left: 50%; top: 22%; transform: translateX(-50%); font-weight: 900; font-size: 34px; letter-spacing: 3px; opacity: 0; }
 .pstreak.pop { animation: spop 1.4s ease-out forwards; }
 @keyframes spop { 0% { opacity: 1; transform: translateX(-50%) scale(1.8); } 12% { opacity: 1; transform: translateX(-50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) scale(.95); } }
+
+/* Style rank */
+.stylebox { right: 18px; top: 44%; width: 120px; text-align: center; transition: opacity .3s; }
+.stylebox .rank { font-size: 64px; font-weight: 900; line-height: 1; font-style: italic; text-shadow: 0 3px 0 #000, 0 0 18px currentColor; }
+.stylebox .rank.up { animation: rankup .45s ease-out; }
+@keyframes rankup { 0% { transform: scale(2.2) rotate(-12deg); } 60% { transform: scale(.9) rotate(3deg); } 100% { transform: none; } }
+.stylebox .bar.srank { height: 7px; border-width: 1px; margin-top: 4px; }
+.stylebox .combo { margin-top: 4px; font-weight: 900; font-size: 16px; color: #fff; min-height: 20px; }

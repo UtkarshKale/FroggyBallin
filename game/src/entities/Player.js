@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { CFG } from '../config.js';
 import { makeActor, collectFlash, setFlash, stdMat } from '../core/Assets.js';
-import { angDiff, lerpAngle, ease, clamp } from '../core/math.js';
+import { angDiff, lerpAngle, ease, clamp, lerp } from '../core/math.js';
+
+const tipV = new THREE.Vector3();
 
 export class Player {
   constructor(game) {
@@ -57,7 +59,9 @@ export class Player {
     // Tongue
     this.tongueMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 5, 5), new THREE.MeshBasicMaterial({ color: 0xff5f8a }));
     this.tongueMesh.visible = false;
-    this.g.world.scene.add(this.tongueMesh);
+    this.tongueTip = new THREE.Mesh(new THREE.SphereGeometry(6, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff7fa0 }));
+    this.tongueTip.visible = false;
+    this.g.world.scene.add(this.tongueMesh, this.tongueTip);
   }
 
   reset(x, y) {
@@ -96,12 +100,16 @@ export class Player {
     this.postureT = 0;
     this.broken = 0;
     this.dustT = 0;
+    this.sq = 0;
+    this.lastTip = null;
+    this.dashLat = 0;
     this.hist = [];
     this.histT = 0;
     this.pu = { fire: 0, dragon: 0, big: 0, shell: 0, over: 0 };
     this.hitWall = false;
     this.root.visible = true;
     this.tongueMesh.visible = false;
+    this.tongueTip.visible = false;
     this.sync();
   }
 
@@ -156,6 +164,7 @@ export class Player {
     this.parryStreak = 0;
     this.addPosture(dmg * P.hitMult);
     g.sfx.play('hurt');
+    g.addStyle('hurt');
     g.fx.addShake(8);
     g.hud.hurt();
     return 'hit';
@@ -297,12 +306,13 @@ export class Player {
         this.dodgeCd = CFG.DODGE.cooldown * (this.pu.dragon > 0 ? 0.6 : 1);
         this.iframes = CFG.DODGE.iframes;
         this.dashDir = this.moving ? Math.atan2(my, mx) : this.yaw;
+        this.dashLat = Math.cos(this.dashDir) * rx + Math.sin(this.dashDir) * ry; // + = rightward on screen (camera roll)
         g.sfx.play('dodge');
         g.recorder.event('d');
         g.fx.burst(this.x, this.y, 10, 0xffffff, 6, 80, 0.3, 2);
       }
       if (input.pressed(K.jump)) {
-        if (this.z <= 0.5) { this.vz = CFG.PLAYER.jumpV; this.jumps = 1; g.sfx.play('jump'); }
+        if (this.z <= 0.5) { this.vz = CFG.PLAYER.jumpV; this.jumps = 1; this.sq = 0.28; g.sfx.play('jump'); }
         else if (this.pu.dragon > 0 && this.jumps < 2) { this.vz = CFG.PLAYER.jumpV * 0.9; this.jumps = 2; g.sfx.play('jump'); g.fx.ring(this.x, this.y, this.z, 0x44ddff, 8, 40, 0.3); }
       }
     }
@@ -333,7 +343,8 @@ export class Player {
       this.z += this.vz * dt;
       if (this.z <= 0) { this.z = 0; this.vz = 0; this.jumps = 0; }
     }
-    if (wasAir && this.z === 0) g.fx.burst(this.x, this.y, 3, 0xd8d2b0, 6, 90, 0.35, 2.5, 120);
+    if (wasAir && this.z === 0) { this.sq = -0.32; g.fx.burst(this.x, this.y, 3, 0xd8d2b0, 6, 90, 0.35, 2.5, 120); }
+    this.sq *= Math.exp(-9 * dt);
     g.world.resolve(this);
 
     // Footstep dust
@@ -351,6 +362,24 @@ export class Player {
     this._updateTongue(dt);
     this._updateGear(dt);
     this.sync();
+    this._trail();
+  }
+
+  // Glowing dots along the blade tip path during the fast part of a swing.
+  _trail() {
+    const sw = this.swing;
+    if (!sw || this.weapon !== 'sword') { this.lastTip = null; return; }
+    const u = sw.t / CFG.SWORD.dur[sw.step];
+    if (u < 0.18 || u > 0.75) { this.lastTip = null; return; }
+    this.root.updateMatrixWorld(true);
+    this.tip.getWorldPosition(tipV);
+    const col = this.counterT > 0 ? 0xffe066 : sw.step === 2 ? 0xbfe9ff : 0xffffff;
+    const fx = this.g.fx;
+    if (this.lastTip) for (let i = 1; i <= 3; i++) {
+      const k = i / 3;
+      fx.dot(lerp(this.lastTip.x, tipV.x, k), lerp(this.lastTip.y, tipV.y, k), lerp(this.lastTip.z, tipV.z, k), col, sw.step === 2 ? 3.6 : 2.6, 0.14);
+    }
+    this.lastTip = tipV.clone();
   }
 
   _startSwing(aimYaw) {
@@ -435,7 +464,7 @@ export class Player {
 
   _updateTongue(dt) {
     const tg = this.tongue;
-    if (!tg) { this.tongueMesh.visible = false; return; }
+    if (!tg) { this.tongueMesh.visible = false; this.tongueTip.visible = false; return; }
     const T = CFG.TONGUE;
     const range = T.range * (this.pu.big > 0 ? 2 : 1);
     tg.t += dt;
@@ -447,11 +476,16 @@ export class Player {
     const reach = tg.target ? Math.hypot(tg.target.x - this.x, tg.target.y - this.y) : range * 0.8;
     const k = out ? tg.t / T.resolveAt : 1 - (tg.t - T.resolveAt) / (T.dur - T.resolveAt);
     tg.len = Math.max(1, reach * clamp(k, 0, 1));
+    // Springy wobble: the tongue whips side to side and pulses in thickness.
+    const wob = Math.sin(tg.t * 46) * 0.16 * (1 - clamp(tg.t / T.dur, 0, 1));
+    const ya = tg.yaw + wob;
     this.tongueMesh.visible = true;
-    this.tongueMesh.scale.x = tg.len;
-    this.tongueMesh.position.set(this.x + Math.cos(tg.yaw) * tg.len / 2, this.y + Math.sin(tg.yaw) * tg.len / 2, 22);
-    this.tongueMesh.rotation.z = tg.yaw;
-    if (tg.t >= T.dur) { this.tongue = null; this.tongueMesh.visible = false; }
+    this.tongueMesh.scale.set(tg.len, 1 + 0.35 * Math.sin(tg.t * 60), 1 + 0.35 * Math.sin(tg.t * 60));
+    this.tongueMesh.position.set(this.x + Math.cos(ya) * tg.len / 2, this.y + Math.sin(ya) * tg.len / 2, 22);
+    this.tongueMesh.rotation.z = ya;
+    this.tongueTip.visible = true;
+    this.tongueTip.position.set(this.x + Math.cos(ya) * tg.len, this.y + Math.sin(ya) * tg.len, 22);
+    if (tg.t >= T.dur) { this.tongue = null; this.tongueMesh.visible = false; this.tongueTip.visible = false; }
   }
 
   // Auto-targets the closest edible bug in a wide cone; broken (posture-stunned) bugs are always edible.
@@ -507,14 +541,16 @@ export class Player {
     p.visible = !gunMode;
     const sw = this.swing;
     if (sw) {
-      const dur = CFG.SWORD.dur[sw.step];
-      const k = ease(clamp(sw.t / dur, 0, 1));
-      if (sw.step === 2) {
-        p.rotation.set(0, -1.7 + 2.3 * k, 0);
-      } else {
-        const a = sw.step === 0 ? 1.3 - 2.6 * k : -1.3 + 2.6 * k;
-        p.rotation.set(0, 0, a);
-      }
+      // Anticipation (wind back past the start), fast swing with overshoot, then follow-through settle.
+      const u = clamp(sw.t / CFG.SWORD.dur[sw.step], 0, 1);
+      const s0 = sw.step === 2 ? -1.7 : sw.step === 0 ? 1.3 : -1.3;
+      const s1 = sw.step === 2 ? 0.6 : -s0;
+      let a;
+      if (u < 0.18) a = lerp(s0 * 0.85, s0 * 1.25, ease(u / 0.18));
+      else if (u < 0.55) a = lerp(s0 * 1.25, s1 * 1.18, ease((u - 0.18) / 0.37));
+      else a = lerp(s1 * 1.18, s1 * 0.92, ease((u - 0.55) / 0.45));
+      if (sw.step === 2) p.rotation.set(0, a, 0);
+      else p.rotation.set(0, 0, a);
     } else if (this.parryT >= 0) {
       p.rotation.set(0, -0.9, 0);
     } else {
@@ -548,7 +584,8 @@ export class Player {
     const hop = this.moving && this.z <= 0 ? Math.abs(Math.sin(this.t * 12)) * 5 : 0;
     this.root.position.set(this.x, this.y, this.z + hop);
     this.root.rotation.z = this.yaw;
-    const stretch = this.z > 0 ? 1.08 : 1;
+    // Squash and stretch: stretch on take-off / in the air, squash on landing.
+    const stretch = Math.max(0.55, (this.z > 0 ? 1.06 : 1) * (1 + this.sq));
     this.root.scale.set(1 / Math.sqrt(stretch), 1 / Math.sqrt(stretch), stretch);
     if (this.flashT > 0) {
       this.flashT -= 1 / 60;

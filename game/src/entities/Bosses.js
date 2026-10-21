@@ -63,14 +63,21 @@ class Boss {
     else if (this.stunned) setFlash(this.flashList, Math.floor(this.t * 12) % 2 ? 0xaaaa00 : 0x333300);
     else if (this.telegraph) setFlash(this.flashList, Math.floor(this.t * 18) % 2 ? 0xff3300 : 0x550000);
     else setFlash(this.flashList, null);
+    // Breathing idle: slow chest swell (quicker and shallower while stunned).
+    const b = Math.sin(this.t * (this.stunned ? 5 : 2.4)) * (this.stunned ? 0.02 : 0.035);
+    this.root.scale.set(1 - b * 0.5, 1 - b * 0.5, 1 + b);
   }
   die() {
     if (this.dead) return;
     this.dead = true;
     this.clearMarker();
     const g = this.g;
-    g.world.scene.remove(this.root);
+    // Big death: slow-mo, spin-and-shrink, gold burst, droplet fountain.
+    g.fx.dissolve(this.root, 1.1, null, null, 6);
+    g.slowmo(0.5);
     g.fx.burst(this.x, this.y, 60, 0xffcc33, 60, 420, 1.2, 6);
+    g.fx.burst(this.x, this.y, 80, 0xc8f0ff, 30, 380, 1.1, 3.5, 700);
+    g.fx.streaks(this.x, this.y, (this.z || 0) + 60, 0xffffff, 18, 220, 0.4);
     g.fx.ring(this.x, this.y, 20, 0xffffff, 20, 600, 0.8);
     g.fx.addShake(20);
     g.sfx.play('boss');

@@ -33,6 +33,7 @@ export class Hud {
       <div class="abs stamina" id="h-stam"><div class="bar stam"><i id="h-stami"></i></div></div>
       <div class="abs powers panel-shadow" id="h-powers"></div>
       <div class="abs help panel-shadow">WASD move · Mouse aim · LMB slash · RMB parry · F shoot · E tongue · Space jump · Shift dodge · P pause · Q gun/sword · RMB hold (gun) aim · M mute</div>
+      <div class="abs stylebox panel-shadow" id="h-style"><div class="rank" id="h-rank">D</div><div class="bar srank"><i id="h-srank"></i></div><div class="combo" id="h-combo"></div></div>
       <div class="abs counterp panel-shadow" id="h-counter">COUNTER!</div>
       <div class="abs pstreak panel-shadow" id="h-streak"></div>
       <div class="abs banner panel-shadow" id="h-banner"></div>
@@ -44,7 +45,7 @@ export class Hud {
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
       stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
-      stam: q('h-stam'), pdim: q('h-pdim'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
+      stam: q('h-stam'), pdim: q('h-pdim'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
     this.low = this.root.querySelector('.lowhp');
@@ -71,6 +72,13 @@ export class Hud {
     el.style.transition = 'none';
     el.style.opacity = 1;
     requestAnimationFrame(() => requestAnimationFrame(() => { el.style.transition = `opacity ${dur}s ease-out`; el.style.opacity = 0; }));
+  }
+
+  rankUp(letter, color) {
+    const el = this.el.rank;
+    el.classList.remove('up');
+    void el.offsetWidth;
+    el.classList.add('up');
   }
 
   parryStreak(n) {
@@ -161,6 +169,18 @@ export class Hud {
       e.counter.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth}px`;
       e.counter.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight}px`;
     } else e.counter.style.display = 'none';
+
+    // Style rank + combo
+    if (g.style) {
+      const R = CFG.STYLE.ranks, st = g.style, r = st.rank;
+      const lo = R[r][0], hi = r + 1 < R.length ? R[r + 1][0] : CFG.STYLE.max;
+      if (e.rank.textContent !== R[r][1]) e.rank.textContent = R[r][1];
+      e.rank.style.color = R[r][2];
+      e.srank.style.width = `${Math.min(100, ((st.pts - lo) / (hi - lo)) * 100)}%`;
+      e.srank.style.background = R[r][2];
+      e.combo.textContent = st.combo >= 2 ? `x${st.combo} COMBO` : '';
+      e.style.style.opacity = st.pts > 0 || st.combo > 0 ? 1 : 0.45;
+    }
 
     // Power-up chips
     let html = '';

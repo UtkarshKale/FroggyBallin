@@ -190,6 +190,7 @@ export class World {
       this.camera.position.z += (Math.random() - 0.5) * shake;
     }
     this.camera.lookAt(tx, ty, tz);
+    if (c.roll) this.camera.rotateZ(c.roll);
   }
 
   snapCamera() { this.cam.init = false; }
