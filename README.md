@@ -16,6 +16,10 @@ A third-person 3D browser game built for the JetBrains "Build a Game with an AI 
 - **Power-ups:** Firefly, Dragonfly, Beetle Shell, Time Snail, Big Mouth, Ammo Moth, Golden Fly (rewind 3s), Overclock (double parry window).
 - **Comic-panel cutscenes**, main menu.
 - **Perfect parry feel:** contact sparks, radial speed lines, shockwave, camera zoom punch, desaturated screen edges, layered clang that climbs in pitch with a PARRY xN streak, glowing blade + COUNTER! prompt, attacker knockback. Plain blocks are a dull thud.
+- **Ultimate (ASCII mode):** style, kills and parries fill the ULT meter; press **G** when full for 10 s where the world turns into monochrome ASCII (red = danger, green = health) and everything you do is x3. Bosses have their own telegraphed ult once per phase (each with a unique twist); break their posture to cancel it.
+- **Attack types:** yellow flash = normal (parry it), red brush glyph = perilous (can't be parried, dodge or jump), orange glyph = perilous counter (dodge through it to open a RIPOSTE for a guaranteed crit).
+- **Difficulties:** BABY, NORMAL, MAYHEM, TORTURE (chosen on the menu; records kept per difficulty).
+- **Presentation:** ink-brush banners (YOU DIED, DEATHBLOW, POSTURE BROKEN, PERILOUS, RIPOSTE), angular halftone HUD, floating damage numbers, rank slams, S-rank flourish, cut-ins, neon telegraphs, menu wipes. Settings: CRT overlay and Reduce flashing/effects.
 - **Style rank (D to S)** and combo counter: hits, kills, parries, counters and deathblows raise it; idling and getting hit drop it.
 - Juice: anticipation/follow-through sword swings with a tip trail, squash and stretch, tongue wobble, spawn pops, hit wobble, spin-and-splash deaths, breathing bosses, camera roll on dodge, hitstop, screenshake, synthesized sound effects and a small procedural music loop.
 - **Pacing:** fast cancelable combo, short dodge cooldown, zones spawn in quick waves, compact levels, faster phase-2 bosses, any key skips boss intros.
@@ -31,7 +35,8 @@ A third-person 3D browser game built for the JetBrains "Build a Game with an AI 
 | F | Quick shot (either weapon) |
 | E | Tongue (eat) |
 | Space | Jump (double jump with Dragonfly) |
-| Shift | Dodge roll |
+| Shift | Dodge roll (dodges perilous attacks; dodging an orange one opens a riposte) |
+| G | Ultimate (when the ULT meter is full) |
 | P / Esc | Pause |
 | M | Mute |
 
