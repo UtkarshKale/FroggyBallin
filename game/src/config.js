@@ -57,6 +57,7 @@ export const CFG = {
     forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
     jump: 'Space', dodge: 'ShiftLeft', shoot: 'KeyF', tongue: 'KeyE', pause: 'KeyP', mute: 'KeyM',
     weapon: 'KeyQ', sword: 'Digit1', gun: 'Digit2', ult: 'KeyG',
+    slash: 'Mouse0', parry: 'Mouse2', restart: 'KeyR', // mouse buttons are bindable as 'MouseN'
   },
 };
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CFG, POWERUPS } from '../config.js';
 import { fmtTime } from '../core/math.js';
+import { keyName } from '../core/Keybinds.js';
 
 const tmp = new THREE.Vector3();
 
@@ -33,7 +34,7 @@ export class Hud {
       <div class="abs stance pstance" id="h-stance"><i class="sl"></i><i class="sr"></i></div>
       <div class="abs stamina" id="h-stam"><div class="bar stam"><i id="h-stami"></i></div></div>
       <div class="abs powers panel-shadow" id="h-powers"></div>
-      <div class="abs help panel-shadow">WASD move · Mouse aim · LMB slash · RMB parry · F shoot · E tongue · Space jump · Shift dodge · P pause · Q gun/sword · RMB hold (gun) aim · M mute</div>
+      <div class="abs help panel-shadow" id="h-help"></div>
       <div class="abs stylebox panel-shadow" id="h-style"><div class="rank" id="h-rank">D</div><div class="bar srank"><i id="h-srank"></i></div><div class="combo" id="h-combo"></div></div>
       <div class="abs counterp panel-shadow" id="h-counter">COUNTER!</div>
       <div class="abs pstreak panel-shadow" id="h-streak"></div>
@@ -102,6 +103,13 @@ export class Hud {
       clearTimeout(this._fr);
       this._fr = setTimeout(() => this._edge.classList.remove('on'), CFG.FEEL.hitFringe * 1000);
     }
+  }
+
+  // Key hints read the live bindings.
+  refreshHelp() {
+    const K = CFG.KEYS, n = keyName;
+    const el = this.root.querySelector('#h-help');
+    if (el) el.textContent = `${n(K.forward)}${n(K.left)}${n(K.back)}${n(K.right)} move · ${n(K.slash)} slash · ${n(K.parry)} parry · ${n(K.shoot)} quick · ${n(K.tongue)} tongue · ${n(K.jump)} jump · ${n(K.dodge)} dodge · ${n(K.weapon)} swap · ${n(K.ult)} ult · ${n(K.pause)} pause`;
   }
 
   show(v) { this.root.style.display = v ? 'block' : 'none'; }

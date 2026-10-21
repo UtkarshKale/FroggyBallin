@@ -3,6 +3,8 @@ import { LEVELS } from '../levels/levels.js';
 import { Storage } from '../core/Storage.js';
 import { DIFFICULTY } from '../config.js';
 import { Settings } from '../core/Settings.js';
+import { ACTIONS, Keybinds, keyName } from '../core/Keybinds.js';
+import { CFG } from '../config.js';
 
 // Menu, pause, stats, comic cutscenes, boss prelude. All DOM overlays.
 export class Screens {
@@ -58,7 +60,7 @@ export class Screens {
     if (this.g.fx) this.g.fx.shakeMul = reduce ? 0.35 : 1;
   }
 
-  showSettings() {
+  showSettings(back = () => this.showMenu()) {
     const reduce = Settings.get('reduce'), crt = Settings.get('crt');
     this._set(`<div class="card" style="min-width:min(480px,90vw)"><h2>Settings</h2>
       <div class="setrow"><span>CRT overlay (scanlines, vignette, colour fringe on big hits)</span><button class="menu-btn small ${crt ? '' : 'alt'}" id="s-crt">${crt ? 'ON' : 'OFF'}</button></div>
@@ -66,11 +68,11 @@ export class Screens {
       <div class="setrow"><span>3D menus and in-world HUD</span><button class="menu-btn small alt" id="s-3d">Switch to 3D</button></div>
       <div class="setrow"><span>Sound</span><button class="menu-btn small ${this.g.sfx.muted ? 'alt' : ''}" id="s-snd">${this.g.sfx.muted ? 'OFF' : 'ON'}</button></div>
       <div class="btnrow"><button class="menu-btn small" id="b-back">Back</button></div></div>`, 'menu');
-    this._btn('s-crt', () => { Settings.set('crt', !crt); this.g.applySettings(); this.showSettings(); });
-    this._btn('s-red', () => { Settings.set('reduce', !reduce); this.g.applySettings(); this.showSettings(); });
-    this._btn('s-3d', () => { Settings.set('ui3d', true); this.g.applySettings(); this.g.toMenu(); });
-    this._btn('s-snd', () => { this.g.sfx.toggleMute(); this.showSettings(); });
-    this._btn('b-back', () => this.showMenu());
+    this._btn('s-crt', () => { Settings.set('crt', !crt); this.g.applySettings(); this.showSettings(back); });
+    this._btn('s-red', () => { Settings.set('reduce', !reduce); this.g.applySettings(); this.showSettings(back); });
+    this._btn('s-3d', () => { Settings.set('ui3d', true); this.g.applySettings(); if (this.g.state !== 'PAUSED') this.g.toMenu(); else this.showSettings(back); });
+    this._btn('s-snd', () => { this.g.sfx.toggleMute(); this.showSettings(back); });
+    this._btn('b-back', back);
   }
   hide() { this.overlay.className = 'overlay'; this.overlay.innerHTML = ''; }
   _btn(id, fn) {
@@ -99,7 +101,8 @@ export class Screens {
       <button class="menu-btn alt" id="b-surv">Classic Survival</button>
       <button class="menu-btn alt" id="b-how">How to Play</button>
       <button class="menu-btn alt" id="b-cred">Credits</button>
-      <button class="menu-btn alt" id="b-set">Settings</button>`, 'menu');
+      <button class="menu-btn alt" id="b-set">Settings</button>
+      <button class="menu-btn alt" id="b-keys">Keybinds</button>`, 'menu');
     for (const l of LEVELS) {
       this._btn(`play-${l.id}`, () => this.wipe(() => this.g.startRun('timeloop', l.id)));
       this._btn(`reset-${l.id}`, () => { Storage.set(this.g.sk('ghost', l.id), null); Storage.set(this.g.sk('pb', l.id), null); this.showMenu(); });
@@ -110,6 +113,7 @@ export class Screens {
     this._btn('b-how', () => this.showHow());
     this._btn('b-cred', () => this.showCredits());
     this._btn('b-set', () => this.showSettings());
+    this._btn('b-keys', () => this.showKeybinds());
   }
 
   showHow() {
@@ -145,11 +149,41 @@ export class Screens {
   }
 
   showPause() {
-    this._set(`<div class="card" style="text-align:center"><h2>Paused</h2><p>Click Resume to lock the mouse and continue.</p>
-      <div class="btnrow"><button class="menu-btn" id="b-res">Resume</button><button class="menu-btn alt" id="b-restart">Restart Iteration</button><button class="menu-btn alt" id="b-menu">Main Menu</button></div></div>`);
+    this._set(`<div class="card pausecard"><h2>Paused</h2><p>Resume locks the mouse again. ${keyName(CFG.KEYS.pause)} or Esc pauses.</p>
+      <div class="vbtns"><button class="menu-btn" id="b-res">Resume</button><button class="menu-btn alt" id="b-restart">Restart</button>
+      <button class="menu-btn alt" id="b-set">Settings</button><button class="menu-btn alt" id="b-keys">Keybinds</button><button class="menu-btn alt" id="b-menu">Main Menu</button></div></div>`);
     this._btn('b-res', () => this.g.resume());
     this._btn('b-restart', () => this.g.restart());
-    this._btn('b-menu', () => this.g.toMenu());
+    this._btn('b-set', () => this.showSettings(() => this.showPause()));
+    this._btn('b-keys', () => this.showKeybinds(() => this.showPause()));
+    this._btn('b-menu', () => this.wipe(() => this.g.toMenu()));
+  }
+
+  // Keybinds card (pause menu and classic menu): one row per action; conflicts swap; per-action and full reset.
+  showKeybinds(back = () => this.showMenu(), msg = '') {
+    const rows = ACTIONS.map(([a, n]) => `<tr><td>${n}</td><td><button class="menu-btn small kb" id="kb-${a}">${keyName(CFG.KEYS[a])}</button> <button class="menu-btn small alt kr" id="kr-${a}" title="Reset to default">Reset</button></td></tr>`).join('');
+    this._set(`<div class="card" style="min-width:min(560px,92vw)"><h2>Keybinds</h2><p class="kbmsg">${msg || 'Click a key, then press a key or mouse button. Esc cancels. A key already in use swaps with the other action.'}</p>
+      <table>${rows}</table>
+      <div class="btnrow"><button class="menu-btn small alt" id="kb-all">Reset all keybinds</button><button class="menu-btn small" id="b-back">Back</button></div></div>`);
+    for (const [a, n] of ACTIONS) {
+      this._btn(`kb-${a}`, () => {
+        const btn = this.overlay.querySelector(`#kb-${a}`);
+        btn.textContent = 'Press...';
+        const done = (code) => {
+          window.removeEventListener('keydown', onKey, true); window.removeEventListener('mousedown', onMouse, true);
+          if (!code) { this.showKeybinds(back, 'Cancelled.'); return; }
+          const sw = Keybinds.bind(a, code);
+          this.g.applySettings();
+          this.showKeybinds(back, sw ? `${keyName(code)} was used by ${Keybinds.label(sw)}: swapped.` : `${n} -> ${keyName(code)}`);
+        };
+        const onKey = (e) => { e.preventDefault(); e.stopPropagation(); done(e.code === 'Escape' ? null : e.code); };
+        const onMouse = (e) => { e.preventDefault(); e.stopPropagation(); done('Mouse' + e.button); };
+        setTimeout(() => { window.addEventListener('keydown', onKey, true); window.addEventListener('mousedown', onMouse, true); }, 120);
+      });
+      this._btn(`kr-${a}`, () => { Keybinds.reset(a); this.g.applySettings(); this.showKeybinds(back, `${n} reset.`); });
+    }
+    this._btn('kb-all', () => { Keybinds.resetAll(); this.g.applySettings(); this.showKeybinds(back, 'All keybinds reset.'); });
+    this._btn('b-back', back);
   }
 
   statsRows(d) {

@@ -282,3 +282,12 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 
 /* Classic DOM fallback: soft fade at the edges of scroll containers */
 .card, .overlay.menu { -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%); mask-image: linear-gradient(to bottom, transparent 0, #000 22px, #000 calc(100% - 22px), transparent 100%); scroll-behavior: smooth; }
+
+.pausecard { text-align: center; min-width: min(380px, 90vw); }
+.vbtns { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 10px; }
+.card .kb { min-width: 110px; font-family: Consolas, monospace; }
+.card .kr { min-width: 70px; }
+.kbmsg { color: #ffd23f; min-height: 22px; }
+
+.card td .menu-btn { display: inline-block; margin: 2px 3px; min-width: 0; }
+.card td .menu-btn.kb { min-width: 110px; }

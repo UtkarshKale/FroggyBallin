@@ -24,8 +24,7 @@ import { Menu3D } from './ui/Menu3D.js';
 import { Hud3D } from './ui/Hud3D.js';
 import { Settings } from './core/Settings.js';
 import { Cosmetics, unlock, ACH } from './entities/Cosmetics.js';
-
-const DEFAULT_KEYS = { ...CFG.KEYS };
+import { Keybinds } from './core/Keybinds.js';
 import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
 
 const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null, maxCombo: 0, bestRank: 'D' });
@@ -119,7 +118,8 @@ export class Game {
   // Apply persisted options (Settings) to camera, input, audio, HUD and effects.
   applySettings() {
     const S = Settings.all();
-    Object.assign(CFG.KEYS, DEFAULT_KEYS, S.keys || {});
+    Keybinds.apply();
+    this.hud.refreshHelp && this.hud.refreshHelp();
     CFG.CAMERA.fov = S.fov; CFG.CAMERA.gunFov = S.fov - 5; CFG.CAMERA.aimFov = S.fov - 15;
     CFG.CAMERA.dist = S.camDist; CFG.CAMERA.gunDist = S.camDist * 0.85; CFG.CAMERA.aimDist = S.camDist * 0.69;
     this.sfx.setVolumes({ master: S.master, sfx: S.sfx, music: S.music });
@@ -809,7 +809,7 @@ export class Game {
           if (this.state === 'MENU') this.player.sync();
           this.world.followCamera(this.player, raw, 0);
         }
-        if (this.state === 'STATS' && inp.pressed('KeyR')) this.restart();
+        if (this.state === 'STATS' && inp.pressed(CFG.KEYS.restart)) this.restart();
         break;
       default: break;
     }
@@ -841,9 +841,10 @@ export class Game {
     // Camera input
     const [mdx, mdy] = inp.takeMouse();
     const pl0 = this.player;
-    const sens = Settings.get('sens');
-    cam.yaw -= mdx * 0.0024 * sens * (pl0.aiming ? 0.55 : 1);
-    cam.pitch = clamp(cam.pitch + mdy * 0.002 * sens * (Settings.get('invertY') ? -1 : 1), 0.15, 1.25);
+    // Mouse sensitivity, separate aim (ADS) multiplier and vertical multiplier from Settings
+    const sens = Settings.get('sens') * (pl0.aiming ? Settings.get('aimSens') : 1);
+    cam.yaw -= mdx * 0.0024 * sens;
+    cam.pitch = clamp(cam.pitch + mdy * 0.002 * sens * Settings.get('ySens') * (Settings.get('invertY') ? -1 : 1), 0.15, 1.25);
     if (inp.down('ArrowLeft')) cam.yaw += 2.2 * raw;
     if (inp.down('ArrowRight')) cam.yaw -= 2.2 * raw;
     if (inp.down('ArrowUp')) cam.pitch = clamp(cam.pitch - 1.2 * raw, 0.15, 1.25);

@@ -78,11 +78,11 @@ export class Panel3D {
     } else if (it.kind === 'card') {
       c.fillStyle = '#fff';
       const m = W * 0.04;
-      const ts = fit(it.label, W * 0.075, W - 2 * m, (s) => `italic 900 ${s}px 'Arial Black', Impact, sans-serif`);
+      const ts = fit(it.label, Math.min(W * 0.075, H * 0.28), W - 2 * m, (s) => `italic 900 ${s}px 'Arial Black', Impact, sans-serif`);
       c.textBaseline = 'top';
       c.fillText(it.label, m, m);
       c.fillStyle = accent; c.fillRect(m, m + ts * 1.15, Math.min(W - 2 * m, c.measureText(it.label).width), Math.max(4, W * 0.006));
-      const bs = W * 0.04;
+      const bs = Math.min(W * 0.04, H * 0.2);
       c.font = `600 ${bs}px 'Segoe UI', Arial, sans-serif`;
       let y = m + ts * 1.15 + bs * 0.9;
       for (const ln of wrap(c, it.body || '', W - 2 * m)) { c.fillStyle = ln.startsWith('*') ? '#ffd23f' : '#e8e8e8'; c.fillText(ln.replace(/^\*/, ''), m, y); y += bs * 1.3; if (y > H - bs) break; }

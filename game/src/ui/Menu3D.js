@@ -7,6 +7,7 @@ import { Settings } from '../core/Settings.js';
 import { fmtTime } from '../core/math.js';
 import { Cosmetics, SLOTS, ACH } from '../entities/Cosmetics.js';
 import { CFG } from '../config.js';
+import { ACTIONS, Keybinds, keyName } from '../core/Keybinds.js';
 
 // The menu as a 3D diorama: Tode on a lily pad at dusk, fireflies, and the options as in-world neon panels.
 // The camera glides between "rooms". Mouse hover = raycast; click / Enter activates; arrows / WASD navigate;
@@ -29,9 +30,9 @@ export class Menu3D {
     this.orbit = 0;
     this.scroll = 0; this.scrollT = 0; this.scrollV = 0; this.maxScroll = 0;
     this.drag = null;
-    this.extraRooms = { wardrobe: () => this.wardrobeRoom() };
-    this.capture = null; // action name while waiting for a key to rebind
-    this.extraSettings = () => this.keyItems();
+    this.extraRooms = { wardrobe: () => this.wardrobeRoom(), keybinds: () => this.keybindsRoom() };
+    this.capture = null; // action name while waiting for a key / mouse button to rebind
+    this.kbMsg = '';
     this._buildDiorama();
     const cv = game.canvas;
     cv.addEventListener('mousemove', (e) => {
@@ -48,6 +49,7 @@ export class Menu3D {
     });
     cv.addEventListener('mousedown', (e) => {
       if (!this.active) return;
+      if (this.capture) { if (this._capArmed) this._bind('Mouse' + e.button); return; }
       if (this.maxScroll && e.button === 0) this.drag = { y: e.clientY, s: this.scrollT, k: this._rowH() / 60, moved: false };
       this._pick();
       const p = this.panels[this.sel];
@@ -57,8 +59,7 @@ export class Menu3D {
     window.addEventListener('keydown', (e) => {
       if (this.active && this.capture) {
         e.preventDefault();
-        if (e.code !== 'Escape') { const k = { ...(Settings.get('keys') || {}) }; k[this.capture] = e.code; Settings.set('keys', k); this.g.applySettings(); }
-        this.capture = null;
+        if (e.code !== 'Escape') this._bind(e.code); else { this.capture = null; this.kbMsg = 'Cancelled.'; }
         this.g.sfx.play('ui');
         return;
       }
@@ -117,7 +118,7 @@ export class Menu3D {
     return {
       main: () => ({
         cam: V(440, -30, 140), look: V(40, -95, 108),
-        list: { at: V(120, -150, 190), w: 122, h: 25, gap: 29 }, rows: this._fitRows(8, 7),
+        list: { at: V(120, -150, 190), w: 122, h: 25, gap: 29 }, rows: this._fitRows(9, 7),
         title: { label: 'FROGGY BALLIN', at: V(118, -150, 228), w: 200, h: 40 },
         items: [
           { kind: 'button', label: 'PLAY', sub: 'Time Loop: pick a level', act: () => this.go('levels') },
@@ -126,6 +127,7 @@ export class Menu3D {
           { kind: 'option', label: 'DIFFICULTY', value: () => g.D.label, act: () => this.go('difficulty'), next: () => this._cycleDiff(1), prev: () => this._cycleDiff(-1) },
           { kind: 'button', label: 'WARDROBE', act: () => this.go('wardrobe') },
           { kind: 'button', label: 'SETTINGS', act: () => this.go('settings') },
+          { kind: 'button', label: 'KEYBINDS', act: () => this.go('keybinds') },
           { kind: 'button', label: 'HOW TO PLAY', act: () => this.go('howto') },
           { kind: 'button', label: 'CREDITS', act: () => this.go('credits') },
         ],
@@ -153,7 +155,7 @@ export class Menu3D {
       settings: () => this.settingsRoom(back),
       howto: () => ({
         cam: V(440, -420, 420), look: V(40, -420, 398),
-        card: { at: V(100, -420, 420), w: 270, h: 200, item: { kind: 'card', label: 'HOW TO PLAY', body: HOWTO } },
+        card: { at: V(100, -420, 420), w: 270, h: 200, item: { kind: 'card', label: 'HOW TO PLAY', get body() { return howto(); } } },
         list: { at: V(100, -420, 300), w: 90, h: 24, gap: 30 },
         items: [back],
       }),
@@ -183,14 +185,16 @@ export class Menu3D {
         tog('reduce', 'REDUCE FLASHING', apply),
         tog('dmgNums', 'DAMAGE NUMBERS', apply),
         tog('invertY', 'INVERT Y', apply),
-        num('sens', 'MOUSE SENS', 0.1, 0.2, 3, (v) => v.toFixed(1)),
+        num('sens', 'MOUSE SENS', 0.05, 0.1, 3, (v) => v.toFixed(2)),
+        num('aimSens', 'AIM SENS (ADS)', 0.05, 0.1, 2, (v) => v.toFixed(2)),
+        num('ySens', 'VERTICAL SENS', 0.05, 0.2, 2, (v) => v.toFixed(2)),
+        { kind: 'button', label: 'RESET SENSITIVITY', act: () => { Settings.set('sens', Settings.DEFAULTS.sens); Settings.set('aimSens', Settings.DEFAULTS.aimSens); Settings.set('ySens', Settings.DEFAULTS.ySens); } },
         num('fov', 'FOV', 5, 40, 90, (v) => v, apply),
         num('camDist', 'CAMERA DIST', 20, 180, 420, (v) => v, apply),
         num('aimAssist', 'AIM ASSIST', 0.25, 0, 2, (v) => v.toFixed(2)),
         num('master', 'MASTER VOL', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),
         num('sfx', 'SFX VOL', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),
         num('music', 'MUSIC VOL', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),
-        ...(this.extraSettings ? this.extraSettings() : []),
         back,
       ],
     };
@@ -215,13 +219,29 @@ export class Menu3D {
     };
   }
 
-  keyItems() {
-    const names = { forward: 'MOVE FWD', back: 'MOVE BACK', left: 'MOVE LEFT', right: 'MOVE RIGHT', jump: 'JUMP', dodge: 'DODGE', shoot: 'QUICK ACTION (F)', tongue: 'TONGUE', weapon: 'SWAP WEAPON', ult: 'ULTIMATE', pause: 'PAUSE' };
-    const short = (c) => String(c || '').replace(/^Key/, '').replace(/^Digit/, '').replace('Left', ' L').replace('Right', ' R');
-    return [
-      ...Object.entries(names).map(([a, n]) => ({ kind: 'option', label: `KEY: ${n}`, value: () => (this.capture === a ? 'PRESS A KEY' : short(CFG.KEYS[a])), act: () => { this.capture = a; } })),
-      { kind: 'button', label: 'RESET KEYS', act: () => { Settings.set('keys', {}); this.g.applySettings(); } },
-    ];
+  _bind(code) {
+    const a = this.capture;
+    this.capture = null; this._capArmed = false;
+    const sw = Keybinds.bind(a, code);
+    this.kbMsg = sw ? `${keyName(code)} was used by ${Keybinds.label(sw)}: swapped.` : `${Keybinds.label(a)} -> ${keyName(code)}`;
+    this.g.applySettings();
+  }
+
+  keybindsRoom() {
+    const self = this;
+    const items = ACTIONS.map(([a, n]) => ({
+      kind: 'option', label: n,
+      value: () => (this.capture === a ? 'PRESS...' : keyName(CFG.KEYS[a])),
+      act: () => { this.capture = a; this._capArmed = false; setTimeout(() => { this._capArmed = true; }, 150); this.kbMsg = `Press a key or mouse button for ${n} (Esc cancels)`; },
+      prev: () => { Keybinds.reset(a); this.g.applySettings(); this.kbMsg = `${n} reset to ${keyName(CFG.KEYS[a])}`; },
+      next: () => { this.capture = a; this._capArmed = true; this.kbMsg = `Press a key or mouse button for ${n} (Esc cancels)`; },
+    }));
+    return {
+      cam: V(560, 300, 400), look: V(40, 300, 395),
+      grid: { at: V(110, 150, 500), w: 140, h: 22, cols: 3, dx: 150, dz: 27 }, rows: this._fitRows(6, 5),
+      card: { at: V(110, 300, 548), w: 300, h: 44, item: { kind: 'card', label: 'KEYBINDS', get body() { return self.kbMsg || 'Click / Enter: rebind (keys or mouse). Right-click / Left arrow: reset that action. Conflicts swap.'; } } },
+      items: [...items, { kind: 'button', label: 'RESET ALL KEYBINDS', act: () => { Keybinds.resetAll(); this.g.applySettings(); this.kbMsg = 'All keybinds reset.'; } }, { kind: 'button', label: 'BACK', act: () => this.go('main') }],
+    };
   }
 
   _cycleDiff(d) {
@@ -450,12 +470,12 @@ export class Menu3D {
   }
 }
 
-const HOWTO = `Beat a level and your run becomes a ghost that replays everything and hunts you. Kill it, beat the boss and reach the goal first.
-*WASD move, Space jump, Shift dodge, mouse aim (click to lock).
-*LMB sword combo, RMB parry just before a hit. Q / 1 / 2 swap sword and gun (gun: LMB fire, hold RMB to aim).
-*E tongue (eat pink-marked bugs to heal), G ultimate when the meter is full, P pause, M mute.
+const howto = () => { const K = CFG.KEYS, n = keyName; return `Beat a level and your run becomes a ghost that replays everything and hunts you. Kill it, beat the boss and reach the goal first.
+*${n(K.forward)}${n(K.left)}${n(K.back)}${n(K.right)} move, ${n(K.jump)} jump, ${n(K.dodge)} dodge, mouse aim (click to lock).
+*${n(K.slash)} sword combo, ${n(K.parry)} parry just before a hit. ${n(K.weapon)} / ${n(K.sword)} / ${n(K.gun)} swap sword and gun (gun: ${n(K.slash)} fire, hold ${n(K.parry)} to aim). ${n(K.shoot)} quick action.
+*${n(K.tongue)} tongue (eat pink-marked bugs to heal), ${n(K.ult)} ultimate when the meter is full, ${n(K.pause)} pause, ${n(K.mute)} mute.
 Yellow flash = normal attack, parry it. Red glyph = perilous: can't be parried, dodge it (or jump shockwaves). Orange glyph = dodge through it to open a RIPOSTE: slash right away for a guaranteed crit.
-Posture: fill a bar to break the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.`;
+Posture: fill a bar to break the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.`; };
 
 const CREDITS = `Froggy Ballin, a JetBrains game jam entry built on the "Build a Game with an AI Coding Agent" course (MIT, JetBrains Academy): Tode the Frog, the ant and house models, Three.js + Vite setup.
 Game director: Kutkarshhh. Code written with Claude Code (Anthropic).

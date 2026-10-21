@@ -370,17 +370,17 @@ export class Player {
       }
     }
     const gunMode = this.weapon === 'gun';
-    this.aiming = gunMode && input.mDown(2) && !locked;
+    this.aiming = gunMode && input.down(K.parry) && !locked;
 
     // Actions
     if (!locked) {
       if (!gunMode) {
-        if (input.mPressed(0)) this.slashBuf = 0.22;
+        if (input.pressed(K.slash)) this.slashBuf = 0.22;
         // Shorter recovery: a buffered slash cancels the tail of the current swing.
         if (this.slashBuf > 0 && this.swing && this.swing.hit && this.swing.t >= CFG.SWORD.dur[this.swing.step] * CFG.SWORD.cancelAt) { this.swing = null; this.comboT = 0; }
         if (this.slashBuf > 0 && !this.swing && this.parryT < 0 && !this.tongue && this.dashT <= 0) this._startSwing(aimYaw);
-        if (input.mPressed(2) && this.parryCd <= 0 && !this.tongue) this._startParry(aimYaw);
-      } else if (input.mDown(0)) {
+        if (input.pressed(K.parry) && this.parryCd <= 0 && !this.tongue) this._startParry(aimYaw);
+      } else if (input.down(K.slash)) {
         this._shoot(aimYaw);
       }
       if (input.pressed(K.shoot)) this._shoot(aimYaw);

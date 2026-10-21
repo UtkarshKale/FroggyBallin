@@ -32,8 +32,9 @@ export class Input {
     } catch { /* ignore */ }
   }
   exitLock() { if (this.locked) document.exitPointerLock(); }
-  down(c) { return this.keys.has(c); }
-  pressed(c) { return this.pressedK.has(c); }
+  // Codes may be keyboard codes or 'Mouse0' / 'Mouse1' / 'Mouse2' (rebindable mouse buttons).
+  down(c) { return c && c.startsWith('Mouse') ? this.mb.has(+c.slice(5)) : this.keys.has(c); }
+  pressed(c) { return c && c.startsWith('Mouse') ? this.pressedM.has(+c.slice(5)) : this.pressedK.has(c); }
   mDown(b) { return this.mb.has(b); }
   mPressed(b) { return this.pressedM.has(b); }
   takeMouse() { const r = [this.dx, this.dy]; this.dx = 0; this.dy = 0; return r; }
