@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { makeModel, blob, stdMat, collectFlash, setFlash } from '../core/Assets.js';
+import { makeModel, blob, stdMat, collectFlash, setFlash, getClips } from '../core/Assets.js';
+import { AnimController, applyPose, ZERO } from './AnimController.js';
 import { angDiff, lerpAngle, TAU } from '../core/math.js';
 import { CFG } from '../config.js';
 import { initPosture, tickPosture } from '../combat/Posture.js';
@@ -154,6 +155,7 @@ export class Enemy {
     this.latched = false;
     this.launch = null;
     this.flashList = collectFlash(this.root);
+    this._buildAnim();
     game.world.scene.add(this.root);
     this.overhead = new Overhead(game.world.scene);
     // Spawn-in pop: grows in with overshoot, can't act until it lands.
@@ -165,7 +167,59 @@ export class Enemy {
     this.sync();
   }
 
-  onDamaged() { this.wobT = WOBBLE; }
+  onDamaged() { this.wobT = WOBBLE; this.hitAnimT = 0.3; }
+
+  // Rigged ant: cross-faded clips (idle / fly / headbutt / hit / death). Code-built bugs: blended procedural poses.
+  _buildAnim() {
+    this.px0 = this.x; this.py0 = this.y; this.spd = 0; this.hitAnimT = 0;
+    const clips = this.type === 'ant' ? getClips('enemy') : [];
+    const model = this.root.children[0] && this.root.children[0].children[0];
+    if (clips.length && model) {
+      this.mixer = new THREE.AnimationMixer(model);
+      const find = (k) => clips.find((c) => c.name.toLowerCase().includes(k));
+      this.acts = {};
+      for (const [k, n] of [['idle', 'flying_idle'], ['move', 'fast_flying'], ['wind', 'headbutt'], ['strike', 'punch'], ['hit', 'hitreact'], ['death', 'death']]) {
+        const c = find(n); if (c) { const a = this.mixer.clipAction(c); this.acts[k] = a; }
+      }
+      if (this.acts.death) { this.acts.death.setLoop(THREE.LoopOnce, 1); this.acts.death.clampWhenFinished = true; }
+      this.curAct = null;
+      this._play('idle');
+      return;
+    }
+    const P = (o) => ({ ...ZERO(), ...o });
+    this.body = this.root.children[0];
+    this.animC = new AnimController({
+      idle: (t) => P({ sz: 1 + Math.sin(t * 3 + this.x) * 0.03 }),
+      move: (t) => { const s = Math.min(1.5, this.spd / Math.max(40, this.speed)); return P({ rx: Math.sin(t * 14) * 0.12 * s, pz: Math.abs(Math.sin(t * 14)) * 2.5 * s, ry: 0.08 * s }); },
+      wind: (t) => P({ ry: -0.2, sz: 0.9, sx: 1.08, sy: 1.08, rx: Math.sin(t * 30) * 0.04 }),
+      strike: () => P({ ry: 0.25, px: 5, sz: 1.06 }),
+      stagger: (t) => P({ ry: -0.15, rx: Math.sin(t * 25) * 0.2 }),
+      broken: (t) => P({ ry: 0.3, rx: Math.sin(t * 5) * 0.15, sz: 0.88 }),
+    });
+  }
+
+  _play(k) {
+    const a = this.acts[k] || this.acts.idle;
+    if (!a || a === this.curAct) return;
+    a.reset().fadeIn(CFG.ANIM.mixFade).play();
+    if (this.curAct) this.curAct.fadeOut(CFG.ANIM.mixFade);
+    this.curAct = a;
+  }
+
+  _animate(dt) {
+    this.spd = Math.hypot(this.x - this.px0, this.y - this.py0) / Math.max(dt, 1e-4);
+    this.px0 = this.x; this.py0 = this.y;
+    this.hitAnimT = Math.max(0, this.hitAnimT - dt);
+    const atk = this.atk && this.atk.k;
+    const k = this.broken > 0 ? 'broken' : this.hitAnimT > 0 || this.stagger > 0.05 ? 'stagger' : atk === 'wind' || atk === 'hop' ? 'wind' : atk === 'dash' || this.launch ? 'strike' : this.spd > 20 ? 'move' : 'idle';
+    if (this.mixer) {
+      this._play(k === 'stagger' || k === 'broken' ? 'hit' : k === 'strike' ? 'move' : k);
+      this.mixer.update(dt);
+    } else if (this.animC) {
+      this.animC.set(k);
+      applyPose(this.body, this.animC.update(dt));
+    }
+  }
 
   get eatable() { return this.edible || this.broken > 0 || this.hp / this.maxHp <= 0.3; }
 
@@ -220,6 +274,7 @@ export class Enemy {
     g.world.resolve(this);
     this.wings.forEach((w) => { w.rotation.x = w.userData.side * Math.sin(this.t * 55) * 0.6; });
     if (this.legs) this.legs.forEach((l) => { l.rotation.y = Math.sin(this.t * 22 + l.userData.ph) * 0.5; });
+    this._animate(dt);
     this.sync();
   }
 
@@ -435,6 +490,7 @@ export class Enemy {
     g.fx.dissolve(this.root, 0.25, g.player.x, g.player.y);
     g.fx.burst(this.x, this.y, 30, 0x66ff66, 10, 160, 0.4, 3);
     g.player.heal(this.healAmt);
+    g.player.gulpT = 0.3;
     g.stats.eaten++;
     g.addStyle('eat');
     g.sfx.play('gulp');
@@ -449,6 +505,7 @@ export class Enemy {
     const g = this.g;
     this.overhead.remove();
     this.root.scale.setScalar(1);
+    if (this.mixer && this.acts.death) { this._play('death'); const mx = this.mixer; const t0 = performance.now(); const tick = () => { mx.update(0.016); if (performance.now() - t0 < 450) requestAnimationFrame(tick); }; tick(); }
     g.fx.dissolve(this.root, 0.45, null, null, 14);
     const col = { gnat: 0x333344, juicebug: 0x7dff6a, wasp: 0xffd400, shellback: 0x4a5acc, ant: 0x884422, bomber: 0xd83a2a, leech: 0x3e4a22, spiderling: 0x2a1a30 }[this.type] || 0xffffff;
     g.fx.burst(this.x, this.y, 30, col, 14, 240, 0.5, 3.5);

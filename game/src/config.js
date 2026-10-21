@@ -54,6 +54,13 @@ export const CFG = {
   PERIL: { dmgMult: 1.3, postureMult: 1.2, dodgeRelief: 20, riposte: 0.6, ripostePosture: 3, riposteLunge: 110, slow: 0.12, glyphTime: 0.9 },
   // Art/feel pass: floating damage numbers, kill flash, CRT overlay hit fringe.
   FEEL: { dmgNumbers: 24, hitFringe: 0.09, flourishRank: 'S' },
+  // Animation blending (seconds per cross-fade) and pose amounts.
+  ANIM: {
+    blend: { loco: 0.16, air: 0.12, dodge: 0.06, attack: 0.08, parry: 0.08, hit: 0.07, broken: 0.15, tongue: 0.1, ult: 0.1, death: 0.12,
+      idle: 0.2, move: 0.15, wind: 0.08, strike: 0.06, stagger: 0.08 },
+    leanFwd: 0.14, leanSide: 0.18, walkFreq: 9, runFreq: 14, walkHop: 2.5, runHop: 6, breath: 0.025,
+    flinch: 0.32, recoil: 0.012, mixFade: 0.15, bossLean: 8,
+  },
   SAMPLE_DT: 0.05,
 
   KEYS: {

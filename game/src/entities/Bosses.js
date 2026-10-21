@@ -89,6 +89,13 @@ class Boss {
   clearMarker() { if (this.marker) { this.marker.remove(); this.marker = null; } }
   flashSync() {
     this.teleLast = !!this.telegraph;
+    // Lean blend: wind-ups lean back, strikes lean in, stuns slump; eased so poses never snap.
+    const target = this.stunned ? 0.18 : this.telegraph ? -0.12 : this.state !== 'move' ? 0.1 : 0;
+    const dt = Math.min(0.05, this.t - (this._leanT ?? this.t));
+    this._leanT = this.t;
+    this.lean = (this.lean || 0) + (target - (this.lean || 0)) * (1 - Math.exp(-CFG.ANIM.bossLean * dt));
+    this.root.rotation.order = 'ZYX';
+    this.root.rotation.y = this.lean;
     this.g.world.tag(this.root, this.telegraph || (this.state !== 'move' && this.state !== 'stunned') ? 'danger' : 'actor');
     if (this.flashT > 0) setFlash(this.flashList, 0xffffff);
     else if (this.stunned) setFlash(this.flashList, Math.floor(this.t * 12) % 2 ? 0xaaaa00 : 0x333300);

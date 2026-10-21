@@ -4,6 +4,8 @@ import { clone as skClone } from 'three/addons/utils/SkeletonUtils.js';
 import { CFG } from '../config.js';
 
 const raw = {};
+const clips = {};
+export const getClips = (name) => clips[name] || [];
 const loader = new GLTFLoader();
 
 export async function preload(names, onEach = null) {
@@ -12,6 +14,7 @@ export async function preload(names, onEach = null) {
     try {
       const g = await loader.loadAsync(`${import.meta.env.BASE_URL}models/${n}.glb`);
       raw[n] = g.scene;
+      clips[n] = g.animations || [];
     } catch (e) {
       console.warn('Model failed to load, using fallback:', n, e);
       raw[n] = null;

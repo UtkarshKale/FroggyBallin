@@ -450,6 +450,7 @@ export class Game {
     if (u.meter < 100) { this.hud.flash('Ultimate not ready', '#99a'); return; }
     if (this.bossUlt) { this.hud.flash('Boss ult in progress!', '#ff5566'); return; }
     u.t = CFG.ULT.duration;
+    this.player.ultPoseT = 0.5;
     this.world.ascii.set(true, CFG.ULT.playerTint);
     this.hud.cutIn('ULTIMATE', 'Everything x3. Go.', 'player');
     this.sfx.play('ult');
@@ -850,6 +851,7 @@ export class Game {
           if (this.state === 'MENU') this.player.sync();
           this.world.followCamera(this.player, raw, 0);
         }
+        this.player.animTick(raw);
         if (this.state === 'STATS' && inp.pressed(CFG.KEYS.restart)) this.restart();
         break;
       default: break;

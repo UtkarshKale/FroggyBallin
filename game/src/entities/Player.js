@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { CFG } from '../config.js';
 import { Settings } from '../core/Settings.js';
 import { Cosmetics, buildHat, buildEyes } from './Cosmetics.js';
+import { AnimController, applyPose, ZERO } from './AnimController.js';
 import { makeActor, collectFlash, setFlash, stdMat } from '../core/Assets.js';
 import { angDiff, lerpAngle, ease, clamp, lerp } from '../core/math.js';
 
@@ -14,6 +15,13 @@ export class Player {
     this.radius = CFG.PLAYER.radius;
     this.root = makeActor('tode', CFG.PLAYER.height, 0x4caf50);
     this.flashList = collectFlash(this.root);
+    // Rig: root (position + yaw) -> body (offset + squash) -> pc (rotation pivot at mid height) -> gr (model + gear)
+    const H = CFG.PLAYER.height;
+    const holder = this.root.children[0];
+    this.body = new THREE.Group(); this.pc = new THREE.Group(); this.gr = new THREE.Group();
+    this.pc.position.z = H / 2; this.gr.position.z = -H / 2;
+    this.root.add(this.body); this.body.add(this.pc); this.pc.add(this.gr); this.gr.add(holder);
+    this._buildAnim();
     this._buildGear();
     this.applyCosmetics();
     game.world.scene.add(this.root);
@@ -39,7 +47,7 @@ export class Player {
     guard.position.x = 10;
     const grip = new THREE.Mesh(new THREE.BoxGeometry(14, 4, 4), stdMat(0x6d4c41));
     this.pivot.add(blade, guard, grip, this.bladeGlow, this.tip);
-    this.root.add(this.pivot);
+    this.gr.add(this.pivot);
     // Gun: held in the right hand at the end of an arm that swings toward the aim point.
     // Holstered on the left hip in sword mode; the sword goes on the back while the gun is out.
     this.arm = new THREE.Group();
@@ -70,7 +78,7 @@ export class Player {
     this.gun.add(body, stripe, barrel, gGrip, rear, front, ring, muzzle, this.muzzlePt, this.ammoSpr);
     this.gun.position.set(20, 0, 0);
     this.arm.add(this.gun);
-    this.root.add(this.arm);
+    this.gr.add(this.arm);
     // Parry shield disc
     this.parryDisc = new THREE.Mesh(
       new THREE.CircleGeometry(30, 24),
@@ -79,7 +87,7 @@ export class Player {
     this.parryDisc.rotation.y = Math.PI / 2;
     this.parryDisc.position.set(36, 0, 26);
     this.parryDisc.visible = false;
-    this.root.add(this.parryDisc);
+    this.gr.add(this.parryDisc);
     // Tongue
     this.tongueMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 5, 5), new THREE.MeshBasicMaterial({ color: 0xff5f8a }));
     this.tongueMesh.visible = false;
@@ -109,10 +117,10 @@ export class Player {
       m.userData.e0 = glow || 0;
       m.emissive.setHex(m.userData.e0);
     }
-    if (this.hatG) this.root.remove(this.hatG);
-    if (this.eyeG) this.root.remove(this.eyeG);
+    if (this.hatG) this.gr.remove(this.hatG);
+    if (this.eyeG) this.gr.remove(this.eyeG);
     this.hatG = buildHat(c.hat); this.eyeG = buildEyes(c.eyes);
-    this.root.add(this.hatG, this.eyeG);
+    this.gr.add(this.hatG, this.eyeG);
     this.bladeMat.color.setHex(Cosmetics.val(c, 'blade'));
     this.guardMat.color.setHex(Cosmetics.val(c, 'hilt'));
     this.gunMat.color.setHex(Cosmetics.val(c, 'gun'));
@@ -122,6 +130,82 @@ export class Player {
     this.trailColor = Cosmetics.val(c, 'trail');
     this.parryColor = Cosmetics.val(c, 'parry');
     this.splatColor = Cosmetics.val(c, 'splat');
+  }
+
+  _buildAnim() {
+    const A = CFG.ANIM, TAU = Math.PI * 2;
+    const P = (o) => ({ ...ZERO(), ...o });
+    this.phase = 0;
+    this.anim = new AnimController({
+      // 2D locomotion blend tree: idle breathing <-> walk <-> run, leaning into the movement direction.
+      loco: (t, c) => {
+        const s = c.speed, f = c.fwd, sd = c.side;
+        const hop = Math.abs(Math.sin(this.phase)) * lerp(A.walkHop, A.runHop, clamp(s - 0.3, 0, 1)) * clamp(s * 3, 0, 1) * (c.gun ? 0.5 : 1);
+        const br = Math.sin(t * 2.2) * A.breath * (1 - clamp(s * 3, 0, 1));
+        return P({ pz: hop, ry: f * A.leanFwd * clamp(s, 0, 1.2) + (c.gun ? -0.05 : 0), rx: -sd * A.leanSide * clamp(s, 0, 1.2), sz: 1 + br + hop * 0.01, sx: 1 - br * 0.5, sy: 1 - br * 0.5 });
+      },
+      air: (t, c) => (c.vz > 60 ? P({ sz: 1.12, sx: 0.93, sy: 0.93, ry: -0.06 }) : c.vz < -60 ? P({ sz: 1.05, ry: 0.1 }) : P({ sz: 1.02 })),
+      dodge: () => { const k = 1 - this.dashT / CFG.DODGE.dur; return P({ ry: TAU * clamp(k, 0, 1), sz: 0.85, pz: Math.sin(clamp(k, 0, 1) * Math.PI) * 6 }); },
+      attack: () => {
+        const sw = this.swing;
+        if (!sw) return P({});
+        const u = clamp(sw.t / CFG.SWORD.dur[sw.step], 0, 1);
+        const dir = sw.step === 1 ? -1 : 1;
+        if (u < 0.18) { const k = ease(u / 0.18); return P({ ry: -0.12 * k, rz: 0.3 * dir * k, sz: 1 - 0.05 * k }); }
+        if (u < 0.55) { const k = ease((u - 0.18) / 0.37); return P({ ry: lerp(-0.12, 0.24, k), rz: lerp(0.3, -0.35, k) * dir, px: 8 * k, sz: lerp(0.95, 1.04, k) }); }
+        const k = ease((u - 0.55) / 0.45);
+        return P({ ry: lerp(0.24, 0.04, k), rz: lerp(-0.35, -0.05, k) * dir, px: lerp(8, 2, k) });
+      },
+      parry: () => P({ ry: -0.12, px: -2, sz: 0.94, sx: 1.03, sy: 1.03 }),
+      hit: (t) => { const k = Math.max(0, 1 - t / 0.25); return P({ ry: -A.flinch * k, px: -5 * k, rx: Math.sin(t * 40) * 0.08 * k }); },
+      broken: (t) => P({ ry: 0.35, rx: Math.sin(t * 6) * 0.12, sz: 0.9, sx: 1.05, sy: 1.05 }),
+      tongue: () => P({ ry: 0.18, px: 5, sx: 1.05 }),
+      ult: (t) => { const k = clamp(t / 0.5, 0, 1); return k < 0.4 ? P({ sz: 1 - 0.25 * (k / 0.4), sx: 1.1, sy: 1.1 }) : P({ sz: 1.15 - 0.15 * k, rz: TAU * ease((k - 0.4) / 0.6), pz: 10 * Math.sin((k - 0.4) / 0.6 * Math.PI) }); },
+      death: (t) => { const k = clamp(t / 0.5, 0, 1); return P({ ry: 1.45 * ease(k), pz: -4 * k, sz: 1 - 0.3 * k, sx: 1 + 0.15 * k, sy: 1 + 0.15 * k }); },
+    });
+    this.add = ZERO();
+    this.hurtT = 0; this.gulpT = 0; this.ultPoseT = 0; this.ppT = 0; this.deadT = 0;
+  }
+
+  // Picks the animation state, blends it and applies it plus additive layers (squash, recoil, gulp, parry pop).
+  _animate(dt) {
+    const c = this._actx || (this._actx = {});
+    const lv = Math.hypot(this.vx, this.vy), ca = Math.cos(this.yaw), sa = Math.sin(this.yaw);
+    c.speed = lv / CFG.PLAYER.speed;
+    c.fwd = lv > 1 ? (this.vx * ca + this.vy * sa) / lv : 0;
+    c.side = lv > 1 ? (-this.vx * sa + this.vy * ca) / lv : 0;
+    c.gun = this.weapon === 'gun';
+    c.vz = this.vz;
+    this.phase += dt * lerp(CFG.ANIM.walkFreq, CFG.ANIM.runFreq, clamp(c.speed - 0.3, 0, 1)) * (this.moving ? 1 : 0);
+    let st = 'loco';
+    if (this.dead) st = 'death';
+    else if (this.broken > 0) st = 'broken';
+    else if (this.dashT > 0) st = 'dodge';
+    else if (this.hurtT > 0) st = 'hit';
+    else if (this.swing || this.flurry) st = 'attack';
+    else if (this.parryT >= 0) st = 'parry';
+    else if (this.tongue) st = 'tongue';
+    else if (this.ultPoseT > 0) st = 'ult';
+    else if (this.z > 0.5) st = 'air';
+    this.anim.set(st);
+    const pose = this.anim.update(dt, c);
+    // additive layers
+    const a = this.add;
+    const stretch = Math.max(0.55, 1 + this.sq) * (1 - 0.12 * Math.sin(Math.min(1, this.gulpT / 0.3) * Math.PI));
+    const pop = 1 + 0.08 * Math.max(0, this.ppT / 0.2);
+    a.px = 0; a.py = 0; a.pz = 0; a.rx = 0; a.rz = 0;
+    a.ry = -this.gunKick * CFG.ANIM.recoil;
+    a.sx = a.sy = pop / Math.sqrt(stretch); a.sz = pop * stretch;
+    applyPose(this.body, { ...pose, rx: 0, ry: 0, rz: 0 }, { ...a, rx: 0, ry: 0, rz: 0 });
+    this.pc.rotation.set(pose.rx + a.rx, pose.ry + a.ry, pose.rz + a.rz);
+  }
+
+  // Keeps the death animation running after the frog dies (gameplay update stops).
+  animTick(dt) {
+    if (!this.dead) return;
+    this.deadT += dt;
+    this._animate(dt);
+    this.root.visible = this.deadT < 0.9;
   }
 
   reset(x, y) {
@@ -147,6 +231,7 @@ export class Player {
     this.dodgeCd = 0;
     this.iframes = 0;
     this.parryGrace = 0;
+    this.hurtT = 0; this.gulpT = 0; this.ultPoseT = 0; this.ppT = 0; this.deadT = 0;
     this.parryStreak = 0;
     this.streakT = 0;
     this.webbedT = 0;
@@ -201,6 +286,7 @@ export class Player {
         this.posture = Math.max(0, this.posture - P.perfectRelief);
         this.stamina = Math.min(100, this.stamina + CFG.PARRY.staminaRefund);
         this.parryStreak = this.streakT > 0 ? this.parryStreak + 1 : 1;
+        this.ppT = 0.2;
         this.streakT = CFG.PARRY.streakWindow;
         g.stats.perfectParries++;
         g.parryFx(this, src, opts.proj, big, this.parryStreak);
@@ -233,6 +319,7 @@ export class Player {
       return 'shell';
     }
     this._damage(dmg);
+    this.hurtT = 0.22;
     this.parryStreak = 0;
     this.addPosture(dmg * P.hitMult);
     g.sfx.play('hurt');
@@ -263,6 +350,7 @@ export class Player {
     if (this.parryActive) g.hud.flash("CAN'T PARRY THAT!", '#ff3344');
     dmg *= PR.dmgMult;
     this._damage(dmg);
+    this.hurtT = 0.25;
     this.parryStreak = 0;
     this.addPosture(dmg * PR.postureMult);
     this.parryGrace = 0.3; // one hit per perilous attack
@@ -304,7 +392,7 @@ export class Player {
       this.dead = true;
       this.g.fx.burst(this.x, this.y, 30, this.splatColor ?? 0x4caf50, 24, 300, 0.8, 4);
       this.g.fx.burst(this.x, this.y, 20, this.splatColor ?? 0x4caf50, 16, 220, 1.0, 6, 900);
-      this.root.visible = false;
+      this.deadT = 0;
       this.g.endRun('dead');
     }
   }
@@ -334,6 +422,7 @@ export class Player {
     for (const k of Object.keys(this.pu)) if (k !== 'shell') this.pu[k] = Math.max(0, this.pu[k] - dt);
     this.iframes = Math.max(0, this.iframes - dt);
     this.parryGrace = Math.max(0, this.parryGrace - dt);
+    this.hurtT = Math.max(0, this.hurtT - dt); this.gulpT = Math.max(0, this.gulpT - dt); this.ultPoseT = Math.max(0, this.ultPoseT - dt); this.ppT = Math.max(0, this.ppT - dt);
     this.webbedT = Math.max(0, this.webbedT - dt);
     this.riposteT = Math.max(0, this.riposteT - dt);
     this.perilT = Math.max(0, (this.perilT || 0) - dt);
@@ -791,12 +880,10 @@ export class Player {
   }
 
   sync() {
-    const hop = this.moving && this.z <= 0 ? Math.abs(Math.sin(this.t * 12)) * 5 : 0;
-    this.root.position.set(this.x, this.y, this.z + hop);
+    this.root.position.set(this.x, this.y, this.z);
     this.root.rotation.z = this.yaw;
-    // Squash and stretch: stretch on take-off / in the air, squash on landing.
-    const stretch = Math.max(0.55, (this.z > 0 ? 1.06 : 1) * (1 + this.sq));
-    this.root.scale.set(1 / Math.sqrt(stretch), 1 / Math.sqrt(stretch), stretch);
+    this.root.scale.set(1, 1, 1);
+    if (this._lastSyncT !== this.t) { this._animate(Math.min(0.05, this.t - (this._lastSyncT ?? this.t))); this._lastSyncT = this.t; }
     if (this.flashT > 0) {
       this.flashT -= 1 / 60;
       setFlash(this.flashList, 0xff3333);
@@ -807,7 +894,7 @@ export class Player {
     } else {
       setFlash(this.flashList, null);
     }
-    if (this.iframes > 0) this.root.visible = Math.floor(this.t * 30) % 2 === 0 || this.dashT > 0;
-    else this.root.visible = !this.dead;
+    if (this.iframes > 0 && this.dashT <= 0) this.root.visible = Math.floor(this.t * 30) % 2 === 0;
+    else this.root.visible = !this.dead || this.deadT < 0.9;
   }
 }
