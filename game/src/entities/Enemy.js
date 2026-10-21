@@ -414,7 +414,7 @@ export class Enemy {
     const sp = this.spawnT > 0 ? Math.max(0.05, backOut(1 - this.spawnT / SPAWN_POP)) : 1;
     this.root.scale.set(sp * (1 + Math.abs(w) * 0.4), sp * (1 + Math.abs(w) * 0.4), sp * (1 - Math.abs(w) * 0.3));
     // ASCII-ult semantics: juicebugs are health, attacking / armed bugs are danger.
-    this.g.world.tag(this.root, this.type === 'juicebug' ? 'heal' : (this.atk || this.launch || this.latched || this.type === 'bomber') ? 'danger' : null);
+    this.g.world.tag(this.root, this.type === 'juicebug' ? 'heal' : (this.atk || this.launch || this.latched || this.type === 'bomber') ? 'danger' : 'actor');
     const p = this.g.player;
     const near = Math.hypot(p.x - this.x, p.y - this.y) < CFG.TONGUE.range * (p.pu.big > 0 ? 2 : 1) + 40;
     this.overhead.update(this.g.world.camera, this.x, this.y, zz + this.radius * 2 + 14, this.hp / this.maxHp, this.posture / this.postureMax, this.broken > 0, this.eatable && near);
@@ -455,6 +455,9 @@ export class Enemy {
     // juicy droplets that arc out and splash down
     g.fx.burst(this.x, this.y, 24, this.type === 'juicebug' ? 0x9dff8a : 0xc8f0ff, 10, 230, 0.75, 2.4, 760);
     g.fx.ring(this.x, this.y, 3, col, 6, this.radius * 4, 0.35, 0.6);
+    // gib chunks + bright kill flash
+    g.fx.burst(this.x, this.y, 22, col, 8, 340, 0.6, 5, 900);
+    g.fx.disc(this.x, this.y, 24, 0xffffff, 6, this.radius * 3, 0.1, 0.95);
     if (team === 'player') g.stats.kills++;
     else if (team === 'ghost') g.stats.ghostKills++;
     g.sfx.play('hit');

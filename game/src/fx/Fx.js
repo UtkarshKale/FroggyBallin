@@ -25,6 +25,7 @@ export class Fx {
     this.streakList = [];
     this.shake = 0;
     this.tagger = null; // (object, kind) => World.tag, set by Game
+    this.shakeMul = 1; // 'Reduce flashing/effects' lowers it
   }
 
   burst(x, y, z, color, n = 8, speed = 180, life = 0.5, size = 3, grav = 300) {
@@ -86,7 +87,12 @@ export class Fx {
     const m = new THREE.Mesh(discGeo, mat);
     m.position.set(x, y, 2);
     m.scale.setScalar(r);
+    // Neon outline ring on top of the fill so boss telegraphs read at a glance.
+    const edge = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending }));
+    edge.position.z = 0.5;
+    m.add(edge);
     const f = this._flat(m, mat, Infinity, r, r, 0.5);
+    f.edge = edge;
     if (this.tagger) this.tagger(m, 'danger');
     f.pulse = true;
     f.remove = () => { f.life = 0; f.max = 0.0001; f.pulse = false; };
@@ -123,7 +129,7 @@ export class Fx {
     this.parts.push({ m, vx: 0, vy: 0, vz: 0, life, max: life, grav: 0 });
   }
 
-  addShake(a) { this.shake = Math.max(this.shake, a); }
+  addShake(a) { this.shake = Math.max(this.shake, a * this.shakeMul); }
 
   update(dt) {
     for (let i = this.parts.length - 1; i >= 0; i--) {
@@ -143,11 +149,13 @@ export class Fx {
       if (f.life <= 0) {
         this.scene.remove(f.m);
         f.mat.dispose();
+        if (f.edge) f.edge.material.dispose();
         this.flats.splice(i, 1);
         continue;
       }
       if (f.life === Infinity) {
         f.mat.opacity = f.pulse ? 0.3 + 0.25 * Math.sin(performance.now() / 90) : f.op;
+        if (f.edge) f.edge.scale.setScalar(1 + 0.04 * Math.sin(performance.now() / 60));
       } else {
         const t = 1 - f.life / f.max;
         f.m.scale.setScalar(f.s0 + (f.s1 - f.s0) * t);

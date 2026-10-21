@@ -14,6 +14,7 @@ export class Player {
     this.flashList = collectFlash(this.root);
     this._buildGear();
     game.world.scene.add(this.root);
+    game.world.tag(this.root, 'actor');
     this.reset(0, 0);
   }
 

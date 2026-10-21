@@ -38,6 +38,10 @@ export class Hud {
       <div class="abs counterp panel-shadow" id="h-counter">COUNTER!</div>
       <div class="abs pstreak panel-shadow" id="h-streak"></div>
       <div class="abs ink" id="h-ink"><b></b><i class="sub"></i></div>
+      <div class="abs pslash" id="h-pslash"></div>
+      <div class="abs flourish" id="h-flourish"><b>S-RANK RAMPAGE!</b></div>
+      <div class="abs pwipe" id="h-pwipe"></div>
+      <div class="abs dmgs" id="h-dmgs"></div>
       <div class="abs cutin" id="h-cutin"><div class="cpanel"><b></b><small></small></div></div>
       <div class="abs banner panel-shadow" id="h-banner"></div>
       <div class="abs toast panel-shadow" id="h-toast"></div>`;
@@ -48,12 +52,56 @@ export class Hud {
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
       stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
-      stam: q('h-stam'), pdim: q('h-pdim'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
+      stam: q('h-stam'), pdim: q('h-pdim'), pslash: q('h-pslash'), flourish: q('h-flourish'), pwipe: q('h-pwipe'), dmgs: q('h-dmgs'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
     this.low = this.root.querySelector('.lowhp');
     this.toastT = 0; this.bannerT = 0;
     this.lastPow = '';
+    this.reduce = false;
+    // Floating damage number pool
+    this.nums = [];
+    for (let i = 0; i < CFG.FEEL.dmgNumbers; i++) { const d = document.createElement('div'); d.className = 'dmgn'; this.el.dmgs.appendChild(d); this.nums.push(d); }
+    this.numI = 0;
+  }
+
+  _replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+
+  // Tilted, outlined damage number popping at a world position.
+  dmgNum(camera, x, y, z, amount, kind = '') {
+    tmp.set(x, y, z).project(camera);
+    if (tmp.z > 1) return;
+    const d = this.nums[this.numI++ % this.nums.length];
+    d.textContent = Math.round(amount);
+    d.className = `dmgn ${kind}`;
+    d.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth + (Math.random() - 0.5) * 30}px`;
+    d.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight}px`;
+    d.style.setProperty('--r', `${(Math.random() - 0.5) * 24}deg`);
+    void d.offsetWidth;
+    d.classList.add('go');
+  }
+
+  // Posture break: a red/white slash across the screen.
+  postureSlash() { this.el.pslash.style.setProperty('--a', `${-20 + Math.random() * 40}deg`); this._replay(this.el.pslash, 'go'); }
+
+  // S-rank flourish: flash, halftone dots, speed streaks and a big skewed word.
+  flourish(word = 'S-RANK RAMPAGE!') {
+    this.el.flourish.querySelector('b').textContent = word;
+    this.el.flourish.classList.toggle('calm', this.reduce);
+    this._replay(this.el.flourish, 'go');
+  }
+
+  // Quick skewed red bar sweep (boss phase changes).
+  wipeFlash() { this._replay(this.el.pwipe, 'go'); }
+
+  hitConfirm(strong) {
+    this._replay(this.el.cross, strong ? 'hitc2' : 'hitc');
+    if (!this.reduce && strong && document.body.classList.contains('crt')) {
+      const c = document.querySelector('canvas.game');
+      c.classList.add('fringe');
+      clearTimeout(this._fr);
+      this._fr = setTimeout(() => c.classList.remove('fringe'), CFG.FEEL.hitFringe * 1000);
+    }
   }
 
   show(v) { this.root.style.display = v ? 'block' : 'none'; }
@@ -64,6 +112,7 @@ export class Hud {
   }
 
   screenFlash() {
+    if (this.reduce) return;
     this.el.sflash.style.transition = 'none';
     this.el.sflash.style.opacity = 0.85;
     requestAnimationFrame(() => { this.el.sflash.style.transition = 'opacity .5s'; this.el.sflash.style.opacity = 0; });
@@ -88,6 +137,7 @@ export class Hud {
   }
 
   perilFlash(type) {
+    if (this.reduce) return;
     const el = this.el.perilv;
     el.className = `abs perilv ${type}`;
     void el.offsetWidth;
@@ -148,7 +198,8 @@ export class Hud {
     e.ammo.innerHTML = `<b>${'●'.repeat(p.ammo)}</b>${'○'.repeat(Math.max(0, CFG.PLAYER.maxAmmo - p.ammo))}`;
     e.time.textContent = fmtTime(g.simT);
     e.cross.style.display = 'block';
-    e.cross.className = 'abs crosshair' + (p.weapon === 'gun' ? ' gun' : '') + (p.aiming ? ' aim' : '');
+    const cc = 'abs crosshair' + (p.weapon === 'gun' ? ' gun' : '') + (p.aiming ? ' aim' : '');
+    if (this._cc !== cc) { this._cc = cc; e.cross.className = cc; }
     e.wpn.innerHTML = p.weapon === 'gun' ? '[Q] <b style="color:#ffd23f">GUN</b> · RMB aim' : '[Q] <b style="color:#dfe8f0">SWORD</b> · RMB parry';
     const setStance = (el, frac, broken) => {
       el.firstElementChild.style.width = el.lastElementChild.style.width = `${(broken ? 1 : Math.min(1, frac)) * 50}%`;

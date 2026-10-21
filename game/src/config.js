@@ -41,12 +41,14 @@ export const CFG = {
   WEB: { r: 95, life: 9, slow: 0.45, shotSlow: 0.6, shotSlowTime: 1.2 },
   // Ultimate (ASCII mode). Player ult: G when the meter is full. Every stat x mult; move/attack speed use their own
   // multipliers (3x speed was unplayable in testing, tune here). Bosses ult once per phase; never overlaps the player's.
-  ULT: { cell: 9, glitchTime: 0.35, gain: 0.25, duration: 10, mult: 3, moveMult: 2, atkSpeed: 2.2,
+  ULT: { cell: 9, glitchTime: 0.35, fadeNear: 380, fadeFar: 900, black: 0.42, cutoff: 0.07, actorMin: 0.65, gain: 0.25, duration: 10, mult: 3, moveMult: 2, atkSpeed: 2.2,
     bossWindup: 1.0, bossDuration: 8, bossDelay: [5, 10], bossSpeed: 1.5, bossDmg: 2.5,
     playerTint: 0x66ffcc, bossTint: 0xff3344,
     bossEffects: { hornet: 'noRegen', stag: 'reverse', mantis: 'tightParry', moth: 'shift', spider: 'webs' } },
   // Perilous attacks. 'dodge': can't be parried, dodge (or jump sweeps); hits hard. 'counter': dodge it to open a RIPOSTE.
   PERIL: { dmgMult: 1.3, postureMult: 1.2, dodgeRelief: 20, riposte: 0.6, ripostePosture: 3, riposteLunge: 110, slow: 0.12, glyphTime: 0.9 },
+  // Art/feel pass: floating damage numbers, kill flash, CRT overlay hit fringe.
+  FEEL: { dmgNumbers: 24, hitFringe: 0.09, flourishRank: 'S' },
   SAMPLE_DT: 0.05,
 
   KEYS: {

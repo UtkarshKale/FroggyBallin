@@ -13,6 +13,11 @@ export class Screens {
     root.appendChild(this.overlay);
     this.cut = null;
     this.prel = null;
+    // Run-transition wipe and CRT overlay live outside the overlay so they survive screen swaps.
+    this.wipeEl = document.createElement('div'); this.wipeEl.className = 'runwipe'; this.wipeEl.innerHTML = '<i></i><i></i>';
+    root.appendChild(this.wipeEl);
+    const crt = document.createElement('div'); crt.className = 'crtfx'; document.body.appendChild(crt);
+    this.applySettings();
     window.addEventListener('keydown', (e) => {
       if (this.cut && (e.code === 'Space' || e.code === 'Enter')) this.cut.next();
       else if (this.cut && e.code === 'Escape') this.cut.skip();
@@ -25,7 +30,44 @@ export class Screens {
 
   _set(html, cls = '') {
     this.overlay.className = 'overlay show ' + cls;
-    this.overlay.innerHTML = html;
+    this.overlay.innerHTML = html + '<div class="hlbar"></div>';
+    // Skewed highlight bar that snaps to whichever button is hovered.
+    const bar = this.overlay.querySelector('.hlbar');
+    this.overlay.querySelectorAll('.menu-btn, .diff-btn').forEach((b) => b.addEventListener('mouseenter', () => {
+      const o = this.overlay.getBoundingClientRect(), r = b.getBoundingClientRect();
+      bar.style.left = `${r.left - o.left + this.overlay.scrollLeft - 6}px`; bar.style.top = `${r.top - o.top + this.overlay.scrollTop + 4}px`;
+      bar.style.width = `${r.width + 12}px`; bar.style.height = `${r.height}px`;
+      bar.classList.add('on');
+    }));
+  }
+
+  // Red/black skewed wipe; fn runs while the screen is covered.
+  wipe(fn) {
+    if (Storage.get('set.reduce', false)) { fn(); return; }
+    const w = this.wipeEl;
+    w.classList.remove('go'); void w.offsetWidth; w.classList.add('go');
+    setTimeout(fn, 330);
+  }
+
+  applySettings() {
+    const reduce = Storage.get('set.reduce', false), crt = Storage.get('set.crt', true);
+    document.body.classList.toggle('reduce', reduce);
+    document.body.classList.toggle('crt', crt);
+    if (this.g.hud) this.g.hud.reduce = reduce;
+    if (this.g.fx) this.g.fx.shakeMul = reduce ? 0.35 : 1;
+  }
+
+  showSettings() {
+    const reduce = Storage.get('set.reduce', false), crt = Storage.get('set.crt', true);
+    this._set(`<div class="card" style="min-width:min(480px,90vw)"><h2>Settings</h2>
+      <div class="setrow"><span>CRT overlay (scanlines, vignette, colour fringe on big hits)</span><button class="menu-btn small ${crt ? '' : 'alt'}" id="s-crt">${crt ? 'ON' : 'OFF'}</button></div>
+      <div class="setrow"><span>Reduce flashing / effects (no screen flashes, softer shake, short wipes)</span><button class="menu-btn small ${reduce ? '' : 'alt'}" id="s-red">${reduce ? 'ON' : 'OFF'}</button></div>
+      <div class="setrow"><span>Sound</span><button class="menu-btn small ${this.g.sfx.muted ? 'alt' : ''}" id="s-snd">${this.g.sfx.muted ? 'OFF' : 'ON'}</button></div>
+      <div class="btnrow"><button class="menu-btn small" id="b-back">Back</button></div></div>`, 'menu');
+    this._btn('s-crt', () => { Storage.set('set.crt', !crt); this.applySettings(); this.showSettings(); });
+    this._btn('s-red', () => { Storage.set('set.reduce', !reduce); this.applySettings(); this.showSettings(); });
+    this._btn('s-snd', () => { this.g.sfx.toggleMute(); this.showSettings(); });
+    this._btn('b-back', () => this.showMenu());
   }
   hide() { this.overlay.className = 'overlay'; this.overlay.innerHTML = ''; }
   _btn(id, fn) {
@@ -54,17 +96,17 @@ export class Screens {
       <button class="menu-btn alt" id="b-surv">Classic Survival</button>
       <button class="menu-btn alt" id="b-how">How to Play</button>
       <button class="menu-btn alt" id="b-cred">Credits</button>
-      <button class="menu-btn small alt" id="b-mute">Sound: ${this.g.sfx.muted ? 'OFF' : 'ON'}</button>`, 'menu');
+      <button class="menu-btn alt" id="b-set">Settings</button>`, 'menu');
     for (const l of LEVELS) {
-      this._btn(`play-${l.id}`, () => this.g.startRun('timeloop', l.id));
+      this._btn(`play-${l.id}`, () => this.wipe(() => this.g.startRun('timeloop', l.id)));
       this._btn(`reset-${l.id}`, () => { Storage.set(this.g.sk('ghost', l.id), null); Storage.set(this.g.sk('pb', l.id), null); this.showMenu(); });
     }
     for (const k of Object.keys(DIFFICULTY)) this._btn(`d-${k}`, () => { this.g.setDifficulty(k); this.showMenu(); });
-    this._btn('b-rush', () => this.g.startRun('bossrush'));
-    this._btn('b-surv', () => this.g.startRun('survival'));
+    this._btn('b-rush', () => this.wipe(() => this.g.startRun('bossrush')));
+    this._btn('b-surv', () => this.wipe(() => this.g.startRun('survival')));
     this._btn('b-how', () => this.showHow());
     this._btn('b-cred', () => this.showCredits());
-    this._btn('b-mute', () => { this.g.sfx.toggleMute(); this.showMenu(); });
+    this._btn('b-set', () => this.showSettings());
   }
 
   showHow() {

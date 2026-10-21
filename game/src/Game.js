@@ -69,6 +69,8 @@ export class Game {
     this.recorder = new Recorder();
     this.hud = new Hud(this.uiRoot);
     this.screens = new Screens(this.uiRoot, this);
+    this.screens.applySettings();
+    this.deathVig = document.createElement('div'); this.deathVig.className = 'deathvig'; this.uiRoot.appendChild(this.deathVig);
     this.world.buildLevel(LEVELS[0]);
     this.player = new Player(this);
     this.player.reset(LEVELS[0].start.x, LEVELS[0].start.y);
@@ -91,6 +93,7 @@ export class Game {
     this.hud.show(false);
     this.input.exitLock();
     this.sfx.intensity = 0;
+    this.deathVig.classList.remove('on');
     const lv = LEVELS[0];
     this.levelCfg = lv;
     this.world.buildLevel(lv);
@@ -148,6 +151,7 @@ export class Game {
     this._perilSlowAt = -9;
     this.slowT = 0; this.hitstopT = 0; this.freezeGap = 0; this.punchT = 0; this.baseFov = CFG.CAMERA.fov;
     this.sfx.intensity = 0;
+    this.deathVig.classList.remove('on');
 
     this.player.reset(level.start.x, level.start.y);
     for (const [wx, wy, wr] of level.webs || []) this.webs.add(wx, wy, wr, Infinity);
@@ -246,6 +250,7 @@ export class Game {
     this.perilFx.show(ent, type, dur, ent.isBoss ? ent.radius * 2 + 70 : 60);
     this.sfx.play(type === 'dodge' ? 'peril' : 'perilC');
     this.hud.perilFlash(type);
+    if (ent.isBoss && type === 'dodge' && this.simT - (this._perilInkAt || -9) > 2.5) { this._perilInkAt = this.simT; this.hud.ink('PERILOUS', 'peril'); }
     if (this.simT - this._perilSlowAt > 1.5) { this._perilSlowAt = this.simT; this.slowmo(CFG.PERIL.slow); }
   }
 
@@ -274,7 +279,9 @@ export class Game {
       this.survBest = Math.max(this.survBest, this.score);
       Storage.set('surv.best', this.survBest);
       Object.assign(d, { win: false, title: 'GAME OVER', why: 'The swarm got you.' });
-      this.sfx.play('lose'); delay = 900;
+      this.sfx.play('lose'); delay = 2400;
+      this.hud.ink('YOU DIED', 'death');
+      this.deathVig.classList.add('on');
     } else if (reason === 'win') {
       const id = this.levelCfg.id;
       if (this.mode === 'timeloop') Storage.set(this.sk('ghost', id), this.recorder.finish(this.simT, this.player));
@@ -288,15 +295,19 @@ export class Game {
         ? { win: true, title: 'BOSS RUSH CLEARED', why: 'All five bosses defeated.' }
         : { win: true, title: 'ITERATION CLEARED', why: this.ghost ? 'You beat your past self.' : 'Run recorded. Your ghost awaits in the next iteration.' });
       this.sfx.play('win');
+      this.hud.ink(this.mode === 'bossrush' ? 'RUSH CLEARED' : 'ITERATION CLEARED', 'clear');
+      delay = 1500;
     } else if (reason === 'ghost') {
       Object.assign(d, { win: false, title: 'THE PAST WAS FASTER', why: 'Your ghost reached the goal first.' });
       this.sfx.play('lose');
     } else {
       Object.assign(d, { win: false, title: 'FROG DOWN', why: this.ghost && !this.ghost.dead ? 'Your past self got you.' : 'The bugs got you.' });
-      this.sfx.play('lose'); delay = 900;
+      this.sfx.play('lose'); delay = 2400;
+      this.hud.ink('YOU DIED', 'death');
+      this.deathVig.classList.add('on');
     }
     this.sfx.intensity = 0;
-    setTimeout(() => { if (this.state === 'STATS') { this.hud.show(false); this.screens.showStats(d); } }, delay);
+    setTimeout(() => { if (this.state === 'STATS') { this.hud.show(false); this.deathVig.classList.remove('on'); this.screens.showStats(d); } }, delay);
   }
 
   onBossDead(b) {
@@ -362,6 +373,8 @@ export class Game {
     if (r > st.rank) {
       this.hud.rankUp(R[r][1], R[r][2]);
       this.sfx.play('rank');
+      this.fx.addShake(6 + r * 2);
+      if (R[r][1] === CFG.FEEL.flourishRank) { this.hud.flourish(); this.sfx.play('ult'); }
       if (r > (st.best || 0)) { st.best = r; this.stats.bestRank = R[r][1]; }
     }
     st.rank = r;
@@ -548,11 +561,17 @@ export class Game {
     if (mine) this.addStyle('hit');
     t.hp -= dmg;
     t.flashT = 0.1;
+    if (mine || o.team === 'ghost') {
+      const big = t.broken > 0 || dmg >= 60;
+      this.hud.dmgNum(this.world.camera, t.x, t.y, (t.z || 0) + (t.radius || 20) * 2 + 20, dmg, big ? 'big' : o.crit ? 'crit' : '');
+      if (mine) this.hud.hitConfirm(big || o.crit);
+    }
+    const wasBroken = t.broken > 0;
     if (o.burn) t.burn = 3;
     if (o.knock && t.knock && !t.isBoss) t.knock(o.ang, CFG.SWORD.knock);
     this.fx.burst(t.x, t.y, 30, 0xffffff, 5, 150, 0.25, 2);
     this.sfx.play(o.crit ? 'crit' : 'hit');
-    if (t.hp <= 0) { t.die(o.team); if (mine) this.addStyle('kill'); }
+    if (t.hp <= 0) { if (wasBroken && mine) this.hud.ink('DEATHBLOW'); t.die(o.team); if (mine) this.addStyle('kill'); }
     else if (t.onDamaged) t.onDamaged(dmg);
   }
 
@@ -574,7 +593,8 @@ export class Game {
     this.fx.burst(t.x, t.y, 30, 0xffcc44, 20, 280, 0.5, 3);
     this.fx.addShake(t.big ? 16 : 8);
     this.hitstop(t.big ? 0.3 : 0.15);
-    this.hud.flash('POSTURE BROKEN!', '#ffaa33');
+    this.hud.ink('POSTURE BROKEN');
+    this.hud.postureSlash();
     if (t.isBoss && this.bossUlt && this.bossUlt.b === t) { this.endBossUlt('broken'); t.stun(CFG.POSTURE.bossStun * 1.6); this.fx.addShake(22); }
     else if (t.isBoss) t.stun(CFG.POSTURE.bossStun);
     else if (t.stun) t.stun(3);
@@ -740,6 +760,7 @@ export class Game {
         break;
       default: break;
     }
+    this.world.ascii.center.set(this.player.x, this.player.y);
     this.world.render(raw);
     if (!this._holdInput) inp.endFrame();
     this._holdInput = false;

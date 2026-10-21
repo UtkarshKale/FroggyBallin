@@ -64,6 +64,7 @@ class Boss {
     if (this.phase === 1 && this.hp < this.maxHp * 0.5) {
       this.phase = 2;
       this.g.hud.flash('PHASE 2', '#ff6666');
+      this.g.hud.wipeFlash();
       this.g.sfx.play('boss');
       this.g.fx.addShake(14);
       this.g.fx.ring(this.x, this.y, 20, 0xff4444, 20, 400, 0.6);
@@ -88,7 +89,7 @@ class Boss {
   clearMarker() { if (this.marker) { this.marker.remove(); this.marker = null; } }
   flashSync() {
     this.teleLast = !!this.telegraph;
-    this.g.world.tag(this.root, this.telegraph || (this.state !== 'move' && this.state !== 'stunned') ? 'danger' : null);
+    this.g.world.tag(this.root, this.telegraph || (this.state !== 'move' && this.state !== 'stunned') ? 'danger' : 'actor');
     if (this.flashT > 0) setFlash(this.flashList, 0xffffff);
     else if (this.stunned) setFlash(this.flashList, Math.floor(this.t * 12) % 2 ? 0xaaaa00 : 0x333300);
     else if (this.telegraph) { const c = TELE_COLORS[this.atkType] || TELE_COLORS.normal; setFlash(this.flashList, Math.floor(this.t * 18) % 2 ? c[0] : c[1]); }

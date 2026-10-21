@@ -19,7 +19,7 @@ export class Projectiles {
     glow.scale.setScalar(1.9);
     mesh.add(glow);
     this.g.world.scene.add(mesh);
-    if (team !== 'player') this.g.world.tag(mesh, 'danger');
+    this.g.world.tag(mesh, team !== 'player' ? 'danger' : 'actor');
     const p = { x, y, z, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg, team, radius, life, mesh, mat, owner, fromBoss, burn, reflected: false, dead: false, tag, color };
     this.list.push(p);
     return p;
@@ -41,7 +41,7 @@ export class Projectiles {
     p.vx = Math.cos(ang) * speed;
     p.vy = Math.sin(ang) * speed;
     p.team = newTeam;
-    this.g.world.tag(p.mesh, newTeam === 'player' ? null : 'danger');
+    this.g.world.tag(p.mesh, newTeam === 'player' ? 'actor' : 'danger');
     p.dmg *= p.fromBoss ? 3 : mult;
     p.reflected = true;
     p.life = 3;

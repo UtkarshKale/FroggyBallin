@@ -33,19 +33,31 @@ export class AsciiPass {
     this.tint = new THREE.Color(0x66ffcc);
     this.rt = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType });
     this.maskRT = new THREE.WebGLRenderTarget(2, 2, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+    // Depth/coverage pass material: black RGB, alpha = 1 near the action fading to 0 with distance from `center`.
+    // Background (cleared to alpha 0) and far-away geometry therefore emit no glyphs.
+    this.center = new THREE.Vector2();
     this.mBlack = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    this.mMask = { 1: new THREE.MeshBasicMaterial({ color: 0xff0000 }), 2: new THREE.MeshBasicMaterial({ color: 0x00ff00 }) };
-    this.sMask = { 1: new Map(), 2: new Map() };
+    this.mBlack.onBeforeCompile = (sh) => {
+      sh.uniforms.uCenter = { value: this.center };
+      sh.uniforms.uFade = { value: new THREE.Vector2(CFG.ULT.fadeNear, CFG.ULT.fadeFar) };
+      sh.vertexShader = 'varying vec3 vWPos;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = 'uniform vec2 uCenter; uniform vec2 uFade; varying vec3 vWPos;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
+        '#include <dithering_fragment>\ngl_FragColor = vec4(0.0, 0.0, 0.0, 1.0 - smoothstep(uFade.x, uFade.y, distance(vWPos.xy, uCenter)));');
+    };
+    // layer 1 danger (red), 2 health (green), 4 actors (blue = always drawn bright white)
+    this.mMask = { 1: new THREE.MeshBasicMaterial({ color: 0xff0000 }), 2: new THREE.MeshBasicMaterial({ color: 0x00ff00 }), 4: new THREE.MeshBasicMaterial({ color: 0x0000ff }) };
+    this.sMask = { 1: new Map(), 2: new Map(), 4: new Map() };
     this._cc = new THREE.Color();
     this.mat = new THREE.ShaderMaterial({
       uniforms: {
         tScene: { value: this.rt.texture }, tMask: { value: this.maskRT.texture }, tGlyph: { value: glyphAtlas(32) },
+        black: { value: CFG.ULT.black }, cutoff: { value: CFG.ULT.cutoff }, actorMin: { value: CFG.ULT.actorMin },
         res: { value: new THREE.Vector2(2, 2) }, cell: { value: CFG.ULT.cell }, amount: { value: 0 }, glitch: { value: 0 },
         time: { value: 0 }, nGlyph: { value: RAMP.length }, tint: { value: this.tint },
       },
       vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: `
-        uniform sampler2D tScene, tMask, tGlyph; uniform vec2 res; uniform float cell, amount, glitch, time, nGlyph; uniform vec3 tint;
+        uniform sampler2D tScene, tMask, tGlyph; uniform vec2 res; uniform float cell, amount, glitch, time, nGlyph, black, cutoff, actorMin; uniform vec3 tint;
         varying vec2 vUv;
         float rnd(float x) { return fract(sin(x * 91.345) * 43758.5453); }
         void main() {
@@ -55,10 +67,15 @@ export class AsciiPass {
           vec2 id = floor(frag / cell);
           vec2 cuv = (id + 0.5) * cell / res;
           vec3 col = texture2D(tScene, cuv).rgb;
-          vec3 mk = texture2D(tMask, cuv).rgb;
-          float lum = pow(dot(col, vec3(0.299, 0.587, 0.114)), 0.6);
+          vec4 mk4 = texture2D(tMask, cuv);
+          vec3 mk = mk4.rgb;
           float sem = max(mk.r, mk.g);
+          // Contrast curve: darks crush to black, then fade by coverage/distance; below the cutoff no glyph at all.
+          float lum = pow(dot(col, vec3(0.299, 0.587, 0.114)), 1.0 / 2.2); // linear RT -> perceptual
+          lum = pow(clamp((lum - black) / (1.0 - black), 0.0, 1.0), 0.8) * mk4.a;
           lum = max(lum, sem * 0.55);
+          lum = max(lum, step(0.5, mk.b) * max(actorMin, lum * 0.4 + 0.6));
+          lum *= step(cutoff, lum);
           float gi = floor(clamp(lum * 1.05, 0.0, 0.999) * nGlyph);
           vec2 inC = fract(frag / cell);
           float m = texture2D(tGlyph, vec2((gi + inC.x) / nGlyph, inC.y)).r;
@@ -120,14 +137,14 @@ export class AsciiPass {
     const bg = scene.background, fog = scene.fog;
     scene.background = null; scene.fog = null;
     r.setRenderTarget(this.maskRT);
-    r.setClearColor(0x000000, 1); r.clear();
+    r.setClearColor(0x000000, 0); r.clear();
     scene.overrideMaterial = this.mBlack;
     camera.layers.set(0);
     r.render(scene, camera);
     scene.overrideMaterial = null;
     const auto = r.autoClear; r.autoClear = false;
-    for (const layer of [1, 2]) {
-      const kind = layer === 1 ? 'danger' : 'heal';
+    for (const layer of [4, 1, 2]) {
+      const kind = layer === 1 ? 'danger' : layer === 2 ? 'heal' : 'actor';
       const swapped = [];
       for (const root of tagged) {
         if (!root.parent) { tagged.delete(root); continue; }
@@ -135,7 +152,7 @@ export class AsciiPass {
         root.traverse((o) => {
           if (o.isSprite) {
             let sm = this.sMask[layer].get(o.material.map);
-            if (!sm) { sm = new THREE.SpriteMaterial({ map: o.material.map, color: layer === 1 ? 0xff0000 : 0x00ff00, alphaTest: 0.3, depthTest: false }); this.sMask[layer].set(o.material.map, sm); }
+            if (!sm) { sm = new THREE.SpriteMaterial({ map: o.material.map, color: layer === 1 ? 0xff0000 : layer === 2 ? 0x00ff00 : 0x0000ff, alphaTest: 0.3, depthTest: false }); this.sMask[layer].set(o.material.map, sm); }
             swapped.push([o, o.material]); o.material = sm;
           } else if (o.isMesh) { swapped.push([o, o.material]); o.material = this.mMask[layer]; }
         });
