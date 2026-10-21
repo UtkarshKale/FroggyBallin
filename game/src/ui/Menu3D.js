@@ -175,12 +175,21 @@ export class Menu3D {
     const num = (k, label, step, lo, hi, fmt = (v) => v, after) => ({ kind: 'option', label, value: () => fmt(Settings.get(k)),
       next: () => { Settings.set(k, Math.min(hi, +(Settings.get(k) + step).toFixed(2))); after && after(); }, prev: () => { Settings.set(k, Math.max(lo, +(Settings.get(k) - step).toFixed(2))); after && after(); } });
     const apply = () => g.applySettings();
+    const self = this;
+    const TIPS = { '3D MENUS': 'Menus as a 3D diorama. Off: classic flat menus.', 'IN-WORLD DMG NUMBERS': 'Damage numbers float in the scene instead of on the screen.', 'CRT OVERLAY': 'Scanlines, vignette and a colour fringe on big hits.',
+      'REDUCE FLASHING': 'No screen flashes, softer shake, short wipes.', 'MOUSE SENS': 'Camera turn speed.', 'AIM SENS (ADS)': 'Multiplier while aiming the gun (hold aim).', 'VERTICAL SENS': 'Multiplier for up/down camera movement.',
+      'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.' };
+    const tipCard = { kind: 'card', label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || 'Left/Right or click to change. Changes apply immediately and are saved.'; } };
     return {
+      card: { at: V(110, -150, 552), w: 440, h: 30, item: tipCard },
       cam: V(560, -150, 420), look: V(40, -150, 422),
       grid: { at: V(110, -300, 490), w: 140, h: 22, cols: 3, dx: 150, dz: 27 }, rows: 6,
       items: [
         tog('ui3d', '3D MENUS', () => { apply(); if (!Settings.get('ui3d')) g.toMenu(); }),
-        tog('hud3d', 'HUD: IN-WORLD', apply),
+        tog('hud3d', 'IN-WORLD DMG NUMBERS', apply),
+        num('hudScale', 'HUD SCALE', 0.1, 0.7, 1.6, (v) => v.toFixed(1), apply),
+        num('hudOpacity', 'HUD OPACITY', 0.1, 0.3, 1, (v) => Math.round(v * 100) + '%', apply),
+        { kind: 'option', label: 'HUD CORNER', value: () => (Settings.get('hudCorner') === 'top' ? 'TOP LEFT' : 'BOTTOM LEFT'), act: () => { Settings.set('hudCorner', Settings.get('hudCorner') === 'top' ? 'bottom' : 'top'); apply(); }, next: () => { Settings.set('hudCorner', Settings.get('hudCorner') === 'top' ? 'bottom' : 'top'); apply(); }, prev: () => { Settings.set('hudCorner', Settings.get('hudCorner') === 'top' ? 'bottom' : 'top'); apply(); } },
         tog('crt', 'CRT OVERLAY', apply),
         tog('reduce', 'REDUCE FLASHING', apply),
         tog('dmgNums', 'DAMAGE NUMBERS', apply),

@@ -22,6 +22,12 @@ export class Screens {
     const crt = document.createElement('div'); crt.className = 'crtfx'; document.body.appendChild(crt);
     this.applySettings();
     window.addEventListener('keydown', (e) => {
+      // Arrow keys move focus between buttons of the visible DOM screen (Enter activates natively).
+      if (!this.cut && !this.prel && this.overlay.classList.contains('show') && (e.code === 'ArrowDown' || e.code === 'ArrowUp')) {
+        const bs = [...this.overlay.querySelectorAll('button')];
+        if (bs.length) { e.preventDefault(); const i = bs.indexOf(document.activeElement); const n = e.code === 'ArrowDown' ? (i + 1) % bs.length : (i - 1 + bs.length) % bs.length; bs[n].focus(); bs[n].scrollIntoView({ block: 'nearest' }); }
+        return;
+      }
       if (this.cut && (e.code === 'Space' || e.code === 'Enter')) this.cut.next();
       else if (this.cut && e.code === 'Escape') this.cut.skip();
       else if (this.prel && !e.repeat && this.prel.ready()) this.prel.skip();

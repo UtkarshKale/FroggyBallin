@@ -6,7 +6,8 @@ import { CFG } from '../config.js';
 const raw = {};
 const loader = new GLTFLoader();
 
-export async function preload(names) {
+export async function preload(names, onEach = null) {
+  let done = 0;
   await Promise.all(names.map(async (n) => {
     try {
       const g = await loader.loadAsync(`${import.meta.env.BASE_URL}models/${n}.glb`);
@@ -15,6 +16,8 @@ export async function preload(names) {
       console.warn('Model failed to load, using fallback:', n, e);
       raw[n] = null;
     }
+    done++;
+    if (onEach) onEach(done / names.length, n);
   }));
 }
 

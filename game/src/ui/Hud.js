@@ -3,6 +3,24 @@ import { CFG, POWERUPS } from '../config.js';
 import { fmtTime } from '../core/math.js';
 import { keyName } from '../core/Keybinds.js';
 
+// Small code-drawn icons for the HUD (inline SVG, currentColor).
+const svg = (d, vb = '0 0 24 24') => `<svg viewBox="${vb}" width="16" height="16" fill="currentColor" aria-hidden="true">${d}</svg>`;
+export const ICON = {
+  heart: svg('<path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/>'),
+  bolt: svg('<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>'),
+  shield: svg('<path d="M12 2 4 5v6c0 5 3.5 9.5 8 11 4.5-1.5 8-6 8-11V5z"/>'),
+  star: svg('<path d="m12 2 3 7h7l-5.5 4.5 2 7.5-6.5-4.5L5.5 21l2-7.5L2 9h7z"/>'),
+  sword: svg('<path d="M20 2h2v2L9 17l2 2-2 2-2-2-3 3-2-2 3-3-2-2 2-2 2 2z"/>'),
+  gun: svg('<path d="M2 8h18l2 2v3h-8l-1 2h-3l-1 5H5l1-5H4l-2-2z"/>'),
+  firefly: svg('<path d="M12 2c3 4 5 7 5 10a5 5 0 0 1-10 0c0-3 2-6 5-10z"/>'),
+  dragon: svg('<path d="M2 12c6-6 14-6 20 0-6-2-14-2-20 0zm10 0v9"/>'),
+  shell: svg('<path d="m12 2 9 5v10l-9 5-9-5V7z"/>'),
+  snail: svg('<path d="M4 18h16a6 6 0 1 0-6-6 3 3 0 1 0 3-3"/>'),
+  bigmouth: svg('<circle cx="12" cy="12" r="9"/><path d="M6 12h12" stroke="#000" stroke-width="3"/>'),
+  over: svg('<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>'),
+  counter: svg('<path d="m12 2 3 7h7l-5.5 4.5 2 7.5-6.5-4.5L5.5 21l2-7.5L2 9h7z"/>'),
+};
+
 const tmp = new THREE.Vector3();
 
 export class Hud {
@@ -11,11 +29,13 @@ export class Hud {
     this.root.style.display = 'none';
     this.root.innerHTML = `
       <div class="abs vignette"></div><div class="abs lowhp"></div><div class="abs sflash" id="h-sflash"></div><div class="abs pdim" id="h-pdim"></div><div class="abs perilv" id="h-perilv"></div>
-      <div class="abs hud-tl panel-shadow">
-        <div class="bar hp"><i id="h-hp"></i></div>
-        <div class="row"><span id="h-hptxt">100</span><span class="ammo" id="h-ammo"></span></div>
-        <div class="row"><span class="wpn" id="h-wpn"></span></div>
-        <div class="ultbox" id="h-ultbox"><div class="bar ult"><i id="h-ult"></i></div><span class="ultlbl">ULT [G]</span></div>
+      <div class="abs hudc panel-shadow" id="h-cluster">
+        <div class="hrow"><span class="ico">${ICON.heart}</span><div class="bar hp"><i id="h-hp"></i></div><b class="num" id="h-hptxt">100</b></div>
+        <div class="hrow"><span class="ico">${ICON.bolt}</span><div class="bar stam"><i id="h-stami"></i></div></div>
+        <div class="hrow"><span class="ico">${ICON.shield}</span><div class="bar post"><i id="h-post"></i></div></div>
+        <div class="hrow ultbox" id="h-ultbox"><span class="ico">${ICON.star}</span><div class="bar ult"><i id="h-ult"></i></div><span class="ultlbl" id="h-ultk">G</span></div>
+        <div class="hrow"><span class="wpn" id="h-wpn"></span><span class="ammo" id="h-ammo"></span></div>
+        <div class="powers" id="h-powers"></div>
       </div>
       <div class="abs hud-top panel-shadow">
         <div class="timer" id="h-time">00:00.00</div>
@@ -32,8 +52,6 @@ export class Hud {
       <div class="abs bossbar panel-shadow" id="h-boss"><div class="name" id="h-bossname"></div><div class="bar boss"><i id="h-bosshp"></i></div><div class="stance" id="h-bossstance" style="margin:6px auto 0"><i class="sl"></i><i class="sr"></i></div></div>
       <div class="abs crosshair" id="h-cross"></div>
       <div class="abs stance pstance" id="h-stance"><i class="sl"></i><i class="sr"></i></div>
-      <div class="abs stamina" id="h-stam"><div class="bar stam"><i id="h-stami"></i></div></div>
-      <div class="abs powers panel-shadow" id="h-powers"></div>
       <div class="abs help panel-shadow" id="h-help"></div>
       <div class="abs stylebox panel-shadow" id="h-style"><div class="rank" id="h-rank">D</div><div class="bar srank"><i id="h-srank"></i></div><div class="combo" id="h-combo"></div></div>
       <div class="abs counterp panel-shadow" id="h-counter">COUNTER!</div>
@@ -49,11 +67,11 @@ export class Hud {
     root.appendChild(this.root);
     const q = (id) => this.root.querySelector('#' + id);
     this.el = {
-      hp: q('h-hp'), hptxt: q('h-hptxt'), ammo: q('h-ammo'), time: q('h-time'), pb: q('h-pb'), obj: q('h-obj'),
+      hp: q('h-hp'), hptxt: q('h-hptxt'), post: q('h-post'), cluster: q('h-cluster'), ultk: q('h-ultk'), ammo: q('h-ammo'), time: q('h-time'), pb: q('h-pb'), obj: q('h-obj'),
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
       stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
-      stam: q('h-stam'), pdim: q('h-pdim'), pslash: q('h-pslash'), flourish: q('h-flourish'), pwipe: q('h-pwipe'), dmgs: q('h-dmgs'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
+      pdim: q('h-pdim'), pslash: q('h-pslash'), flourish: q('h-flourish'), pwipe: q('h-pwipe'), dmgs: q('h-dmgs'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
     this.low = this.root.querySelector('.lowhp');
@@ -75,8 +93,9 @@ export class Hud {
     const d = this.nums[this.numI++ % this.nums.length];
     d.textContent = Math.round(amount);
     d.className = `dmgn ${kind}`;
-    d.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth + (Math.random() - 0.5) * 30}px`;
-    d.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight}px`;
+    const zm = this.zoom || 1; // #ui may be CSS-zoomed on small/large screens
+    d.style.left = `${((tmp.x * 0.5 + 0.5) * window.innerWidth + (Math.random() - 0.5) * 30) / zm}px`;
+    d.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight / zm}px`;
     d.style.setProperty('--r', `${(Math.random() - 0.5) * 24}deg`);
     void d.offsetWidth;
     d.classList.add('go');
@@ -183,11 +202,21 @@ export class Hud {
     el.classList.add('pop');
   }
 
+  // Toasts queue up so messages never overlap; repeats of the showing message just refresh it.
   flash(text, color = '#fff') {
+    this.toastQ = this.toastQ || [];
+    if (this._toastText === text && this.toastT > 0) { this.toastT = Math.max(this.toastT, 0.6); return; }
+    if (this.toastT > 0.25) { if (!this.toastQ.some((q) => q[0] === text)) this.toastQ.push([text, color]); if (this.toastQ.length > 3) this.toastQ.shift(); return; }
+    this._showToast(text, color);
+  }
+
+  _showToast(text, color) {
+    this._toastText = text;
     this.el.toast.textContent = text;
     this.el.toast.style.color = color;
     this.el.toast.style.opacity = 1;
-    this.toastT = 0.9;
+    this.el.toast.classList.remove('pop'); void this.el.toast.offsetWidth; this.el.toast.classList.add('pop');
+    this.toastT = this.toastQ && this.toastQ.length ? 0.7 : 0.9;
   }
 
   banner(text, sub = '', color = '#fff', time = 2.2) {
@@ -203,6 +232,7 @@ export class Hud {
   }
 
   update(g, dt) {
+    if (!this._zf || --this._zf <= 0) { this._zf = 30; this.zoom = parseFloat(getComputedStyle(this.root.parentElement).zoom) || 1; }
     const e = this.el, p = g.player;
     e.hp.style.width = `${Math.max(0, p.hp)}%`;
     e.hptxt.textContent = Math.ceil(p.hp);
@@ -212,7 +242,13 @@ export class Hud {
     e.cross.style.display = 'block';
     const cc = 'abs crosshair' + (p.weapon === 'gun' ? ' gun' : '') + (p.aiming ? ' aim' : '');
     if (this._cc !== cc) { this._cc = cc; e.cross.className = cc; }
-    e.wpn.innerHTML = p.weapon === 'gun' ? '[Q] <b style="color:#ffd23f">GUN</b> · RMB aim' : '[Q] <b style="color:#dfe8f0">SWORD</b> · RMB parry';
+    const wk = keyName(CFG.KEYS.weapon);
+    const wh = p.weapon === 'gun' ? `<span class="ico gold">${ICON.gun}</span><b>GUN</b><small>${wk}</small>` : `<span class="ico">${ICON.sword}</span><b>SWORD</b><small>${wk}</small>`;
+    if (this._wh !== wh) { this._wh = wh; e.wpn.innerHTML = wh; }
+    e.post.style.width = `${(p.broken > 0 ? 1 : Math.min(1, p.posture / 100)) * 100}%`;
+    e.post.parentElement.classList.toggle('broken', p.broken > 0);
+    e.stami.style.width = `${p.stamina}%`;
+    if (e.ultk.textContent !== keyName(CFG.KEYS.ult)) e.ultk.textContent = keyName(CFG.KEYS.ult);
     const setStance = (el, frac, broken) => {
       el.firstElementChild.style.width = el.lastElementChild.style.width = `${(broken ? 1 : Math.min(1, frac)) * 50}%`;
       el.classList.toggle('broken', !!broken);
@@ -249,18 +285,13 @@ export class Hud {
 
     // Floating stamina bar above the frog's head
     tmp.set(p.x, p.y, p.z + CFG.PLAYER.height + 24).project(g.world.camera);
-    if (tmp.z < 1 && p.stamina < 99.5) {
-      e.stam.style.display = 'block';
-      e.stam.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth}px`;
-      e.stam.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight}px`;
-      e.stami.style.width = `${p.stamina}%`;
-    } else e.stam.style.display = 'none';
     // Floating COUNTER! prompt while the counter window is open
     tmp.set(p.x, p.y, p.z + CFG.PLAYER.height + 46).project(g.world.camera);
     if (tmp.z < 1 && p.counterT > 0) {
       e.counter.style.display = 'block';
-      e.counter.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth}px`;
-      e.counter.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight}px`;
+      const zm = this.zoom || 1;
+      e.counter.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth / zm}px`;
+      e.counter.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight / zm}px`;
     } else e.counter.style.display = 'none';
 
     // Ult meter
@@ -286,7 +317,8 @@ export class Hud {
     let html = '';
     const chip = (key, label, val) => {
       const def = POWERUPS[key];
-      html += `<div class="chip" style="border-color:#${def.color.toString(16).padStart(6, '0')}">${label} ${val}</div>`;
+      const c = '#' + def.color.toString(16).padStart(6, '0');
+      html += `<div class="chip" style="border-color:${c}"><span class="ico" style="color:${c}">${ICON[key] || ICON.star}</span>${label} <b>${val}</b></div>`;
     };
     if (p.pu.fire > 0) chip('firefly', 'Firefly', p.pu.fire.toFixed(0) + 's');
     if (p.pu.dragon > 0) chip('dragon', 'Dragonfly', p.pu.dragon.toFixed(0) + 's');
@@ -294,10 +326,13 @@ export class Hud {
     if (p.pu.shell > 0) chip('shell', 'Beetle Shell', 'x' + p.pu.shell);
     if (g.snailT > 0) chip('snail', 'Time Snail', g.snailT.toFixed(0) + 's');
     if (p.pu.over > 0) chip('over', 'Overclock', p.pu.over.toFixed(0) + 's');
-    if (p.counterT > 0) html += `<div class="chip" style="border-color:#fff">COUNTER READY</div>`;
+    if (p.counterT > 0) html += `<div class="chip" style="border-color:#fff"><span class="ico">${ICON.counter}</span>COUNTER READY</div>`;
     if (html !== this.lastPow) { e.powers.innerHTML = html; this.lastPow = html; }
 
-    if (this.toastT > 0) { this.toastT -= dt; if (this.toastT <= 0) e.toast.style.opacity = 0; }
+    if (this.toastT > 0) {
+      this.toastT -= dt;
+      if (this.toastT <= 0) { if (this.toastQ && this.toastQ.length) this._showToast(...this.toastQ.shift()); else { e.toast.style.opacity = 0; this._toastText = ''; } }
+    }
     if (this.bannerT > 0) { this.bannerT -= dt; if (this.bannerT <= 0) e.banner.style.opacity = 0; }
   }
 }

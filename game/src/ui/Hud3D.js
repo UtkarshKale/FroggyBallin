@@ -94,7 +94,10 @@ export class Hud3D {
   update(dt) {
     if (!this.on) return;
     const g = this.g, p = g.player, cam = g.world.camera;
-    const vis = !p.dead && (g.state === 'PLAYING' || g.state === 'PAUSED');
+    // The director asked for a screen-anchored HUD: only in-world damage numbers stay in the scene.
+    const vis = false;
+    this.arcs.visible = this.ammo.spr.visible = this.rank.spr.visible = this.boss.spr.visible = false;
+    if (!vis) { this._nums(dt); return; }
     this.arcs.visible = vis;
     // arcs halo around the frog, always facing the camera
     this.arcs.position.set(p.x, p.y, p.z + 26);
@@ -150,6 +153,10 @@ export class Hud3D {
         c.fillRect(W / 2 - half, 70, half * 2, 12);
       });
     }
+    this._nums(dt);
+  }
+
+  _nums(dt) {
     for (const n of this.nums) {
       if (n.t <= 0) { n.spr.visible = false; continue; }
       n.t -= dt;

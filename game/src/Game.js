@@ -62,7 +62,8 @@ export class Game {
   }
 
   async init() {
-    await preload(['tode', 'enemy', 'small_house']);
+    const bp = document.querySelector('#boot .bp i'), bs = document.querySelector('#boot small');
+    await preload(['tode', 'enemy', 'small_house'], (f, n) => { if (bp) bp.style.width = `${Math.round(f * 85)}%`; if (bs) bs.textContent = `LOADING ${n.toUpperCase()}...`; });
     this.world = new World(this.canvas);
     this.fx = new Fx(this.world.scene);
     this.fx.tagger = (o, k) => this.world.tag(o, k);
@@ -91,6 +92,8 @@ export class Game {
     });
     this.toMenu();
     this.world.renderer.setAnimationLoop(() => this.frame());
+    const boot = document.getElementById('boot');
+    if (boot) { if (bp) bp.style.width = '100%'; setTimeout(() => { boot.classList.add('done'); setTimeout(() => boot.remove(), 500); }, 200); }
   }
 
   // ------------------------------------------------------------ flow
@@ -124,7 +127,10 @@ export class Game {
     CFG.CAMERA.dist = S.camDist; CFG.CAMERA.gunDist = S.camDist * 0.85; CFG.CAMERA.aimDist = S.camDist * 0.69;
     this.sfx.setVolumes({ master: S.master, sfx: S.sfx, music: S.music });
     this.screens.applySettings();
-    this.hud.root.classList.toggle('diegetic', !!S.hud3d);
+    this.hud.root.classList.toggle('worldnums', !!S.hud3d);
+    this.hud.root.style.setProperty('--hud-scale', S.hudScale);
+    this.hud.root.style.setProperty('--hud-op', S.hudOpacity);
+    this.hud.el.cluster.classList.toggle('top', S.hudCorner === 'top');
   }
 
   achieve(key) {
