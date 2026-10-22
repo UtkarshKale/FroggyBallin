@@ -153,6 +153,7 @@ export class Screens {
     this._set(`<div class="card"><h2>Credits</h2>
       <p><b style="color:#ffd23f;font-size:18px">Utkarsh Kale</b><br>Game director and developer (github.com/UtkarshKale)</p>
       <p><b>Froggy Ballin</b>, a JetBrains game jam entry built on the "Build a Game with an AI Coding Agent" course baseline by JetBrains Academy (MIT License): Tode the Frog, the ant enemy and house models, and the Three.js + Vite setup.</p>
+      <p><b>License:</b> evaluation and playtesting only, no public use. Original work &copy; 2026 Utkarsh Kale, all rights reserved. Course baseline portions remain MIT. See <code>LICENSE</code>.</p>
       <p>Tools: Three.js and Vite. Made with AI assistance, see <code>AI_DISCLOSURE.md</code>.</p>
       <p>Assets: all other meshes, the UI art and the comic panels are drawn in code; all sound effects and music are synthesized in your browser with WebAudio (see <code>THIRD_PARTY_ASSETS.md</code>).</p>
       <div class="btnrow"><button class="menu-btn small" id="b-back">Back</button></div></div>`, 'menu');

@@ -65,9 +65,12 @@ npm run preview    # serve the production build
 ## Tech
 Three.js (`^0.181`) + Vite (`^7`), plain JavaScript. See `docs/GDD.md` for the design document.
 
+## License
+Evaluation and playtesting only. No public use. Course baseline portions remain MIT.
+Froggy Ballin's original work is Copyright (c) 2026 Utkarsh Kale, all rights reserved; see `LICENSE` (Part 1: course MIT notice, Part 2: evaluation and playtest terms).
+
 ## Credits, licensing and disclosures
 - Based on the course project "Build a Game with an AI Coding Agent" by JetBrains Academy, MIT License. See `LICENSE`.
-- **Froggy Ballin itself is not open source.** This repository is public only for jam evaluation and playtesting; no public or other use is allowed. See `LICENSE-FROGGY-BALLIN.md`. The course-derived parts stay MIT (`LICENSE`).
 - Third-party assets and their licenses: `THIRD_PARTY_ASSETS.md`.
 - AI tools used and for what: `AI_DISCLOSURE.md`.
 - Jam rules: no third-party trademarks or logos, recognizable fictional characters, internet memes, or commercially released music/recordings. All sound is synthesized in code and all non-course art is original.

@@ -1,5 +1,6 @@
 {
   "name": "game",
+  "license": "SEE LICENSE IN ../LICENSE",
   "private": true,
   "version": "0.0.0",
   "type": "module",

@@ -605,5 +605,6 @@ const CREDITS = `*Utkarsh Kale
 Game director and developer (github.com/UtkarshKale)
 
 Froggy Ballin is a JetBrains game jam entry built on the "Build a Game with an AI Coding Agent" course baseline by JetBrains Academy (MIT License): Tode the Frog, the ant and house models and the Three.js + Vite setup.
+License: evaluation and playtesting only, no public use. Original work (c) 2026 Utkarsh Kale, all rights reserved. Course baseline portions remain MIT. See LICENSE.
 Tools: Three.js and Vite. Made with AI assistance, see AI_DISCLOSURE.md in the repository.
 Assets: all other meshes, the UI art and the comic panels are drawn in code; all sound and music are synthesized live with WebAudio (see THIRD_PARTY_ASSETS.md).`;

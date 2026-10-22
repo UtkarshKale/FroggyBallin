@@ -1,3 +1,18 @@
+FROGGY BALLIN - LICENSE (TWO PARTS)
+
+In plain English: this repository is provided for evaluation and playtesting only.
+You may read the code and build and run the game on your own device to evaluate or
+playtest it. No public use: do not redistribute, host, republish or reuse it.
+The course baseline portions remain under the MIT License (Part 1).
+
+==========================================================================================
+PART 1 - Course baseline (MIT)
+
+Applies to the code and assets that came from the JetBrains Academy course
+"Build a Game with an AI Coding Agent": the course scaffolding folders, the Three.js + Vite
+project setup, and the models game/public/models/tode.glb, enemy.glb, small_house.glb and
+game/public/tode.svg (see THIRD_PARTY_ASSETS.md). The notice below is kept verbatim.
+
 MIT License
 
 Copyright (c) 2025 JetBrains Academy
@@ -20,10 +35,42 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Froggy Ballin additions (everything under game/ not derived from the course)
-Copyright (c) 2026 Utkarsh Kale (github.com/UtkarshKale). All rights reserved.
-NOT covered by the MIT terms above. Licensed for evaluation and playtesting only;
-no public or other use is allowed. See LICENSE-FROGGY-BALLIN.md.
+==========================================================================================
+PART 2 - Froggy Ballin original contributions (ALL RIGHTS RESERVED)
 
+Copyright (c) 2026 Utkarsh Kale. All rights reserved.
+
+Applies to everything added for Froggy Ballin that is not covered by Part 1, including the
+source code in game/src, the user interface, procedural art, comic art, audio synthesis and
+music code, level designs, names, characters, text and documentation ("the Game").
+Part 2 does not apply to the Part 1 material or to the third-party components listed in
+THIRD_PARTY_ASSETS.md, which keep their own licenses.
+
+1. Purpose. The Game is provided in this repository for EVALUATION AND PLAYTESTING ONLY,
+   for example by the JetBrains game jam organizers, judges and invited playtesters.
+
+2. Permission. You may view the source code and documentation, and build and run the Game
+   locally on your own device, solely to evaluate and playtest it. You may share feedback,
+   screenshots and short gameplay clips as part of an evaluation or playtest report.
+
+3. No public use. Without prior written permission from the author you may not:
+   redistribute, republish, re-upload or publicly host or deploy the Game or any build of it;
+   fork it for public release; use it commercially; sublicense it; make or publish derivative
+   works; or use any of its code, art, audio, names or characters in other projects.
+   Forks created through GitHub's interface are allowed only as far as GitHub's Terms of
+   Service require, and only for the purpose in section 1.
+
+4. No trademark rights. No right is granted to use the names "Froggy Ballin", "Tode" or any
+   other name, character or logo of the Game.
+
+5. No warranty. THE GAME IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+   PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+   CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR IN CONNECTION WITH THE GAME OR
+   ITS USE.
+
+For any other use, contact the author via github.com/UtkarshKale.
+
+==========================================================================================
 Jam attribution notice:
 [TO FILL IN BEFORE SUBMISSION: paste the exact attribution notice text required by the JetBrains game jam here]
