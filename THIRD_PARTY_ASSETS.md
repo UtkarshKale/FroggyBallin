@@ -10,7 +10,8 @@
 | [Vite](https://vite.dev) `^7` | Dev server and bundler | npm | MIT |
 
 Everything else is original to this project:
-- All other meshes (bugs, bosses, sword, gun, pickups) are built from Three.js primitives in code.
+- All other meshes (bugs, bosses, sword, gun, pickups, hats and other wardrobe items, level decorations) are built from Three.js primitives in code.
+- All UI textures (menu panels, glyph atlas, danger sigils, icons, ground tiles, sky gradients, sparks) are drawn at runtime on canvases or as inline SVG.
 - Comic cutscene art is drawn in code as inline SVG (`game/src/ui/comics.js`).
 - All sound effects and the music loop are synthesized at runtime with WebAudio (`game/src/audio/Sfx.js`). No recorded or commercial audio is used.
 
