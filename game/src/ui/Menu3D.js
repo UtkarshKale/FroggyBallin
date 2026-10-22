@@ -248,7 +248,7 @@ export class Menu3D {
     };
     const tipCard = { kind: 'card', compact: true, label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || self._roomTip || 'Left/Right or click to change a setting. Changes apply at once and are saved.'; } };
     return {
-      card: { at: V(110, -150, 556), w: 440, h: 40, item: tipCard },
+      card: { at: V(110, -150, 556), w: 440, h: 44, item: tipCard },
       cam: V(560, -150, 420), look: V(40, -150, 422),
       grid: { at: V(110, -300, 490), w: 140, h: 22, cols: 3, dx: 150, dz: 27 }, rows: 6,
       items: [

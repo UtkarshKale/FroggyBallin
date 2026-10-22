@@ -78,6 +78,23 @@ export class Panel3D {
       c.lineWidth = 10; c.strokeStyle = '#000'; c.strokeText(it.label, 10, H / 2);
       c.fillStyle = accent; c.fillText(it.label, 18, H / 2 + 8);
       c.fillStyle = '#fff'; c.fillText(it.label, 10, H / 2);
+    } else if (it.kind === 'card' && it.compact) {
+      // Wide, short header card: label on the left, body (up to two lines) beside it at a readable size.
+      const m = H * 0.12;
+      c.fillStyle = '#fff'; c.textBaseline = 'middle';
+      const ts = H * 0.3;
+      c.font = `italic 900 ${ts}px 'Arial Black', Impact, sans-serif`;
+      c.fillText(it.label, m, H * 0.46);
+      const lw = c.measureText(it.label).width;
+      c.fillStyle = accent; c.fillRect(m, H * 0.46 + ts * 0.62, lw, Math.max(4, H * 0.05));
+      const x0 = m * 2 + lw + W * 0.01, bw = W - x0 - m * 1.5;
+      let bs = H * 0.27, lines;
+      for (;;) { c.font = `600 ${bs}px 'Segoe UI', Arial, sans-serif`; lines = wrap(c, it.body || '', bw); if (lines.length <= 2 || bs < H * 0.16) break; bs *= 0.9; }
+      lines = lines.slice(0, 2);
+      const lh = bs * 1.2, y0 = H * 0.48 - (lines.length - 1) * lh / 2;
+      c.fillStyle = '#f2f2f2';
+      lines.forEach((ln, i) => c.fillText(ln.replace(/^\*/, ''), x0, y0 + i * lh));
+      this.overflow = 0;
     } else if (it.kind === 'card') {
       c.fillStyle = '#fff';
       const cp = !!it.compact; // wide, short header cards: size text from the height
