@@ -132,9 +132,9 @@ export class Menu3D {
     const back = { kind: 'button', label: 'BACK', act: () => this.go('main') };
     return {
       main: () => ({
-        cam: V(440, -30, 140), look: V(40, -95, 108),
-        list: { at: V(120, -150, 190), w: 122, h: 25, gap: 29 }, rows: this._fitRows(9, 7),
-        title: { label: 'FROGGY BALLIN', at: V(118, -150, 228), w: 200, h: 40 },
+        cam: V(470, -30, 150), look: V(40, -95, 122),
+        list: { at: V(120, -150, 202), w: 118, h: 22, gap: 25.5 }, rows: this._fitRows(9, 7),
+        title: { label: 'FROGGY BALLIN', at: V(118, -150, 238), w: 190, h: 36 },
         items: [
           { kind: 'button', label: 'PLAY', sub: 'Time Loop: pick a level', act: () => this.go('levels') },
           { kind: 'button', label: 'BOSS RUSH', act: () => g.screens.wipe(() => g.startRun('bossrush')) },
@@ -241,7 +241,7 @@ export class Menu3D {
     return {
       cam: V(250, -50, 80), look: V(0, -82, 54),
       grid: { at: V(40, -175, 96), w: 82, h: 14, cols: 2, dx: 88, dz: 16 }, rows: this._fitRows(6, 4),
-      card: { at: V(40, 60, 92), w: 70, h: 52, item: { kind: 'card', label: 'UNLOCKS', body: `Gold skin / blade: S rank\nCrown, glowing eyes, gold gun: beat a boss\nHalo: clear Boss Rush\nVoid glow: win on TORTURE\n${locks}` } },
+      card: { at: V(40, 32, 100), w: 58, h: 50, item: { kind: 'card', label: 'UNLOCKS', body: `Gold skin / blade: S rank\nCrown, glowing eyes, gold gun: beat a boss\nHalo: clear Boss Rush\nVoid glow: win on TORTURE\n${locks}` } },
       items: [...items, { kind: 'button', label: 'BACK', act: () => this.go('main') }],
     };
   }
