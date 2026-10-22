@@ -155,6 +155,18 @@ export class Enemy {
     this.latched = false;
     this.launch = null;
     this.flashList = collectFlash(this.root);
+    // Variants: every bug gets a slightly different size and hue; ~8% are gold-tinted elites (bigger, tougher).
+    this.sizeK = 0.9 + Math.random() * 0.25;
+    const hue = (Math.random() - 0.5) * 0.08;
+    this.elite = !['echo', 'spiderling', 'leech'].includes(type) && Math.random() < 0.08;
+    if (this.elite) { this.sizeK = 1.3; this.hp = this.maxHp = Math.round(this.maxHp * 1.6); this.postureMax *= 1.4; }
+    for (const m of this.flashList) { if (m.color) m.color.offsetHSL(hue, 0, (Math.random() - 0.5) * 0.06); if (this.elite) { m.color.lerp(new THREE.Color(0xffd23f), 0.35); m.userData.e0 = 0x221800; m.emissive.setHex(0x221800); } }
+    if (this.elite) {
+      const crown = new THREE.Group();
+      for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(2.2, 7, 5), stdMat(0xffd23f, { metalness: 0.7, emissive: 0x332200 })); c.rotation.x = Math.PI / 2; c.position.set(4, (i - 1) * 4, this.radius * 1.6); crown.add(c); }
+      this.root.add(crown);
+    }
+    this.radius *= this.sizeK;
     this._buildAnim();
     game.world.scene.add(this.root);
     this.overhead = new Overhead(game.world.scene);
@@ -467,7 +479,8 @@ export class Enemy {
     const w = this.wobT > 0 ? Math.sin(this.wobT * 45) * 0.35 * (this.wobT / WOBBLE) : 0;
     this.root.rotation.x = w;
     const sp = this.spawnT > 0 ? Math.max(0.05, backOut(1 - this.spawnT / SPAWN_POP)) : 1;
-    this.root.scale.set(sp * (1 + Math.abs(w) * 0.4), sp * (1 + Math.abs(w) * 0.4), sp * (1 - Math.abs(w) * 0.3));
+    const sk = sp * this.sizeK;
+    this.root.scale.set(sk * (1 + Math.abs(w) * 0.4), sk * (1 + Math.abs(w) * 0.4), sk * (1 - Math.abs(w) * 0.3));
     // ASCII-ult semantics: juicebugs are health, attacking / armed bugs are danger.
     this.g.world.tag(this.root, this.type === 'juicebug' ? 'heal' : (this.atk || this.launch || this.latched || this.type === 'bomber') ? 'danger' : 'actor');
     const p = this.g.player;
@@ -521,6 +534,7 @@ export class Enemy {
     if (this.type === 'juicebug') for (let i = 0; i < Math.round(4 * g.D.heal); i++) g.pickups.spawn('droplet', this.x, this.y);
     if (this.type === 'shellback') { g.pickups.spawn('bullet', this.x + 12, this.y); g.pickups.spawn('bullet', this.x - 12, this.y); }
     if (this.type !== 'echo') g.maybeDrop(this.x, this.y);
+    if (this.elite) { g.maybeDrop(this.x + 10, this.y); g.pickups.spawn('droplet', this.x, this.y); g.score += 20; }
     g.score += 10;
   }
 }

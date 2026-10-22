@@ -133,6 +133,23 @@ export class Fx {
     this.streakList.push({ m, mat, d, x: x0, y: y0, z: z0, len, life, max: life, tracer: true });
   }
 
+  // Hit-spark flare sprite (4-point star drawn on a canvas).
+  spark(x, y, z, color = 0xffffff, size = 26, life = 0.12) {
+    if (!this._sparkTex) {
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const g = c.getContext('2d');
+      const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,255,255,.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.beginPath(); g.moveTo(32, 0); g.lineTo(37, 27); g.lineTo(64, 32); g.lineTo(37, 37); g.lineTo(32, 64); g.lineTo(27, 37); g.lineTo(0, 32); g.lineTo(27, 27); g.closePath(); g.fill();
+      this._sparkTex = new THREE.CanvasTexture(c);
+    }
+    const mat = new THREE.SpriteMaterial({ map: this._sparkTex, color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    const s = new THREE.Sprite(mat);
+    s.position.set(x, y, z);
+    s.material.rotation = Math.random() * 3;
+    this.scene.add(s);
+    this.flats.push({ m: s, mat, life, max: life, s0: size * 0.6, s1: size * 1.4, op: 1 });
+  }
+
   // Single short-lived glowing dot (sword trails).
   dot(x, y, z, color, size = 3, life = 0.15) {
     if (this.parts.length > 350) return;

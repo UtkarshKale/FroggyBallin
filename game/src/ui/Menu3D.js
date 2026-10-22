@@ -178,7 +178,7 @@ export class Menu3D {
     const self = this;
     const TIPS = { '3D MENUS': 'Menus as a 3D diorama. Off: classic flat menus.', 'IN-WORLD DMG NUMBERS': 'Damage numbers float in the scene instead of on the screen.', 'CRT OVERLAY': 'Scanlines, vignette and a colour fringe on big hits.',
       'REDUCE FLASHING': 'No screen flashes, softer shake, short wipes.', 'MOUSE SENS': 'Camera turn speed.', 'AIM SENS (ADS)': 'Multiplier while aiming the gun (hold aim).', 'VERTICAL SENS': 'Multiplier for up/down camera movement.',
-      'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.' };
+      'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
     const tipCard = { kind: 'card', label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || 'Left/Right or click to change. Changes apply immediately and are saved.'; } };
     return {
       card: { at: V(110, -150, 552), w: 440, h: 30, item: tipCard },
@@ -193,6 +193,7 @@ export class Menu3D {
         tog('crt', 'CRT OVERLAY', apply),
         tog('reduce', 'REDUCE FLASHING', apply),
         tog('dmgNums', 'DAMAGE NUMBERS', apply),
+        tog('lowQ', 'LOW QUALITY', () => { apply(); g.world.buildLevel(g.levelCfg); if (this.active && g.state === 'MENU') { g.world.levelGroup.visible = false; } }),
         tog('invertY', 'INVERT Y', apply),
         num('sens', 'MOUSE SENS', 0.05, 0.1, 3, (v) => v.toFixed(2)),
         num('aimSens', 'AIM SENS (ADS)', 0.05, 0.1, 2, (v) => v.toFixed(2)),

@@ -4,6 +4,8 @@ import { makeModel, stdMat } from '../core/Assets.js';
 import { Rng } from '../core/Rng.js';
 import { clamp } from '../core/math.js';
 import { AsciiPass } from '../fx/Ascii.js';
+import { buildDecor, updateDecor, groundTexture } from './Decor.js';
+import { Settings } from '../core/Settings.js';
 
 // Owns renderer, scene, lights, camera rig, floor, obstacles (houses) and the goal pad.
 export class World {
@@ -54,16 +56,8 @@ export class World {
     this.scene.fog = new THREE.Fog(th.sky, 1400, 3600);
 
     // Checkerboard floor
-    const c = document.createElement('canvas');
-    c.width = c.height = 2;
-    const g = c.getContext('2d');
-    g.fillStyle = th.c1; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
-    g.fillStyle = th.c2; g.fillRect(1, 0, 1, 1); g.fillRect(0, 1, 1, 1);
-    const tex = new THREE.CanvasTexture(c);
-    tex.magFilter = THREE.NearestFilter;
-    tex.minFilter = THREE.NearestFilter;
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.colorSpace = THREE.SRGBColorSpace;
+    // canvas-generated checker tiles with speckle noise and grass strokes (same layout as the course floor)
+    const tex = groundTexture(th.c1, th.c2, new Rng(level.seed + 3));
     const tiles = (half * 2) / 100 / 2;
     tex.repeat.set(tiles, tiles);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(half * 2, half * 2), new THREE.MeshBasicMaterial({ map: tex }));
@@ -113,15 +107,10 @@ export class World {
       const s = house.userData.size;
       this.obstacles.push({ x, y, r: s ? Math.max(s.x, s.y) * 0.42 : 70 });
     }
-    // Decorative props (mushrooms / flowers) for flavour
-    for (let i = 0; i < 40; i++) {
-      const x = rng.range(-half, half), y = rng.range(-half, half);
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 14, 6), stdMat(0xf5f5dc));
-      stem.rotation.x = Math.PI / 2; stem.position.set(x, y, 7);
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(8, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2), stdMat(th.prop || 0xff5577));
-      cap.rotation.x = Math.PI / 2; cap.position.set(x, y, 14);
-      this.levelGroup.add(stem, cap);
-    }
+    // Procedural level dressing (instanced grass, flowers, mushrooms, rocks, logs, reeds, pads, crystals,
+    // boss-arena stones, sky gradient, god rays, ambient particles). Low quality trims it.
+    const keep = [{ ...level.start, r: 90 }, { ...level.goal, r: 110 }, ...this.obstacles.map((o) => ({ x: o.x, y: o.y, r: o.r + 20 })), ...(level.bossZone ? [{ x: level.boss.x, y: level.boss.y, r: 150 }] : [])];
+    this.decor = buildDecor(level, this.levelGroup, new Rng(level.seed + 11), !!Settings.get('lowQ'), keep);
     this.setGoalOpen(false);
   }
 
@@ -208,6 +197,8 @@ export class World {
     this.camera.lookAt(tx, ty, tz);
     if (c.roll) this.camera.rotateZ(c.roll);
   }
+
+  updateAmbient(dt) { updateDecor(this.decor, dt); }
 
   snapCamera() { this.cam.init = false; }
 

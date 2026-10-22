@@ -5,7 +5,7 @@ const DEFAULTS = {
   crt: true, reduce: false, ui3d: true, hud3d: true,
   sens: 1, aimSens: 0.55, ySens: 1, fov: 55, camDist: 270, invertY: false,
   dmgNums: true, aimAssist: 1,
-  hudScale: 1, hudOpacity: 1, hudCorner: 'bottom',
+  hudScale: 1, hudOpacity: 1, hudCorner: 'bottom', lowQ: false,
   master: 0.6, sfx: 1, music: 1,
   keys: {},
 };

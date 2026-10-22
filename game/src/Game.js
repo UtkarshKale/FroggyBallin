@@ -126,6 +126,8 @@ export class Game {
     CFG.CAMERA.fov = S.fov; CFG.CAMERA.gunFov = S.fov - 5; CFG.CAMERA.aimFov = S.fov - 15;
     CFG.CAMERA.dist = S.camDist; CFG.CAMERA.gunDist = S.camDist * 1.1; CFG.CAMERA.aimDist = S.camDist * 0.87;
     this.sfx.setVolumes({ master: S.master, sfx: S.sfx, music: S.music });
+    const pr = S.lowQ ? 1 : Math.min(window.devicePixelRatio, 2);
+    if (this.world.renderer.getPixelRatio() !== pr) { this.world.renderer.setPixelRatio(pr); this.world.ascii.resize(); }
     this.screens.applySettings();
     this.hud.root.classList.toggle('worldnums', !!S.hud3d);
     this.hud.root.style.setProperty('--hud-scale', S.hudScale);
@@ -666,6 +668,7 @@ export class Game {
     if (o.burn) t.burn = 3;
     if (o.knock && t.knock && !t.isBoss) t.knock(o.ang, CFG.SWORD.knock);
     this.fx.burst(t.x, t.y, 30, 0xffffff, 5, 150, 0.25, 2);
+    this.fx.spark(t.x, t.y, (t.z || 0) + Math.min(40, (t.radius || 20) * 1.2), o.crit || t.broken > 0 ? 0xffd23f : 0xffffff, o.crit ? 46 : 30);
     this.sfx.play(o.crit ? 'crit' : 'hit');
     if (t.hp <= 0) { if (wasBroken && mine) this.hud.ink('DEATHBLOW'); t.die(o.team); if (mine) this.addStyle('kill'); }
     else if (t.onDamaged) t.onDamaged(dmg);
@@ -865,6 +868,7 @@ export class Game {
     }
     this.hud3d.setOn(!!Settings.get('hud3d') && (this.state === 'PLAYING' || this.state === 'PAUSED'));
     this.hud3d.update(raw);
+    this.world.updateAmbient(raw);
     this.world.ascii.center.set(this.player.x, this.player.y);
     this.world.render(raw);
     if (!this._holdInput) inp.endFrame();
