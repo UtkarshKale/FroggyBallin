@@ -60,7 +60,7 @@ npm run preview    # serve the production build
 ```
 
 ## Tech
-Three.js (`^0.181`) + Vite (`^7`), plain JavaScript. See `CLAUDE.md` for the architecture and `docs/GDD.md` for the design document.
+Three.js (`^0.181`) + Vite (`^7`), plain JavaScript. See `docs/GDD.md` for the design document.
 
 ## Credits, licensing and disclosures
 - Based on the course project "Build a Game with an AI Coding Agent" by JetBrains Academy, MIT License. See `LICENSE`.

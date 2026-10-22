@@ -488,5 +488,5 @@ Yellow flash = normal attack, parry it. Red glyph = perilous: can't be parried, 
 Posture: fill a bar to break the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.`; };
 
 const CREDITS = `Froggy Ballin, a JetBrains game jam entry built on the "Build a Game with an AI Coding Agent" course (MIT, JetBrains Academy): Tode the Frog, the ant and house models, Three.js + Vite setup.
-Game director: Kutkarshhh. Code written with Claude Code (Anthropic).
+Game director: Kutkarshhh. Made with AI assistance (see AI_DISCLOSURE.md in the repository).
 All other meshes, UI art and comic panels are drawn in code. All sound and music are synthesized live with WebAudio.`;

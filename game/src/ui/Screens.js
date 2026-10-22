@@ -149,7 +149,7 @@ export class Screens {
   showCredits() {
     this._set(`<div class="card"><h2>Credits</h2>
       <p><b>Froggy Ballin</b>, a JetBrains game jam entry. Built on the "Build a Game with an AI Coding Agent" course baseline by JetBrains Academy (MIT License): Tode the Frog, the ant enemy and house models, and the Three.js + Vite setup.</p>
-      <p>Game director: Kutkarshhh. Code written with Claude Code (Anthropic). Cutscene art is drawn in code. All sound effects and music are synthesized in your browser with WebAudio. See <code>AI_DISCLOSURE.md</code> and <code>THIRD_PARTY_ASSETS.md</code> in the repository.</p>
+      <p>Game director: Kutkarshhh. Made with AI assistance (see <code>AI_DISCLOSURE.md</code>). Cutscene art is drawn in code. All sound effects and music are synthesized in your browser with WebAudio. See <code>AI_DISCLOSURE.md</code> and <code>THIRD_PARTY_ASSETS.md</code> in the repository.</p>
       <div class="btnrow"><button class="menu-btn small" id="b-back">Back</button></div></div>`, 'menu');
     this._btn('b-back', () => this.showMenu());
   }
