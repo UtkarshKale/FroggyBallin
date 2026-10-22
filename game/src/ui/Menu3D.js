@@ -193,7 +193,7 @@ export class Menu3D {
     const self = this;
     const TIPS = { '3D MENUS': 'Menus as a 3D diorama. Off: classic flat menus.', 'IN-WORLD DMG NUMBERS': 'Damage numbers float in the scene instead of on the screen.', 'CRT OVERLAY': 'Scanlines, vignette and a colour fringe on big hits.', 'CRT STRENGTH': 'How strong the CRT overlay is (0-100%).',
       'REDUCE FLASHING': 'No screen flashes, softer shake, short wipes.', 'MOUSE SENS': 'Camera turn speed.', 'AIM SENS (ADS)': 'Multiplier while aiming the gun (hold aim).', 'VERTICAL SENS': 'Multiplier for up/down camera movement.',
-      'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'AUTO-USE POWER-UPS': 'Off: power-ups wait in two slots until you press the power key. On: they fire the moment you pick them up.', 'OBJECTIVE ARROW': 'Small arrow at your feet pointing to the next swarm, the boss arena or the goal.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
+      'AIM ASSIST': 'Soft magnetism toward a bug near the crosshair (0% = shots go exactly where you aim).', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'AUTO-USE POWER-UPS': 'Off: power-ups wait in two slots until you press the power key. On: they fire the moment you pick them up.', 'OBJECTIVE ARROW': 'Small arrow at your feet pointing to the next swarm, the boss arena or the goal.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
     const tipCard = { kind: 'card', label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || 'Left/Right or click to change. Changes apply immediately and are saved.'; } };
     return {
       card: { at: V(110, -150, 552), w: 440, h: 30, item: tipCard },
@@ -219,7 +219,7 @@ export class Menu3D {
         { kind: 'button', label: 'RESET SENSITIVITY', act: () => { Settings.set('sens', Settings.DEFAULTS.sens); Settings.set('aimSens', Settings.DEFAULTS.aimSens); Settings.set('ySens', Settings.DEFAULTS.ySens); } },
         num('fov', 'FOV', 5, 40, 90, (v) => v, apply),
         num('camDist', 'CAMERA DIST', 20, 180, 420, (v) => v, apply),
-        num('aimAssist', 'AIM ASSIST', 0.25, 0, 2, (v) => v.toFixed(2)),
+        num('aimAssist', 'AIM ASSIST', 0.05, 0, 1, (v) => Math.round(v * 100) + '%'),
         num('master', 'MASTER VOL', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),
         num('sfx', 'SFX VOL', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),
         num('music', 'MUSIC VOL', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),

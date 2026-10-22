@@ -92,6 +92,10 @@ export class Player {
     this.aura = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 36), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.aura.visible = false;
     this.g.world.scene.add(this.aura);
+    this.laser = new THREE.Mesh(new THREE.BoxGeometry(1, 0.8, 0.8), new THREE.MeshBasicMaterial({ color: 0xff8866, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.spreadRing = new THREE.Mesh(new THREE.RingGeometry(0.85, 1, 28), new THREE.MeshBasicMaterial({ color: 0xff8866, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false }));
+    this.laser.visible = this.spreadRing.visible = false;
+    this.g.world.scene.add(this.laser, this.spreadRing);
     // Tongue
     this.tongueMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 5, 5), new THREE.MeshBasicMaterial({ color: 0xff5f8a }));
     this.tongueMesh.visible = false;
@@ -706,7 +710,9 @@ export class Player {
     const mz = this.muzzlePt.getWorldPosition(new THREE.Vector3());
     const ap = g.aimPoint;
     if (ap) aimYaw = Math.atan2(ap.y - mz.y, ap.x - mz.x);
-    let ang = aimYaw, best = (aimed ? CFG.GUN.aimCone : CFG.GUN.assistCone) * Settings.get('aimAssist');
+    // Soft aim assist: bend the shot part of the way toward a bug near the crosshair (never a hard snap).
+    let ang = aimYaw, best = aimed ? CFG.GUN.aimCone : CFG.GUN.assistCone, bestA = null;
+    const assist = Settings.get('aimAssist');
     const targets = [...g.enemies];
     if (g.boss && g.boss.active) targets.push(g.boss);
     if (g.ghost && !g.ghost.dead) targets.push(g.ghost);
@@ -714,8 +720,9 @@ export class Player {
       if (t.dead) continue;
       const a = Math.atan2(t.y - this.y, t.x - this.x);
       const d = Math.abs(angDiff(aimYaw, a));
-      if (d < best) { best = d; ang = a; }
+      if (d < best) { best = d; bestA = a; }
     }
+    if (bestA != null && !g.aimTarget) ang = aimYaw + angDiff(aimYaw, bestA) * assist;
     ang += (Math.random() - 0.5) * 2 * (aimed ? CFG.GUN.aimSpread : CFG.GUN.spread);
     this.faceHold = 0.3;
     const fire = this.pu.fire > 0;
@@ -881,6 +888,21 @@ export class Player {
       this.gun.scale.setScalar(0.85);
     }
     this.ammoSpr.visible = gunMode;
+    // ADS laser sight from the muzzle to the aim point + a ground ring sized to the current spread
+    const ap = this.g.aimPoint;
+    const showLaser = gunMode && this.aiming && ap && !this.dead;
+    this.laser.visible = this.spreadRing.visible = !!showLaser;
+    if (showLaser) {
+      this.root.updateMatrixWorld(true);
+      const mz = this.muzzlePt.getWorldPosition(tipV);
+      const dx = ap.x - mz.x, dy = ap.y - mz.y, dz = ap.z - mz.z, L = Math.hypot(dx, dy, dz) || 1;
+      this.laser.position.set((mz.x + ap.x) / 2, (mz.y + ap.y) / 2, (mz.z + ap.z) / 2);
+      this.laser.scale.set(L, 1, 1);
+      this.laser.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), new THREE.Vector3(dx / L, dy / L, dz / L));
+      this.spreadRing.position.set(ap.x, ap.y, 2);
+      this.spreadRing.scale.setScalar(8 + Math.hypot(dx, dy) * CFG.GUN.aimSpread * 2);
+      this.laser.material.color.setHex(this.g.aimTarget ? 0xff3344 : 0xff8866);
+    }
     const ak = `${this.ammo}|${this.ultOn}`;
     if (gunMode && this.ammoTex.key !== ak) {
       const t = this.ammoTex, c = t.ctx; t.key = ak;

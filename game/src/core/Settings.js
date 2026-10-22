@@ -4,7 +4,7 @@ import { Storage } from './Storage.js';
 const DEFAULTS = {
   crt: false, crtStrength: 0.3, reduce: false, ui3d: true, hud3d: true,
   sens: 1, aimSens: 0.55, ySens: 1, fov: 55, camDist: 270, invertY: false,
-  dmgNums: true, aimAssist: 1,
+  dmgNums: true, aimAssist: 0.25,
   hudScale: 1, hudOpacity: 1, hudCorner: 'bottom', lowQ: false, guide: true, autoPower: false,
   master: 0.6, sfx: 1, music: 1,
   keys: {},
