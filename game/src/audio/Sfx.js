@@ -103,6 +103,7 @@ class SfxEngine {
       case 'peril': this.tone({ f: 1900, f2: 1500, d: 0.18, type: 'sawtooth', v: 0.16 }); this.tone({ f: 95, f2: 60, d: 0.3, type: 'sine', v: 0.3 }); this.noise({ d: 0.1, v: 0.18, hp: 4000 }); break;
       case 'perilC': this.tone({ f: 1300, f2: 1700, d: 0.16, type: 'square', v: 0.11 }); this.tone({ f: 120, f2: 70, d: 0.25, type: 'sine', v: 0.25 }); break;
       case 'riposte': this.tone({ f: 600, f2: 2400, d: 0.2, type: 'sawtooth', v: 0.16 }); this.noise({ d: 0.08, v: 0.2, hp: 5000 }); break;
+      case 'drop': [880, 1320, 1760].forEach((f, i) => this.tone({ f, d: 0.12, type: 'sine', v: 0.08, delay: i * 0.05 })); break;
       case 'ui': this.tone({ f: 700, d: 0.05, type: 'square', v: 0.08 }); break;
       case 'warn': this.tone({ f: 440, d: 0.08, type: 'square', v: 0.07 }); break;
       default: break;

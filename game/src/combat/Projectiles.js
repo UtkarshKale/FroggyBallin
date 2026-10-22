@@ -10,7 +10,7 @@ export class Projectiles {
     this.list = [];
   }
 
-  spawn({ x, y, z = 26, angle, speed, dmg, team, radius = 9, life = 2.6, color = 0xffffff, owner = null, fromBoss = false, burn = false, tag = '' }) {
+  spawn({ x, y, z = 26, angle, speed, dmg, team, radius = 9, life = 2.6, color = 0xffffff, owner = null, fromBoss = false, burn = false, tag = '', bounces = 0 }) {
     const mat = new THREE.MeshBasicMaterial({ color });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.scale.setScalar(radius);
@@ -20,7 +20,7 @@ export class Projectiles {
     mesh.add(glow);
     this.g.world.scene.add(mesh);
     this.g.world.tag(mesh, team !== 'player' ? 'danger' : 'actor');
-    const p = { x, y, z, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg, team, radius, life, mesh, mat, owner, fromBoss, burn, reflected: false, dead: false, tag, color };
+    const p = { x, y, z, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg, team, radius, life, mesh, mat, owner, fromBoss, burn, reflected: false, dead: false, tag, color, bounces, hitSet: null };
     this.list.push(p);
     return p;
   }
@@ -95,6 +95,20 @@ export class Projectiles {
     if (!p.reflected && p.owner === g.player) { g.stats.hits++; g.hud.hitConfirm(false); }
     g.damageTarget(t, p.dmg, { team: 'player', burn: p.burn, from: p });
     if (p.reflected) g.addPosture(t, CFG.POSTURE.reflectHit);
+    // Ricochet Shots: hop to the nearest other bug instead of disappearing
+    if (p.bounces > 0) {
+      (p.hitSet || (p.hitSet = new Set())).add(t);
+      let best = null, bd = CFG.POWERUP.ricochetRange;
+      for (const e of g.enemies) { if (e.dead || p.hitSet.has(e)) continue; const d = Math.hypot(e.x - p.x, e.y - p.y); if (d < bd) { bd = d; best = e; } }
+      if (best) {
+        p.bounces--;
+        const sp = Math.hypot(p.vx, p.vy), a = Math.atan2(best.y - p.y, best.x - p.x);
+        g.fx.tracer(p.x, p.y, p.z, best.x, best.y, p.z, 0x55ffaa, 0.12);
+        p.vx = Math.cos(a) * sp; p.vy = Math.sin(a) * sp; p.life = Math.max(p.life, 1);
+        p.x += Math.cos(a) * (t.radius + p.radius + 2); p.y += Math.sin(a) * (t.radius + p.radius + 2);
+        return true;
+      }
+    }
     this._remove(p);
     return true;
   }
@@ -102,6 +116,7 @@ export class Projectiles {
   _hitBugsAndGhost(p) {
     const g = this.g;
     for (const e of g.enemies) {
+      if (p.hitSet && p.hitSet.has(e)) continue;
       if (this._touch(p, e) && this._hitBug(p, e)) return;
     }
     if (g.boss && g.boss.active && this._touch(p, g.boss) && this._hitBug(p, g.boss)) return;

@@ -159,6 +159,7 @@ export class Game {
     this.fx.clear();
     this.hud.setBoss(null);
     this.snailT = 0;
+    this.freezeT = 0;
     this.bossUlt = null;
     if (this.ult) this.ult.t = 0;
     const a = this.world.ascii;
@@ -382,7 +383,7 @@ export class Game {
     this.hud.banner('BOSS DEFEATED', this.ghost && !this.ghost.dead ? 'Now finish off your past self' : 'The goal is open!', '#ffd23f', 3);
     for (let i = 0; i < 6; i++) this.pickups.spawn('droplet', b.x, b.y);
     this.pickups.spawn('ammo', b.x + 40, b.y);
-    const pu = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth', 'over'];
+    const pu = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth', 'over', 'ricochet', 'thorn', 'magnet', 'timeshard'];
     this.pickups.spawn(pu[Math.floor(Math.random() * pu.length)], b.x - 40, b.y);
   }
 
@@ -616,7 +617,7 @@ export class Game {
 
   maybeDrop(x, y) {
     if (Math.random() > CFG.POWERUP.dropChance * this.D.heal) return;
-    const types = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth', 'ammo', 'golden', 'over'];
+    const types = ['firefly', 'dragon', 'shell', 'snail', 'bigmouth', 'ammo', 'golden', 'over', 'ricochet', 'thorn', 'magnet', 'timeshard'];
     this.pickups.spawn(types[Math.floor(Math.random() * types.length)], x, y);
   }
 
@@ -634,12 +635,18 @@ export class Game {
       case 'snail': this.snailT = P.snail; break;
       case 'golden': p.rewind(); break;
       case 'over': p.pu.over = 8; break;
+      case 'ricochet': p.pu.rico = P.duration; break;
+      case 'thorn': p.pu.thorn = P.duration; break;
+      case 'magnet': p.pu.mag = P.duration; break;
+      case 'timeshard': this.freezeT = P.shard; this.fx.ring(p.x, p.y, 10, 0x99ccff, 20, 900, 0.8); this.world.ascii.kick(0.25); break;
       default: break;
     }
     const def = POWERUPS[type];
     this.hud.flash(`${def.label}: ${def.desc}`, '#' + def.color.toString(16).padStart(6, '0'));
     this.sfx.play('power');
     this.fx.ring(p.x, p.y, 20, def.color, 10, 80, 0.4);
+    this.fx.burst(p.x, p.y, 30, def.color, 16, 260, 0.5, 2.5, 120);
+    this.fx.streaks(p.x, p.y, 30, def.color, 8, 80, 0.25);
   }
 
   damageTarget(t, dmg, o = {}) {
@@ -914,7 +921,10 @@ export class Game {
     const slow = this.slowT > 0 ? 0.25 : 1;
     this.slowT = Math.max(0, this.slowT - raw);
     const dt = raw * slow;
-    const es = this.snailT > 0 ? 0.5 : 1;
+    // Time Snail slows, Time Shard freezes bugs (bosses crawl at 20%)
+    this.freezeT = Math.max(0, (this.freezeT || 0) - dt);
+    const frozen = this.freezeT > 0;
+    const es = frozen ? 0 : this.snailT > 0 ? 0.5 : 1;
     this.snailT = Math.max(0, this.snailT - dt);
     this.simT += dt;
     this.recorder.t = this.simT;
@@ -947,7 +957,7 @@ export class Game {
     const ds = this.D.speed;
     for (const e of this.enemies) e.update(dt * es * ds);
     const bu = this.bossUlt;
-    if (this.boss && this.boss.active && !(bu && bu.phase === 'wind')) this.boss.update(dt * es * ds * (bu ? CFG.ULT.bossSpeed : 1));
+    if (this.boss && this.boss.active && !(bu && bu.phase === 'wind')) this.boss.update(dt * (frozen ? 0.2 : es) * ds * (bu ? CFG.ULT.bossSpeed : 1));
     if (this.ghost && !this.ghost.dead) this.ghost.update(dt * es);
     if (this.state !== 'PLAYING') return;
     this.projectiles.update(dt, es);

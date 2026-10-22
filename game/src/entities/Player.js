@@ -88,6 +88,10 @@ export class Player {
     this.parryDisc.position.set(36, 0, 26);
     this.parryDisc.visible = false;
     this.gr.add(this.parryDisc);
+    // Power-up aura: a glowing ring at the feet in the colour of the active power-up
+    this.aura = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 36), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
+    this.aura.visible = false;
+    this.g.world.scene.add(this.aura);
     // Tongue
     this.tongueMesh = new THREE.Mesh(new THREE.BoxGeometry(1, 5, 5), new THREE.MeshBasicMaterial({ color: 0xff5f8a }));
     this.tongueMesh.visible = false;
@@ -258,7 +262,7 @@ export class Player {
     this.dashLat = 0;
     this.hist = [];
     this.histT = 0;
-    this.pu = { fire: 0, dragon: 0, big: 0, shell: 0, over: 0 };
+    this.pu = { fire: 0, dragon: 0, big: 0, shell: 0, over: 0, rico: 0, thorn: 0, mag: 0 };
     this.hitWall = false;
     this.root.visible = true;
     this.tongueMesh.visible = false;
@@ -318,6 +322,7 @@ export class Player {
       g.fx.ring(this.x, this.y, 25, 0x8899ff, 10, 70, 0.3);
       return 'shell';
     }
+    if (this.pu.thorn > 0) dmg *= CFG.POWERUP.thornReduce;
     this._damage(dmg);
     this.hurtT = 0.22;
     this.parryStreak = 0;
@@ -325,6 +330,11 @@ export class Player {
     g.sfx.play('hurt');
     g.addStyle('hurt');
     g.fx.addShake(8);
+    // Thorn Shell: melee attackers take a share of the hit back
+    if (this.pu.thorn > 0 && src && src.team === 'bug' && !opts.proj && src.hp != null && !src.dead) {
+      g.damageTarget(src, dmg * CFG.POWERUP.thornReflect / CFG.POWERUP.thornReduce, { team: 'player' });
+      g.fx.burst(src.x, src.y, 25, 0x8fdc3a, 10, 220, 0.35, 2.5);
+    }
     g.hud.hurt();
     return 'hit';
   }
@@ -703,7 +713,7 @@ export class Player {
       x: mz.x, y: mz.y, z: CFG.GUN.bulletZ,
       angle: ang, speed: CFG.GUN.speed * (aimed ? CFG.GUN.aimSpeedMult : 1),
       dmg: CFG.GUN.dmg * (fire ? 1.4 : 1) * (aimed ? CFG.GUN.aimMult : 1) * (ult ? CFG.ULT.mult : 1), team: 'player', radius: CFG.GUN.radius,
-      color: fire ? 0xff7a1a : 0xffee66, owner: this, burn: fire,
+      color: fire ? 0xff7a1a : this.pu.rico > 0 ? 0x55ffaa : 0xffee66, owner: this, burn: fire, bounces: this.pu.rico > 0 ? CFG.POWERUP.ricochet : 0,
     });
     g.stats.shots++;
     g.sfx.play('shoot');
@@ -731,7 +741,7 @@ export class Player {
     const tg = this.tongue;
     if (!tg) { this.tongueMesh.visible = false; this.tongueTip.visible = false; return; }
     const T = CFG.TONGUE;
-    const range = T.range * (this.pu.big > 0 ? 2 : 1) * (this.ultOn ? CFG.ULT.mult : 1);
+    const range = T.range * (this.pu.big > 0 ? 2 : 1) * (this.pu.mag > 0 ? CFG.POWERUP.magnetTongue : 1) * (this.ultOn ? CFG.ULT.mult : 1);
     tg.t += dt;
     if (!tg.resolved && tg.t >= T.resolveAt) {
       tg.resolved = true;
@@ -779,6 +789,7 @@ export class Player {
         const k = this.ultOn ? CFG.ULT.mult : 1;
         g.damageTarget(e, 5 * k, { team: 'player' });
         g.addPosture(e, 10 * k);
+        if (this.pu.mag > 0 && e.knock && !e.isBoss) e.knock(Math.atan2(this.y - e.y, this.x - e.x), 90); // magnet yank
         e.stagger = Math.max(e.stagger, 0.3);
         tg.target = e; tg.yaw = a;
         g.hud.flash('Too big to eat - break its posture!', '#ff9fb8');
@@ -866,6 +877,16 @@ export class Player {
       t.tex.needsUpdate = true;
     }
     this.muzzle.visible = this.muzzleT > 0;
+    // aura colour = first active power-up
+    const AU = [['fire', 0xff9922], ['dragon', 0x44ddff], ['over', 0xff5555], ['rico', 0x55ffaa], ['thorn', 0x8fdc3a], ['mag', 0xff66ff], ['big', 0xff6688]];
+    const on = AU.find(([k]) => this.pu[k] > 0) || (this.pu.shell > 0 ? ['shell', 0x8899ff] : null);
+    this.aura.visible = !!on && !this.dead;
+    if (on) {
+      this.aura.material.color.setHex(on[1]);
+      this.aura.position.set(this.x, this.y, 2);
+      this.aura.scale.setScalar(34 + Math.sin(this.t * 6) * 3);
+      this.aura.material.opacity = 0.45 + 0.2 * Math.sin(this.t * 9);
+    }
     // Sword glows while the counter crit is ready
     const ready = this.counterT > 0;
     this.bladeGlow.visible = ready;

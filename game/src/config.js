@@ -36,7 +36,7 @@ export const CFG = {
   // Phase 2 bosses run their attack timers faster; all boss cooldowns are scaled by cdMult.
   BOSS: { ph2Speed: 1.3, cdMult: 0.8, preludeDur: 4.2 },
   GHOST: { hp: 150, echoEvery: 4, echoRange: 900, echoDmg: 10 },
-  POWERUP: { duration: 12, snail: 6, dropChance: 0.12 },
+  POWERUP: { duration: 12, snail: 6, dropChance: 0.16, shard: 3, ricochet: 2, ricochetRange: 420, thornReflect: 0.6, thornReduce: 0.75, magnetRange: 460, magnetTongue: 1.5 },
   // Style meter (D..S): rewards hits, kills, parries, deathblows; decays when idle, drops when hurt.
   STYLE: { hit: 4, kill: 12, parry: 30, deathblow: 35, counter: 20, eat: 10, perilDodge: 25, riposte: 40, hurt: -60, decay: 16, idle: 2.0, comboWindow: 2.5, max: 460,
     ranks: [[0, 'D', '#9aa'], [50, 'C', '#7dff7d'], [120, 'B', '#66ddff'], [220, 'A', '#ffd23f'], [340, 'S', '#ff5a8a']] },
@@ -80,6 +80,10 @@ export const POWERUPS = {
   ammo:     { color: 0xffee44, label: 'Ammo Moth',    desc: '+6 ammo' },
   golden:   { color: 0xffd700, label: 'Golden Fly',   desc: 'Rewind 3 seconds' },
   over:     { color: 0xff5555, label: 'Overclock',    desc: 'Parry window x2' },
+  ricochet: { color: 0x55ffaa, label: 'Ricochet Shots', desc: 'Bullets bounce to 2 more bugs' },
+  thorn:    { color: 0x8fdc3a, label: 'Thorn Shell',  desc: 'Melee hits on you bounce back' },
+  magnet:   { color: 0xff66ff, label: 'Magnet Tongue', desc: 'Pulls bugs + pickups to you' },
+  timeshard:{ color: 0x99ccff, label: 'Time Shard',   desc: 'Freezes enemies for 3s' },
 };
 
 // Difficulty tiers. hp/bossHp/ghostHp: health; dmg: damage taken; speed: enemy + boss time scale; parry: parry window;

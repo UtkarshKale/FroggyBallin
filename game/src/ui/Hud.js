@@ -19,6 +19,10 @@ export const ICON = {
   bigmouth: svg('<circle cx="12" cy="12" r="9"/><path d="M6 12h12" stroke="#000" stroke-width="3"/>'),
   over: svg('<path d="M13 2 4 14h6l-1 8 9-12h-6z"/>'),
   counter: svg('<path d="m12 2 3 7h7l-5.5 4.5 2 7.5-6.5-4.5L5.5 21l2-7.5L2 9h7z"/>'),
+  ricochet: svg('<path d="M3 18 10 6l4 8 7-10v6l-7 10-4-8-5 8z"/>'),
+  thorn: svg('<path d="m12 2 2 6 6-3-3 6 6 2-6 2 3 6-6-3-2 6-2-6-6 3 3-6-6-2 6-2-3-6 6 3z"/>'),
+  magnet: svg('<path d="M5 3h4v8a3 3 0 0 0 6 0V3h4v8a7 7 0 0 1-14 0z"/>'),
+  timeshard: svg('<path d="m12 2 6 10-6 10-6-10z"/>'),
 };
 
 const tmp = new THREE.Vector3();
@@ -321,17 +325,23 @@ export class Hud {
 
     // Power-up chips
     let html = '';
-    const chip = (key, label, val) => {
+    const chip = (key, label, val, frac = 1) => {
       const def = POWERUPS[key];
       const c = '#' + def.color.toString(16).padStart(6, '0');
-      html += `<div class="chip" style="border-color:${c}"><span class="ico" style="color:${c}">${ICON[key] || ICON.star}</span>${label} <b>${val}</b></div>`;
+      const f = Math.round(Math.max(0, Math.min(1, frac)) * 100);
+      html += `<div class="chip" style="border-color:${c}"><span class="ico ring" style="color:${c};background:conic-gradient(${c} ${f}%, rgba(255,255,255,.12) 0)">${ICON[key] || ICON.star}</span>${label} <b>${val}</b></div>`;
     };
-    if (p.pu.fire > 0) chip('firefly', 'Firefly', p.pu.fire.toFixed(0) + 's');
-    if (p.pu.dragon > 0) chip('dragon', 'Dragonfly', p.pu.dragon.toFixed(0) + 's');
-    if (p.pu.big > 0) chip('bigmouth', 'Big Mouth', p.pu.big.toFixed(0) + 's');
-    if (p.pu.shell > 0) chip('shell', 'Beetle Shell', 'x' + p.pu.shell);
-    if (g.snailT > 0) chip('snail', 'Time Snail', g.snailT.toFixed(0) + 's');
-    if (p.pu.over > 0) chip('over', 'Overclock', p.pu.over.toFixed(0) + 's');
+    const D = CFG.POWERUP.duration;
+    if (p.pu.fire > 0) chip('firefly', 'Firefly', p.pu.fire.toFixed(0) + 's', p.pu.fire / D);
+    if (p.pu.rico > 0) chip('ricochet', 'Ricochet', p.pu.rico.toFixed(0) + 's', p.pu.rico / D);
+    if (p.pu.thorn > 0) chip('thorn', 'Thorn Shell', p.pu.thorn.toFixed(0) + 's', p.pu.thorn / D);
+    if (p.pu.mag > 0) chip('magnet', 'Magnet', p.pu.mag.toFixed(0) + 's', p.pu.mag / D);
+    if (g.freezeT > 0) chip('timeshard', 'Time Shard', g.freezeT.toFixed(1) + 's', g.freezeT / CFG.POWERUP.shard);
+    if (p.pu.dragon > 0) chip('dragon', 'Dragonfly', p.pu.dragon.toFixed(0) + 's', p.pu.dragon / D);
+    if (p.pu.big > 0) chip('bigmouth', 'Big Mouth', p.pu.big.toFixed(0) + 's', p.pu.big / D);
+    if (p.pu.shell > 0) chip('shell', 'Beetle Shell', 'x' + p.pu.shell, p.pu.shell / 3);
+    if (g.snailT > 0) chip('snail', 'Time Snail', g.snailT.toFixed(0) + 's', g.snailT / CFG.POWERUP.snail);
+    if (p.pu.over > 0) chip('over', 'Overclock', p.pu.over.toFixed(0) + 's', p.pu.over / 8);
     if (p.counterT > 0) html += `<div class="chip" style="border-color:#fff"><span class="ico">${ICON.counter}</span>COUNTER READY</div>`;
     if (html !== this.lastPow) { e.powers.innerHTML = html; this.lastPow = html; }
 
