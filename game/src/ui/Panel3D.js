@@ -44,7 +44,7 @@ export class Panel3D {
   draw() {
     const it = this.item;
     const val = it.value ? String(it.value()) : '';
-    const key = `${this.hover}|${it.label}|${val}|${it.sub || ''}|${it.body || ''}`;
+    const key = `${this.hover}|${it.label}|${val}|${it.sub || ''}|${it.body || ''}|${Math.round(this.scrollPx || 0)}`;
     if (key === this._key) return;
     this._key = key;
     const c = this.ctx, W = this.canvas.width, H = this.canvas.height;
@@ -84,8 +84,28 @@ export class Panel3D {
       c.fillStyle = accent; c.fillRect(m, m + ts * 1.15, Math.min(W - 2 * m, c.measureText(it.label).width), Math.max(4, W * 0.006));
       const bs = Math.min(W * 0.04, H * 0.2);
       c.font = `600 ${bs}px 'Segoe UI', Arial, sans-serif`;
-      let y = m + ts * 1.15 + bs * 0.9;
-      for (const ln of wrap(c, it.body || '', W - 2 * m)) { c.fillStyle = ln.startsWith('*') ? '#ffd23f' : '#e8e8e8'; c.fillText(ln.replace(/^\*/, ''), m, y); y += bs * 1.3; if (y > H - bs) break; }
+      // Body scrolls when it doesn't fit: clipped view, edge fades, scrollbar and a 'scroll for more' hint.
+      const top = m + ts * 1.15 + bs * 0.9, lh = bs * 1.3, viewH = H - top - bs * 0.5;
+      const lines = wrap(c, it.body || '', W - 2 * m - W * 0.03);
+      this.overflow = Math.max(0, lines.length * lh - viewH);
+      this.scrollPx = Math.max(0, Math.min(this.overflow, this.scrollPx || 0));
+      c.save(); c.beginPath(); c.rect(0, top - 2, W, viewH + 2); c.clip();
+      let y = top - this.scrollPx;
+      for (const ln of lines) { if (y > top - lh && y < top + viewH) { c.fillStyle = ln.startsWith('*') ? '#ffd23f' : '#e8e8e8'; c.fillText(ln.replace(/^\*/, ''), m, y); } y += lh; }
+      c.restore();
+      if (this.overflow > 0) {
+        const fadeH = lh * 1.2;
+        if (this.scrollPx > 1) { const gr = c.createLinearGradient(0, top, 0, top + fadeH); gr.addColorStop(0, 'rgba(8,8,10,0.95)'); gr.addColorStop(1, 'rgba(8,8,10,0)'); c.fillStyle = gr; c.fillRect(4, top - 2, W - 8, fadeH); }
+        const atEnd = this.scrollPx >= this.overflow - 1;
+        if (!atEnd) {
+          const gr = c.createLinearGradient(0, top + viewH - fadeH, 0, top + viewH); gr.addColorStop(0, 'rgba(8,8,10,0)'); gr.addColorStop(1, 'rgba(8,8,10,0.95)'); c.fillStyle = gr; c.fillRect(4, top + viewH - fadeH, W - 8, fadeH);
+          c.font = `800 ${Math.round(bs * 0.8)}px Consolas, monospace`; c.fillStyle = '#ffd23f'; c.textAlign = 'right'; c.fillText('scroll for more', W - m - W * 0.03, H - bs * 1.05); c.textAlign = 'left';
+        }
+        const tx = W - m * 0.7, tw = Math.max(4, W * 0.008);
+        c.fillStyle = 'rgba(255,255,255,0.15)'; c.fillRect(tx, top, tw, viewH);
+        const th = Math.max(lh, viewH * viewH / (viewH + this.overflow));
+        c.fillStyle = accent; c.fillRect(tx, top + (viewH - th) * (this.scrollPx / this.overflow), tw, th);
+      }
     } else {
       c.textBaseline = 'middle';
       const avail = W - pad - sk - 20;

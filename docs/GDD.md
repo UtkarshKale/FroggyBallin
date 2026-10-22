@@ -1,6 +1,6 @@
 # Froggy Ballin — Game Design Document
 
-> Version 1.0 · 2026-10-21 · Game director: Kutkarshhh
+> Version 1.0 · 2026-10-21 · Game director: Utkarsh Kale
 > JetBrains "Build a Game with an AI Coding Agent" jam entry. Built on the course's Three.js + Vite baseline.
 > Deadline: ~2026-10-22 09:20 UTC (12 hours from kickoff).
 

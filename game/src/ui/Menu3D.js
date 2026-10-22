@@ -40,9 +40,17 @@ export class Menu3D {
       this.hasMouse = true;
       if (this.active) this._pick();
     });
-    cv.addEventListener('wheel', (e) => { if (!this.active || !this.maxScroll) return; e.preventDefault(); this.scrollV += e.deltaY * 0.6; }, { passive: false });
-    window.addEventListener('mousemove', (e) => { if (this.drag) { this.scrollT = Math.max(0, Math.min(this.maxScroll, this.drag.s - (e.clientY - this.drag.y) * this.drag.k)); this.drag.moved = Math.abs(e.clientY - this.drag.y) > 6; } });
+    cv.addEventListener('wheel', (e) => {
+      if (!this.active) return;
+      // A text card under the mouse (or the room's only scrollable thing) scrolls its own text first.
+      const card = this._cardAt() || (!this.maxScroll ? this._scrollCard() : null);
+      if (card) { e.preventDefault(); this._scrollCardBy(card, e.deltaY * 0.9); return; }
+      if (!this.maxScroll) return;
+      e.preventDefault(); this.scrollV += e.deltaY * 0.6;
+    }, { passive: false });
+    window.addEventListener('mousemove', (e) => { if (this.cardDrag) { const c = this.cardDrag; c.card.scrollPx = c.s - (e.clientY - c.y) * 2.2; c.card._key = ''; return; } if (this.drag) { this.scrollT = Math.max(0, Math.min(this.maxScroll, this.drag.s - (e.clientY - this.drag.y) * this.drag.k)); this.drag.moved = Math.abs(e.clientY - this.drag.y) > 6; } });
     window.addEventListener('mouseup', () => {
+      this.cardDrag = null;
       // in scrollable rooms a click activates only if it wasn't a drag
       if (this._pendingClick && !(this.drag && this.drag.moved)) this._activate(this._pendingClick.p, this._pendingClick.dir);
       this._pendingClick = null; this.drag = null;
@@ -50,6 +58,8 @@ export class Menu3D {
     cv.addEventListener('mousedown', (e) => {
       if (!this.active) return;
       if (this.capture) { if (this._capArmed) this._bind('Mouse' + e.button); return; }
+      const dc = this._cardAt();
+      if (dc && e.button === 0) { this.cardDrag = { card: dc, y: e.clientY, s: dc.scrollPx || 0 }; return; }
       if (this.maxScroll && e.button === 0) this.drag = { y: e.clientY, s: this.scrollT, k: this._rowH() / 60, moved: false };
       this._pick();
       const p = this.panels[this.sel];
@@ -65,6 +75,10 @@ export class Menu3D {
       }
       if (!this.active) return;
       const k = e.code;
+      // In text rooms (only a Back button), up/down scroll the card instead of moving focus.
+      const sc = this.panels.length <= 1 ? this._scrollCard() : null;
+      if (sc && (k === 'ArrowDown' || k === 'KeyS' || k === 'ArrowUp' || k === 'KeyW')) { this._scrollCardBy(sc, (k === 'ArrowDown' || k === 'KeyS' ? 1 : -1) * 120); return; }
+      if (k === 'PageDown' || k === 'PageUp') { const c2 = this._scrollCard(); if (c2) { this._scrollCardBy(c2, (k === 'PageDown' ? 1 : -1) * 300); return; } }
       if (k === 'ArrowDown' || k === 'KeyS') this._move(1);
       else if (k === 'ArrowUp' || k === 'KeyW') this._move(-1);
       else if (k === 'ArrowLeft' || k === 'KeyA') { const p = this.panels[this.sel]; if (p && p.item.prev) { p.item.prev(); this.g.sfx.play('ui'); } }
@@ -161,8 +175,8 @@ export class Menu3D {
       }),
       credits: () => ({
         cam: V(440, 420, 420), look: V(40, 420, 398),
-        card: { at: V(100, 420, 420), w: 260, h: 160, item: { kind: 'card', label: 'CREDITS', body: CREDITS } },
-        list: { at: V(100, 420, 318), w: 90, h: 24, gap: 30 },
+        card: { at: V(100, 420, 425), w: 260, h: 190, item: { kind: 'card', label: 'CREDITS', body: CREDITS } },
+        list: { at: V(100, 420, 302), w: 90, h: 24, gap: 30 },
         items: [back],
       }),
       ...this.extraRooms,
@@ -365,6 +379,15 @@ export class Menu3D {
   // Fewer visible rows on short windows (text stays a readable size); the rest scrolls.
   _fitRows(full, short) { const h = window.innerHeight; return h >= 640 ? full : h >= 470 ? short : Math.max(3, short - 2); }
 
+  _scrollCard() { return (this.deco || []).find((d) => d.item.kind === 'card' && d.overflow > 0) || null; }
+  _cardAt() {
+    if (!this.hasMouse || !this.deco || !this.deco.length) return null;
+    this.ray.setFromCamera(this.mouse, this.g.world.camera);
+    const h = this.ray.intersectObjects(this.deco.filter((d) => d.item.kind === 'card' && d.overflow > 0).map((d) => d.mesh), false);
+    return h.length ? h[0].object.userData.panel : null;
+  }
+  _scrollCardBy(card, px) { card.scrollPx = Math.max(0, Math.min(card.overflow, (card.scrollPx || 0) + px)); card._key = ''; }
+
   _rowH() { const R = this.room; return R.grid ? R.grid.dz : R.list ? R.list.gap : 30; }
 
   _camLocal() {
@@ -488,6 +511,9 @@ const howto = () => { const K = CFG.KEYS, n = keyName; return `Beat a level and 
 Yellow flash = normal attack, parry it. Red glyph = perilous: can't be parried, dodge it (or jump shockwaves). Orange glyph = dodge through it to open a RIPOSTE: slash right away for a guaranteed crit.
 Posture: fill a bar to break the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.`; };
 
-const CREDITS = `Froggy Ballin, a JetBrains game jam entry built on the "Build a Game with an AI Coding Agent" course (MIT, JetBrains Academy): Tode the Frog, the ant and house models, Three.js + Vite setup.
-Game director: Kutkarshhh. Made with AI assistance (see AI_DISCLOSURE.md in the repository).
-All other meshes, UI art and comic panels are drawn in code. All sound and music are synthesized live with WebAudio.`;
+const CREDITS = `*Utkarsh Kale
+Game director and developer (github.com/UtkarshKale)
+
+Froggy Ballin is a JetBrains game jam entry built on the "Build a Game with an AI Coding Agent" course baseline by JetBrains Academy (MIT License): Tode the Frog, the ant and house models and the Three.js + Vite setup.
+Tools: Three.js and Vite. Made with AI assistance, see AI_DISCLOSURE.md in the repository.
+Assets: all other meshes, the UI art and the comic panels are drawn in code; all sound and music are synthesized live with WebAudio (see THIRD_PARTY_ASSETS.md).`;

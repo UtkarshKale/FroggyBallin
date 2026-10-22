@@ -10,6 +10,6 @@ This game was made with AI assistance, as the jam encourages.
 | Claude (Anthropic) in a Claude project / cloud coordinator session | Turning the director's feedback into task briefs, planning the order of work, and reviewing reports from the coding session |
 | JetBrains course material / Junie guidelines | The course baseline (models, project setup) this game extends |
 
-Human direction: the game concept, mechanics, scope decisions and playtesting are by the game director (Kutkarshhh). No AI image or audio generators were used. Art other than the course models is code-drawn, and all audio is synthesized in the browser.
+Human direction: the game concept, mechanics, scope decisions and playtesting are by the game director (Utkarsh Kale). No AI image or audio generators were used. Art other than the course models is code-drawn, and all audio is synthesized in the browser.
 
 Please keep this file updated if other AI tools are used later.
