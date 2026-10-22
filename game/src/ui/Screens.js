@@ -62,6 +62,7 @@ export class Screens {
     const reduce = Settings.get('reduce'), crt = Settings.get('crt');
     document.body.classList.toggle('reduce', reduce);
     document.body.classList.toggle('crt', crt);
+    document.documentElement.style.setProperty('--crt', Settings.get('crtStrength'));
     if (this.g.hud) this.g.hud.reduce = reduce;
     if (this.g.fx) this.g.fx.shakeMul = reduce ? 0.35 : 1;
   }

@@ -19,6 +19,13 @@ export class AnimController {
     this.pose = ZERO();
   }
 
+  // Hard reset to one state (run start): all other weights to 0, timers cleared.
+  reset(name = Object.keys(this.states)[0]) {
+    for (const s in this.w) { this.w[s] = 0; this.t[s] = 0; }
+    this.active = name;
+    this.w[name] = 1;
+  }
+
   set(name) {
     if (name === this.active || !this.states[name]) return;
     this.active = name;
@@ -26,6 +33,7 @@ export class AnimController {
   }
 
   update(dt, ctx) {
+    dt = Math.max(0, Math.min(0.05, dt || 0)); // never step backwards (a negative dt blew the weights up)
     const bt = Math.max(0.01, this.blend[this.active] ?? 0.12);
     const rate = dt / bt;
     let sum = 0;

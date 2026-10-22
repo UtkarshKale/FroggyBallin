@@ -236,6 +236,9 @@ export class Player {
     this.iframes = 0;
     this.parryGrace = 0;
     this.hurtT = 0; this.gulpT = 0; this.ultPoseT = 0; this.ppT = 0; this.deadT = 0;
+    // Fresh animation state every run: the run clock restarts at 0, so the sync timestamp must too.
+    this._lastSyncT = undefined; this.phase = 0; this.sq = 0; this.gunKick = 0; this.armYaw = 0; this.armPitch = 0;
+    if (this.anim) this.anim.reset('loco');
     this.parryStreak = 0;
     this.streakT = 0;
     this.webbedT = 0;

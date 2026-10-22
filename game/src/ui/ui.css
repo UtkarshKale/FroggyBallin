@@ -239,12 +239,13 @@
 .runwipe.go i:last-child { animation: rw 0.7s .06s cubic-bezier(.7,0,.3,1) forwards; }
 @keyframes rw { 0% { transform: skewX(-18deg) translateX(-160%); } 45%, 55% { transform: skewX(-18deg) translateX(20%); } 100% { transform: skewX(-18deg) translateX(220%); } }
 /* CRT overlay (settings toggle) */
-.crtfx { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 1;
-  background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 58%, rgba(0,0,0,.55)); }
+/* CRT overlay: subtle by default; opacity follows Settings 'CRT strength' (--crt, 0..1) */
+.crtfx { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 1; opacity: var(--crt, .3);
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 62%, rgba(0,0,0,.5)); }
 body.crt .crtfx { display: block; }
 /* colour fringe on big hits: cheap edge overlay instead of a full-canvas CSS filter */
-.crtedge { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .08s; box-shadow: inset 4px 0 0 rgba(255,0,60,.5), inset -4px 0 0 rgba(0,230,255,.5); z-index: 2; }
-.crtedge.on { opacity: 1; }
+.crtedge { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .08s; box-shadow: inset 2px 0 0 rgba(255,0,60,.45), inset -2px 0 0 rgba(0,230,255,.45); z-index: 2; }
+.crtedge.on { opacity: calc(var(--crt, .3) * .8); }
 /* Reduced effects */
 body.reduce .cutin.go, body.reduce .pwipe.go, body.reduce .pslash.go { animation-duration: .01s; }
 body.reduce .perilv, body.reduce .sflash { display: none; }

@@ -176,7 +176,7 @@ export class Menu3D {
       next: () => { Settings.set(k, Math.min(hi, +(Settings.get(k) + step).toFixed(2))); after && after(); }, prev: () => { Settings.set(k, Math.max(lo, +(Settings.get(k) - step).toFixed(2))); after && after(); } });
     const apply = () => g.applySettings();
     const self = this;
-    const TIPS = { '3D MENUS': 'Menus as a 3D diorama. Off: classic flat menus.', 'IN-WORLD DMG NUMBERS': 'Damage numbers float in the scene instead of on the screen.', 'CRT OVERLAY': 'Scanlines, vignette and a colour fringe on big hits.',
+    const TIPS = { '3D MENUS': 'Menus as a 3D diorama. Off: classic flat menus.', 'IN-WORLD DMG NUMBERS': 'Damage numbers float in the scene instead of on the screen.', 'CRT OVERLAY': 'Scanlines, vignette and a colour fringe on big hits.', 'CRT STRENGTH': 'How strong the CRT overlay is (0-100%).',
       'REDUCE FLASHING': 'No screen flashes, softer shake, short wipes.', 'MOUSE SENS': 'Camera turn speed.', 'AIM SENS (ADS)': 'Multiplier while aiming the gun (hold aim).', 'VERTICAL SENS': 'Multiplier for up/down camera movement.',
       'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
     const tipCard = { kind: 'card', label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || 'Left/Right or click to change. Changes apply immediately and are saved.'; } };
@@ -191,6 +191,7 @@ export class Menu3D {
         num('hudOpacity', 'HUD OPACITY', 0.1, 0.3, 1, (v) => Math.round(v * 100) + '%', apply),
         { kind: 'option', label: 'HUD CORNER', value: () => (Settings.get('hudCorner') === 'top' ? 'TOP LEFT' : 'BOTTOM LEFT'), act: () => { Settings.set('hudCorner', Settings.get('hudCorner') === 'top' ? 'bottom' : 'top'); apply(); }, next: () => { Settings.set('hudCorner', Settings.get('hudCorner') === 'top' ? 'bottom' : 'top'); apply(); }, prev: () => { Settings.set('hudCorner', Settings.get('hudCorner') === 'top' ? 'bottom' : 'top'); apply(); } },
         tog('crt', 'CRT OVERLAY', apply),
+        num('crtStrength', 'CRT STRENGTH', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),
         tog('reduce', 'REDUCE FLASHING', apply),
         tog('dmgNums', 'DAMAGE NUMBERS', apply),
         tog('lowQ', 'LOW QUALITY', () => { apply(); g.world.buildLevel(g.levelCfg); if (this.active && g.state === 'MENU') { g.world.levelGroup.visible = false; } }),
