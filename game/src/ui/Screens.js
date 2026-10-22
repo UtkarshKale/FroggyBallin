@@ -207,6 +207,9 @@ export class Screens {
       ['Best style rank / max combo', `${d.bestRank} / x${d.maxCombo}`],
       ['Gun accuracy', d.shots ? `${Math.round((d.hits / d.shots) * 100)}%` : '-'],
       ['Damage taken', Math.round(d.damageTaken)],
+      ['Gilded Flies / Croak earned', `${d.gfEarned || 0} / ${d.croakEarned || 0}`],
+      ['Ribbit Rank / Gilded Flies', `${d.rank} / ${d.gfTotal}`],
+      ['Toad Shop upgrades used', d.upgrades ? `${d.upgrades} levels` : 'none'],
       ...(d.mode === 'timeloop' && d.hadGhost ? [['Ghost', d.ghostKilledAt != null ? `killed at ${fmtTime(d.ghostKilledAt)}` : d.ghostWon ? 'reached the goal first' : 'still alive']] : []),
     ];
   }

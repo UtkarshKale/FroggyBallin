@@ -65,6 +65,10 @@ export const CFG = {
   },
   // Objective arrow at Tode's feet
   GUIDE: { radius: 78, height: 4, clearRadius: 420, scale: 1.6 },
+  // Toad Shop economy: Gilded Flies (currency) and Croak (XP -> Ribbit Rank, +1 Lily Point per rank).
+  META: { rankBase: 120, maxRank: 30,
+    gf: { bug: 2, elite: 8, boss: 60, clear: 100, srank: 40 },
+    croak: { bug: 5, elite: 15, boss: 100, parry: 3, deathblow: 6, clear: 150 } },
   SAMPLE_DT: 0.05,
 
   KEYS: {

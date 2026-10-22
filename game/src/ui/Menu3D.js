@@ -8,6 +8,8 @@ import { fmtTime } from '../core/math.js';
 import { Cosmetics, SLOTS, ACH } from '../entities/Cosmetics.js';
 import { CFG } from '../config.js';
 import { ACTIONS, Keybinds, keyName } from '../core/Keybinds.js';
+import { Meta, UPGRADES, CONSUMABLES, UNLOCK_BUNDLES } from '../core/Meta.js';
+import { unlock } from '../entities/Cosmetics.js';
 
 // The menu as a 3D diorama: Tode on a lily pad at dusk, fireflies, and the options as in-world neon panels.
 // The camera glides between "rooms". Mouse hover = raycast; click / Enter activates; arrows / WASD navigate;
@@ -31,7 +33,7 @@ export class Menu3D {
     this.orbit = 0;
     this.scroll = 0; this.scrollT = 0; this.scrollV = 0; this.maxScroll = 0;
     this.drag = null;
-    this.extraRooms = { wardrobe: () => this.wardrobeRoom(), keybinds: () => this.keybindsRoom() };
+    this.extraRooms = { wardrobe: () => this.wardrobeRoom(), keybinds: () => this.keybindsRoom(), shop: () => this.shopRoom() };
     this.capture = null; // action name while waiting for a key / mouse button to rebind
     this.kbMsg = '';
     this._buildDiorama();
@@ -121,7 +123,23 @@ export class Menu3D {
     this.lamp.position.set(80, -40, 120);
     this.moon = new THREE.DirectionalLight(0x8899ff, 0.8);
     this.moon.position.set(-300, 200, 500);
-    d.add(pad, water, ...pads, this.lamp, this.moon);
+    // Toad Shop stall: an old merchant toad with a hat and lantern on a lily-pad stall with hanging flies
+    const shop = new THREE.Group();
+    shop.position.set(20, 1080, 0);
+    const stall = new THREE.Mesh(new THREE.CylinderGeometry(55, 58, 6, 28), pad.material); stall.rotation.x = Math.PI / 2;
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(30, 70, 26), new THREE.MeshStandardMaterial({ color: 0x6d4c41 })); counter.position.set(26, 0, 13);
+    const toad = new THREE.Group(); toad.position.set(-12, 0, 2);
+    const tg = (c, r, x, y, z, sx = 1, sy = 1, sz = 1) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 14, 10), new THREE.MeshStandardMaterial({ color: c, roughness: 0.8 })); m.scale.set(sx, sy, sz); m.position.set(x, y, z); toad.add(m); return m; };
+    tg(0x6a8a3a, 18, 0, 0, 16, 1.1, 1, 0.85); tg(0x7da04a, 12, 10, 0, 30); tg(0xffffff, 4, 18, 6, 36); tg(0xffffff, 4, 18, -6, 36); tg(0x111111, 2, 21, 6, 37); tg(0x111111, 2, 21, -6, 37);
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(12, 18, 10), new THREE.MeshStandardMaterial({ color: 0x5a2a7a })); hat.rotation.x = Math.PI / 2; hat.position.set(8, 0, 48); toad.add(hat);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 1.5, 16), hat.material); brim.rotation.x = Math.PI / 2; brim.position.set(8, 0, 40); toad.add(brim);
+    const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 34, 5), new THREE.MeshStandardMaterial({ color: 0x3a2a1a })); stick.rotation.x = Math.PI / 2; stick.position.set(10, -20, 30); toad.add(stick);
+    const lantern = new THREE.Mesh(new THREE.SphereGeometry(4, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffcc55 })); lantern.position.set(10, -20, 46); toad.add(lantern);
+    for (let i = 0; i < 5; i++) { const f = new THREE.Mesh(new THREE.SphereGeometry(2.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd23f })); f.position.set(30, -24 + i * 12, 40 - (i % 2) * 6); const s2 = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 10, 4), stick.material); s2.rotation.x = Math.PI / 2; s2.position.set(30, -24 + i * 12, 47 - (i % 2) * 3); shop.add(f, s2); }
+    const glow = new THREE.PointLight(0xffaa44, 1.6, 300, 1.4); glow.position.set(0, 0, 60);
+    shop.add(stall, counter, toad, glow);
+    this.merchant = toad;
+    d.add(pad, water, ...pads, this.lamp, this.moon, shop);
     this.diorama = d;
     this.rig.add(d);
   }
@@ -133,10 +151,11 @@ export class Menu3D {
     return {
       main: () => ({
         cam: V(470, -30, 150), look: V(40, -95, 122),
-        list: { at: V(120, -150, 202), w: 118, h: 22, gap: 25.5 }, rows: this._fitRows(9, 7),
+        list: { at: V(120, -150, 204), w: 118, h: 21, gap: 24 }, rows: this._fitRows(10, 7),
         title: { label: 'FROGGY BALLIN', at: V(118, -150, 238), w: 190, h: 36 },
         items: [
           { kind: 'button', label: 'PLAY', sub: 'Time Loop: pick a level', act: () => this.go('levels') },
+          { kind: 'button', label: 'TOAD SHOP', sub: 'Upgrades with Gilded Flies', act: () => this.go('shop') },
           { kind: 'button', label: 'BOSS RUSH', act: () => g.screens.wipe(() => g.startRun('bossrush')) },
           { kind: 'button', label: 'SURVIVAL', act: () => g.screens.wipe(() => g.startRun('survival')) },
           { kind: 'option', label: 'DIFFICULTY', value: () => g.D.label, act: () => this.go('difficulty'), next: () => this._cycleDiff(1), prev: () => this._cycleDiff(-1) },
@@ -225,6 +244,34 @@ export class Menu3D {
         num('music', 'MUSIC VOL', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),
         back,
       ],
+    };
+  }
+
+  shopRoom() {
+    const g = this.g, self = this;
+    const m = Meta.get();
+    const cur = (u) => (u.cur === 'lp' ? 'LP' : 'GF');
+    const bought = (msg) => { g.sfx.play('power'); this.merchantHop = 0.45; this.shopMsg = msg; this.go('shop', true); };
+    const fail = (msg) => { g.sfx.play('empty'); this.shopMsg = msg; this.go('shop', true); };
+    const ups = UPGRADES.map((u) => {
+      const lvl = m.ups[u.id] || 0, max = lvl >= u.max, price = Meta.price(u, lvl);
+      return { kind: 'button', label: `${u.label}  ${'■'.repeat(lvl)}${'□'.repeat(u.max - lvl)}`, sub: max ? `${u.per} - MAXED` : `${u.per} - ${price} ${cur(u)}`,
+        disabled: () => max || m[u.cur] < price,
+        act: () => { const r = Meta.buy(u); if (r === 'OK') bought(`${u.label} upgraded!`); else fail(r === 'MAXED' ? 'Already maxed.' : `Not enough ${u.cur === 'lp' ? 'Lily Points' : 'Gilded Flies'}.`); } };
+    });
+    const cons = CONSUMABLES.map((c) => ({ kind: 'button', label: `${c.label}${m.cons[c.id] ? ` (x${m.cons[c.id]})` : ''}`, sub: `${c.per} - ${c.cost} GF`, disabled: () => m.gf < c.cost,
+      act: () => (Meta.buyConsumable(c) === 'OK' ? bought(`${c.label} ready for your next run.`) : fail('Not enough Gilded Flies.')) }));
+    const ach = Storage.get('ach', {}) || {};
+    const bundles = UNLOCK_BUNDLES.map((b) => ({ kind: 'button', label: b.label, sub: ach[b.ach] ? `${b.per} - OWNED` : `${b.per} - ${b.cost} GF`, disabled: () => !!ach[b.ach] || m.gf < b.cost,
+      act: () => { if (ach[b.ach]) return fail('Already owned.'); const mm = Meta.get(); if (mm.gf < b.cost) return fail('Not enough Gilded Flies.'); mm.gf -= b.cost; Meta.save(mm); unlock(b.ach); bought(`${b.label} unlocked in the Wardrobe!`); } }));
+    const head = { kind: 'card', compact: true, label: 'TOAD SHOP', get body() { const mm = Meta.get(); return `*${mm.gf} Gilded Flies   Ribbit Rank ${mm.rank} (${mm.croak}/${Meta.need(mm.rank)} Croak)   ${mm.lp} Lily Points\n${self.shopMsg || 'Old Hopwell sells upgrades for Gilded Flies. Lily Points come from Ribbit Ranks.'}`; } };
+    return {
+      cam: V(560, 900, 200), look: V(40, 900, 180),
+      card: { at: V(110, 900, 328), w: 470, h: 70, item: head },
+      grid: { at: V(110, 750, 276), w: 150, h: 30, cols: 3, dx: 150, dz: 35 }, rows: this._fitRows(6, 4),
+      items: [...ups, ...cons, ...bundles,
+        { kind: 'button', label: 'REFUND ALL', sub: 'Get back every Gilded Fly and Lily Point spent on upgrades', act: () => { Meta.refundAll(); bought('All upgrades refunded.'); } },
+        { kind: 'button', label: 'BACK', act: () => this.go('main') }],
     };
   }
 
@@ -324,6 +371,7 @@ export class Menu3D {
       list: { at: V(60, -150, 58), w: 130, h: 24, gap: 29 },
       items: [
         { kind: 'button', label: d.mode === 'timeloop' ? 'NEXT ITERATION (R)' : 'TRY AGAIN (R)', act: () => g.restart() },
+        { kind: 'button', label: 'TOAD SHOP', act: () => g.screens.wipe(() => { g.toMenu(); this.go('shop'); }) },
         { kind: 'button', label: 'MAIN MENU', act: () => g.screens.wipe(() => g.toMenu()) },
       ],
     };
@@ -474,6 +522,8 @@ export class Menu3D {
       p.moving = false;
       p.sync();
     }
+    // merchant idles and hops when you buy something
+    if (this.merchant) { this.merchantHop = Math.max(0, (this.merchantHop || 0) - dt); const h = this.merchantHop > 0 ? Math.sin((1 - this.merchantHop / 0.45) * Math.PI) * 14 : 0; this.merchant.position.z = 2 + h + Math.sin(this.t * 2) * 0.8; this.merchant.rotation.z = Math.sin(this.t * 0.7) * 0.15; }
     for (const f of this.flies) {
       const u = f.userData;
       u.a += dt * u.s * 0.3;
@@ -511,6 +561,7 @@ export class Menu3D {
 const howto = () => { const K = CFG.KEYS, n = keyName; return `Beat a level and your run becomes a ghost that replays everything and hunts you. Kill it, beat the boss and reach the goal first.
 *${n(K.forward)}${n(K.left)}${n(K.back)}${n(K.right)} move, ${n(K.jump)} jump, ${n(K.dodge)} dodge, mouse aim (click to lock).
 *${n(K.slash)} sword combo, ${n(K.parry)} parry just before a hit. ${n(K.weapon)} / ${n(K.sword)} / ${n(K.gun)} swap sword and gun (gun: ${n(K.slash)} fire, hold ${n(K.parry)} to aim). ${n(K.shoot)} quick sword flurry from any weapon.
+*Kills earn Gilded Flies (GF) and Croak; Croak raises your Ribbit Rank (+1 Lily Point each). Spend them in the TOAD SHOP on permanent upgrades and one-run items.
 *${n(K.tongue)} tongue (eat pink-marked bugs to heal), ${n(K.power)} use a stored power-up, ${n(K.ult)} ultimate when the meter is full (again to end it), ${n(K.pause)} pause, ${n(K.mute)} mute.
 Yellow flash = normal attack, parry it. Red glyph = perilous: can't be parried, dodge it (or jump shockwaves). Orange glyph = dodge through it to open a RIPOSTE: slash right away for a guaranteed crit.
 Posture: fill a bar to break the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.`; };

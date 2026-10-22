@@ -22,6 +22,7 @@ export const ICON = {
   ricochet: svg('<path d="M3 18 10 6l4 8 7-10v6l-7 10-4-8-5 8z"/>'),
   thorn: svg('<path d="m12 2 2 6 6-3-3 6 6 2-6 2 3 6-6-3-2 6-2-6-6 3 3-6-6-2 6-2-3-6 6 3z"/>'),
   magnet: svg('<path d="M5 3h4v8a3 3 0 0 0 6 0V3h4v8a7 7 0 0 1-14 0z"/>'),
+  fly: svg('<ellipse cx="12" cy="14" rx="4" ry="6"/><ellipse cx="6" cy="8" rx="5" ry="3" opacity=".6"/><ellipse cx="18" cy="8" rx="5" ry="3" opacity=".6"/>'),
   timeshard: svg('<path d="m12 2 6 10-6 10-6-10z"/>'),
 };
 
@@ -39,6 +40,7 @@ export class Hud {
         <div class="hrow"><span class="ico">${ICON.shield}</span><div class="bar post"><i id="h-post"></i></div></div>
         <div class="hrow ultbox" id="h-ultbox"><span class="ico">${ICON.star}</span><div class="bar ult"><i id="h-ult"></i></div><span class="ultlbl" id="h-ultk">G</span></div>
         <div class="hrow"><span class="wpn" id="h-wpn"></span><span class="ammo" id="h-ammo"></span></div>
+        <div class="hrow gfrow"><span class="ico gold">${ICON.fly}</span><span id="h-gf">+0 GF</span></div>
         <div class="powers" id="h-powers"></div>
       </div>
       <div class="abs hud-top panel-shadow">
@@ -78,7 +80,7 @@ export class Hud {
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
       stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
-      pdim: q('h-pdim'), incoming: q('h-incoming'), labels: q('h-labels'), prompt: q('h-prompt'), pslash: q('h-pslash'), flourish: q('h-flourish'), pwipe: q('h-pwipe'), dmgs: q('h-dmgs'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
+      pdim: q('h-pdim'), gf: q('h-gf'), incoming: q('h-incoming'), labels: q('h-labels'), prompt: q('h-prompt'), pslash: q('h-pslash'), flourish: q('h-flourish'), pwipe: q('h-pwipe'), dmgs: q('h-dmgs'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
     this.low = this.root.querySelector('.lowhp');
@@ -271,10 +273,12 @@ export class Hud {
   update(g, dt) {
     if (!this._zf || --this._zf <= 0) { this._zf = 30; this.zoom = parseFloat(getComputedStyle(this.root.parentElement).zoom) || 1; }
     const e = this.el, p = g.player;
-    e.hp.style.width = `${Math.max(0, p.hp)}%`;
+    e.hp.style.width = `${Math.max(0, (p.hp / (p.maxHp || 100)) * 100)}%`;
     e.hptxt.textContent = Math.ceil(p.hp);
     this.low.style.opacity = p.hp < 30 ? 0.5 + 0.5 * Math.sin(performance.now() / 150) : 0;
-    e.ammo.innerHTML = `<b>${'●'.repeat(p.ammo)}</b>${'○'.repeat(Math.max(0, CFG.PLAYER.maxAmmo - p.ammo))}`;
+    e.ammo.innerHTML = `<b>${'●'.repeat(p.ammo)}</b>${'○'.repeat(Math.max(0, (p.maxAmmo || CFG.PLAYER.maxAmmo) - p.ammo))}`;
+    const gfRun = g.runEarn ? g.runEarn.gf : 0;
+    if (this._gf !== gfRun) { this._gf = gfRun; e.gf.textContent = `+${gfRun} GF`; }
     e.time.textContent = fmtTime(g.simT);
     e.cross.style.display = 'block';
     const cc = 'abs crosshair' + (p.weapon === 'gun' ? ' gun' : '') + (p.aiming ? ' aim' : '') + (g.aimTarget && p.weapon === 'gun' ? ' lock' : '');

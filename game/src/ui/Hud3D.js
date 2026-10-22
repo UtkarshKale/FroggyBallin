@@ -104,7 +104,7 @@ export class Hud3D {
     this.arcs.quaternion.copy(cam.quaternion);
     this.arcs.scale.setScalar(150);
     const u = this.arcMat.uniforms;
-    u.hp.value = Math.max(0, p.hp / CFG.PLAYER.hp);
+    u.hp.value = Math.max(0, p.hp / (p.maxHp || CFG.PLAYER.hp));
     u.posture.value = p.broken > 0 ? 1 : Math.min(1, p.posture / CFG.PLAYER_POSTURE.max);
     u.broken.value = p.broken > 0 ? 1 : 0;
     u.stamina.value = p.stamina / 100;

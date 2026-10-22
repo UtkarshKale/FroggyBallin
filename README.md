@@ -16,6 +16,8 @@ A third-person 3D browser game built for the JetBrains "Build a Game with an AI 
 - **Modes:** Time Loop (per level, with ghost), **Boss Rush** (all five in a row), Classic Survival (endless arena).
 - **Power-ups:** Firefly, Dragonfly, Beetle Shell, Time Snail, Big Mouth, Ammo Moth, Golden Fly (rewind 3s), Overclock (double parry window), **Ricochet Shots**, **Thorn Shell**, **Magnet Tongue**, **Time Shard** (freezes bugs). Glowing gem pickups with drop beams, an aura on Tode and ring timers on the HUD.
 - **Comic-panel cutscenes** and a **3D menu**: Tode on a lily pad at dusk, options as in-world neon panels (mouse, arrows/WASD + Enter, Esc back), with rooms for levels, difficulty, wardrobe, settings, keybinds, how to play and credits. Stats/death screens are a 3D camera moment. Classic flat menus remain as an option.
+- **Toad Shop:** kills, elites, bosses, level clears and S ranks earn **Gilded Flies**; kills, parries and deathblows earn **Croak**, which raises your **Ribbit Rank** (each rank gives a **Lily Point**). Old Hopwell the merchant toad sells permanent upgrades (max HP, stamina, sword/gun damage, combo speed, parry window, posture guard, dodge cooldown, ammo, tongue range/healing, ult charge/duration, an extra power-up slot, pickup magnet), one-run items (ammo pack, shield charge, lucky jar, Second Wind revive) and wardrobe bundles. Refund-all anytime. Stats show what you earned and how many upgrades you used.
+- **Power-ups** are stored in two slots and used with **X**.
 - **Wardrobe:** skin colour, pattern glow, eyes, hats (bandana, headband, party hat, flower, top hat, cape, crown, halo), blade / hilt / trail / gun / tongue / parry-flash / death-splat colours; some unlock via achievements. Your ghost wears the outfit its run was recorded with.
 - **Options:** full keybinds (keys or mouse buttons, conflict swap, per-action reset), mouse / aim / vertical sensitivity, invert Y, FOV, camera distance, aim assist, master/SFX/music volume, HUD scale/opacity/corner, damage numbers, CRT overlay, reduce flashing, low quality.
 - **Perfect parry feel:** contact sparks, radial speed lines, shockwave, camera zoom punch, desaturated screen edges, layered clang that climbs in pitch with a PARRY xN streak, glowing blade + COUNTER! prompt, attacker knockback. Plain blocks are a dull thud.
@@ -41,7 +43,8 @@ A third-person 3D browser game built for the JetBrains "Build a Game with an AI 
 | E | Tongue (eat) |
 | Space | Jump (double jump with Dragonfly) |
 | Shift | Dodge roll (dodges perilous attacks; dodging an orange one opens a riposte) |
-| G | Ultimate (when the ULT meter is full) |
+| G | Ultimate (when the ULT meter is full; press again to end it early) |
+| X | Use a stored power-up |
 | P / Esc | Pause |
 | M | Mute |
 | R | Restart from the stats screen |

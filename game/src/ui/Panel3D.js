@@ -45,7 +45,8 @@ export class Panel3D {
   draw() {
     const it = this.item;
     const val = it.value ? String(it.value()) : '';
-    const key = `${this.hover}|${it.label}|${val}|${it.sub || ''}|${it.body || ''}|${Math.round(this.scrollPx || 0)}`;
+    const dis = it.disabled ? !!it.disabled() : false;
+    const key = `${dis}|${this.hover}|${it.label}|${val}|${it.sub || ''}|${it.body || ''}|${Math.round(this.scrollPx || 0)}`;
     if (key === this._key) return;
     this._key = key;
     const c = this.ctx, W = this.canvas.width, H = this.canvas.height;
@@ -57,6 +58,7 @@ export class Panel3D {
     c.beginPath();
     c.moveTo(sk, 0); c.lineTo(W, 0); c.lineTo(W - sk, H); c.lineTo(0, H); c.closePath();
     if (it.kind === 'title') { c.fillStyle = 'rgba(0,0,0,0)'; }
+    else if (dis) { c.fillStyle = this.hover ? 'rgba(60,60,64,0.95)' : 'rgba(20,20,22,0.8)'; }
     else if (this.hover) { c.fillStyle = '#f4f1ea'; c.shadowColor = accent; c.shadowOffsetX = 10; c.shadowOffsetY = 10; }
     else c.fillStyle = 'rgba(8,8,10,0.88)';
     c.fill();
@@ -68,7 +70,7 @@ export class Panel3D {
       const st = Math.max(10, H * 0.08);
       for (let y = st; y < H * 0.5; y += st) for (let x = W - st * 12; x < W - sk * (y / H) - 6; x += st) { c.beginPath(); c.arc(x, y, st * 0.2, 0, 6.3); c.fill(); }
     }
-    const fg = this.hover ? '#0a0a0a' : '#ffffff';
+    const fg = dis ? '#8a8a90' : this.hover ? '#0a0a0a' : '#ffffff';
     const pad = sk + 18;
     if (it.kind === 'title') {
       fit(it.label, Math.round(H * 0.62), W - 30, (s) => `italic 900 ${s}px 'Arial Black', Impact, sans-serif`);
@@ -78,12 +80,13 @@ export class Panel3D {
       c.fillStyle = '#fff'; c.fillText(it.label, 10, H / 2);
     } else if (it.kind === 'card') {
       c.fillStyle = '#fff';
-      const m = W * 0.04;
-      const ts = fit(it.label, Math.min(W * 0.075, H * 0.28), W - 2 * m, (s) => `italic 900 ${s}px 'Arial Black', Impact, sans-serif`);
+      const cp = !!it.compact; // wide, short header cards: size text from the height
+      const m = cp ? H * 0.08 : W * 0.04;
+      const ts = fit(it.label, Math.min(W * 0.075, H * (cp ? 0.24 : 0.28)), W - 2 * m, (s) => `italic 900 ${s}px 'Arial Black', Impact, sans-serif`);
       c.textBaseline = 'top';
       c.fillText(it.label, m, m);
       c.fillStyle = accent; c.fillRect(m, m + ts * 1.15, Math.min(W - 2 * m, c.measureText(it.label).width), Math.max(4, W * 0.006));
-      const bs = Math.min(W * 0.04, H * 0.2);
+      const bs = cp ? H * 0.15 : Math.min(W * 0.04, H * 0.2);
       c.font = `600 ${bs}px 'Segoe UI', Arial, sans-serif`;
       // Body scrolls when it doesn't fit: clipped view, edge fades, scrollbar and a 'scroll for more' hint.
       const top = m + ts * 1.15 + bs * 0.9, lh = bs * 1.3, viewH = H - top - bs * 0.5;

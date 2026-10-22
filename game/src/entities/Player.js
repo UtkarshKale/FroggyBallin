@@ -3,6 +3,7 @@ import { CFG } from '../config.js';
 import { Settings } from '../core/Settings.js';
 import { Cosmetics, buildHat, buildEyes } from './Cosmetics.js';
 import { AnimController, applyPose, ZERO } from './AnimController.js';
+import { upgradeStats } from '../core/Meta.js';
 import { makeActor, collectFlash, setFlash, stdMat } from '../core/Assets.js';
 import { angDiff, lerpAngle, ease, clamp, lerp } from '../core/math.js';
 
@@ -225,7 +226,11 @@ export class Player {
     this.x = x; this.y = y; this.z = 0; this.vz = 0;
     this.vx = 0; this.vy = 0;
     this.yaw = 0;
-    this.hp = CFG.PLAYER.hp;
+    // Toad Shop upgrades (permanent) apply at the start of every run
+    this.up = upgradeStats();
+    this.maxHp = this.up.maxHp; this.maxAmmo = this.up.maxAmmo;
+    this.secondWind = 0;
+    this.hp = this.maxHp;
     this.ammo = CFG.PLAYER.startAmmo;
     this.stamina = 100;
     this.staminaDelay = 0;
@@ -283,9 +288,9 @@ export class Player {
   }
 
   get parryActive() { return this.parryT >= 0; }
-  get perfectLen() { return CFG.PARRY.perfect * this.g.D.parry * (this.pu.over > 0 ? 2 : 1) * (this.g.bossUltOn('tightParry') ? 0.5 : 1); }
+  get perfectLen() { return CFG.PARRY.perfect * this.g.D.parry * (this.up ? this.up.parry : 1) * (this.pu.over > 0 ? 2 : 1) * (this.g.bossUltOn('tightParry') ? 0.5 : 1); }
   get ultOn() { return this.g.playerUlt; }
-  get blockLen() { return CFG.PARRY.block * this.g.D.parry * (this.pu.over > 0 ? 1.4 : 1); }
+  get blockLen() { return CFG.PARRY.block * this.g.D.parry * (this.up ? this.up.parry : 1) * (this.pu.over > 0 ? 1.4 : 1); }
 
   // Returns 'hit' | 'block' | 'perfect' | 'dodged' | 'shell'
   takeHit(dmg, src, opts = {}) {
@@ -388,7 +393,7 @@ export class Player {
   addPosture(a) {
     if (this.broken > 0 || this.dead) return;
     const P = CFG.PLAYER_POSTURE;
-    this.posture += a * this.g.D.posture;
+    this.posture += a * this.g.D.posture * this.up.posture;
     this.postureT = P.delay;
     if (this.posture >= P.max) {
       this.posture = P.max * 0.4;
@@ -402,7 +407,7 @@ export class Player {
   }
 
   heal(n) {
-    this.hp = Math.min(CFG.PLAYER.hp, this.hp + n);
+    this.hp = Math.min(this.maxHp, this.hp + n);
     this.g.fx.burst(this.x, this.y, 30, 0x55ff55, 4, 90, 0.4, 2);
   }
 
@@ -411,6 +416,12 @@ export class Player {
     this.hp -= dmg;
     this.flashT = 0.12;
     this.g.stats.damageTaken += dmg;
+    if (this.hp <= 0 && !this.dead && this.secondWind > 0) {
+      // Second Wind consumable: revive once
+      this.secondWind = 0; this.hp = this.maxHp * 0.4; this.iframes = 1.2;
+      this.g.hud.ink('SECOND WIND', 'clear'); this.g.fx.ring(this.x, this.y, 10, 0x7dff7d, 20, 300, 0.6); this.g.sfx.play('rewind');
+      return;
+    }
     if (this.hp <= 0 && !this.dead) {
       this.hp = 0;
       this.dead = true;
@@ -484,7 +495,7 @@ export class Player {
 
     // Stamina regen
     this.staminaDelay -= dt;
-    if (this.staminaDelay <= 0) this.stamina = Math.min(100, this.stamina + CFG.TONGUE.regen * (this.ultOn ? CFG.ULT.staminaRegen : 1) * dt);
+    if (this.staminaDelay <= 0) this.stamina = Math.min(100, this.stamina + CFG.TONGUE.regen * (this.ultOn ? CFG.ULT.staminaRegen : 1) * this.up.stamina * dt);
 
     // Over-the-shoulder camera in gun mode: aim at the point under the crosshair, not parallel to it.
     const aimYaw = cam.yaw - (this.weapon === 'gun' ? Math.atan2(cam.shoulder || 0, 700) : 0);
@@ -532,7 +543,7 @@ export class Player {
         if (this.flurry) this._endFlurry(); // flurry cancels into dodge
         this.dashT = CFG.DODGE.dur;
         this.rollT = CFG.ANIM.rollTime;
-        this.dodgeCd = CFG.DODGE.cooldown * (this.pu.dragon > 0 ? 0.6 : 1);
+        this.dodgeCd = CFG.DODGE.cooldown * (this.pu.dragon > 0 ? 0.6 : 1) * this.up.dodge;
         this.iframes = CFG.DODGE.iframes;
         this.dashDir = this.moving ? Math.atan2(my, mx) : this.yaw;
         this.dashLat = Math.cos(this.dashDir) * rx + Math.sin(this.dashDir) * ry; // + = rightward on screen (camera roll)
@@ -645,7 +656,7 @@ export class Player {
     const sw = this.swing;
     if (!sw) return;
     const S = CFG.SWORD;
-    sw.t += dt * (this.ultOn ? CFG.ULT.atkSpeed : 1);
+    sw.t += dt * (this.ultOn ? CFG.ULT.atkSpeed : 1) * this.up.combo;
     const dur = S.dur[sw.step];
     if (!sw.hit && sw.t >= dur * S.hitAt) {
       sw.hit = true;
@@ -734,7 +745,7 @@ export class Player {
     g.projectiles.spawn({
       x: mz.x, y: mz.y, z: CFG.GUN.bulletZ,
       angle: ang, speed: CFG.GUN.speed * (aimed ? CFG.GUN.aimSpeedMult : 1),
-      dmg: CFG.GUN.dmg * (fire ? 1.4 : 1) * (aimed ? CFG.GUN.aimMult : 1) * (ult ? CFG.ULT.mult : 1), team: 'player', radius: CFG.GUN.radius,
+      dmg: CFG.GUN.dmg * (fire ? 1.4 : 1) * (aimed ? CFG.GUN.aimMult : 1) * (ult ? CFG.ULT.mult : 1) * this.up.gun, team: 'player', radius: CFG.GUN.radius,
       color: fire ? 0xff7a1a : this.pu.rico > 0 ? 0x55ffaa : 0xffee66, owner: this, burn: fire, bounces: this.pu.rico > 0 ? CFG.POWERUP.ricochet : 0,
     });
     g.stats.shots++;
@@ -763,7 +774,7 @@ export class Player {
     const tg = this.tongue;
     if (!tg) { this.tongueMesh.visible = false; this.tongueTip.visible = false; return; }
     const T = CFG.TONGUE;
-    const range = T.range * (this.pu.big > 0 ? 2 : 1) * (this.pu.mag > 0 ? CFG.POWERUP.magnetTongue : 1) * (this.ultOn ? CFG.ULT.tongueMult : 1);
+    const range = T.range * (this.pu.big > 0 ? 2 : 1) * (this.pu.mag > 0 ? CFG.POWERUP.magnetTongue : 1) * (this.ultOn ? CFG.ULT.tongueMult : 1) * this.up.tongue;
     tg.t += dt;
     if (!tg.resolved && tg.t >= T.resolveAt) {
       tg.resolved = true;

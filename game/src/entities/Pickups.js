@@ -78,7 +78,7 @@ export class Pickups {
       // Magnet Tongue: every pickup in range drifts to the frog
       if (!p.homing && pl.pu.mag > 0) {
         const dm = Math.hypot(pl.x - p.x, pl.y - p.y);
-        if (dm < CFG.POWERUP.magnetRange) { const a = Math.atan2(pl.y - p.y, pl.x - p.x); p.x += Math.cos(a) * 380 * dt; p.y += Math.sin(a) * 380 * dt; }
+        if (dm < CFG.POWERUP.magnetRange * (pl.up ? pl.up.magnet : 1)) { const a = Math.atan2(pl.y - p.y, pl.x - p.x); p.x += Math.cos(a) * 380 * dt; p.y += Math.sin(a) * 380 * dt; }
       }
       p.group.position.set(p.x, p.y, 30 + Math.sin(p.t * 4) * 6);
       if (p.group.userData.ring) p.group.userData.ring.rotation.x += dt * 3;
@@ -92,7 +92,7 @@ export class Pickups {
         ex.beam.visible = p.age < 1.2;
       }
       const d = Math.hypot(pl.x - p.x, pl.y - p.y);
-      if (p.life <= 0 || (d < pl.radius + 26 && !pl.dead && p.age > 0.2)) {
+      if (p.life <= 0 || (d < (pl.radius + 26) * (pl.up ? pl.up.magnet : 1) && !pl.dead && p.age > 0.2)) {
         if (p.life > 0) this.g.collect(p.type);
         this._rmExtra(p);
         this.g.world.scene.remove(p.group);

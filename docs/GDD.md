@@ -244,3 +244,11 @@ Cut order if late: stretch → Level 2 → power-ups beyond Time Snail/Firefly/B
 - **Animation:** AnimController (weighted pose states + per-state cross-fade) drives a rig on Tode (root -> body -> mid pivot -> model+gear); ant enemy uses its GLB clips via AnimationMixer with cross-fades.
 - **Power-ups added:** Ricochet Shots (2 bounces), Thorn Shell (-25% damage taken, melee reflected), Magnet Tongue (pickups drift in, tongue yanks bugs, 1.5x range), Time Shard (bugs frozen 3 s, bosses 20% speed). Drop chance 16%.
 - **Art:** instanced per-theme dressing, gradient sky dome, canvas ground tiles, god rays, ambient particles, boss-arena stones and lanterns, bug size/hue variance and 8% gold elites; Low quality trims decor and disables particles.
+
+## 21. Toad Shop and meta progression
+- **Gilded Flies (GF)** currency: bug 2, elite 8, boss 60, level clear 100, first S rank in a run 40 (config `META.gf`).
+- **Croak** XP: bug 5, elite 15, boss 100, parry 3, deathblow +6, clear 150 (`META.croak`). Croak raises the **Ribbit Rank** (1-30, cost grows with rank); each new rank grants one **Lily Point (LP)**.
+- **Toad Shop** (3D menu room and from the stats screen): Old Hopwell, a merchant toad with a hat and lantern on a lily-pad stall. 14 GF upgrades with 3-5 tiers (price x1.6 per tier), 2 LP perks (ult duration, +1 power-up slot), 4 one-run consumables (ammo pack, shield charge, lucky jar = random stored power-up, Second Wind = revive once at 40% HP), 3 wardrobe bundles, refund-all. Saved in localStorage (`meta`).
+- Upgrades apply to the frog at run start; the ghost replays the recorded run. The stats screen shows GF/Croak earned, rank and the number of upgrade levels used.
+- **Ultimate** (revised): 8 s (kills +0.5 s, cap 10 s), damage x1.6, posture x1.5, tongue range x1.4, stamina regen x2, move x1.25, attack speed x1.3; press the ult key again to end early (30% of the remaining time refunded). The meter fills from kills.
+- **Power-ups** go into hold slots (2, +1 from the shop) and are used with X; 'Auto-use power-ups' setting restores instant activation.

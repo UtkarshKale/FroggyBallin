@@ -503,7 +503,7 @@ export class Enemy {
     this.overhead.remove();
     g.fx.dissolve(this.root, 0.25, g.player.x, g.player.y);
     g.fx.burst(this.x, this.y, 30, 0x66ff66, 10, 160, 0.4, 3);
-    g.player.heal(this.healAmt);
+    g.player.heal(this.healAmt * (g.player.up ? g.player.up.heal : 1));
     g.player.gulpT = 0.3;
     g.stats.eaten++;
     g.addStyle('eat');

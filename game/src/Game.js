@@ -26,6 +26,7 @@ import { Hud3D } from './ui/Hud3D.js';
 import { Settings } from './core/Settings.js';
 import { Cosmetics, unlock, ACH } from './entities/Cosmetics.js';
 import { Keybinds, keyName as keyNameOf } from './core/Keybinds.js';
+import { Meta } from './core/Meta.js';
 import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
 
 const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null, maxCombo: 0, bestRank: 'D' });
@@ -165,6 +166,7 @@ export class Game {
     this.snailT = 0;
     this.freezeT = 0;
     this.powerSlots = [];
+    if (this.runEarn && (this.runEarn.gf || this.runEarn.croak)) this.flushEarnings(); // quitting mid-run keeps what you earned
     this.bossUlt = null;
     if (this.ult) this.ult.t = 0;
     const a = this.world.ascii;
@@ -200,6 +202,14 @@ export class Game {
 
     this.player.applyCosmetics();
     this.player.reset(level.start.x, level.start.y);
+    this.runEarn = { gf: 0, croak: 0 }; this._srankPaid = false;
+    // one-shot consumables bought in the Toad Shop
+    const cons = Meta.takeConsumables();
+    this._consUsed = Object.keys(cons);
+    if (cons.ammopack) this.player.ammo = Math.min(this.player.maxAmmo, this.player.ammo + 6 * cons.ammopack);
+    if (cons.shield) this.player.pu.shell += cons.shield;
+    if (cons.secondwind) this.player.secondWind = 1;
+    this._startPower = cons.startpower ? ['firefly', 'dragon', 'shell', 'bigmouth', 'over', 'ricochet', 'thorn', 'magnet', 'timeshard'] : null;
     for (const [wx, wy, wr] of level.webs || []) this.webs.add(wx, wy, wr, Infinity);
     this.recorder.reset();
     const cam = this.world.cam;
@@ -245,6 +255,7 @@ export class Game {
 
   begin() {
     this.state = 'PLAYING';
+    if (this._startPower) { const pool = this._startPower; this._startPower = null; this.powerSlots.push(pool[Math.floor(Math.random() * pool.length)]); }
     this.hud.resetTransient();
     this.hud.show(true);
     this.screens.hide();
@@ -321,7 +332,10 @@ export class Game {
     this.input.exitLock();
     this.hud.setBoss(null);
     const s = this.stats;
-    const d = { ...s, diff: this.D.label, mode: this.mode, time: this.simT, score: this.score, loopNo: this.loopNo, hadGhost: !!this.ghost, ghostWon: reason === 'ghost', pb: this.pb };
+    if (reason === 'win') this.earn(CFG.META.gf.clear, CFG.META.croak.clear);
+    this.flushEarnings(s);
+    const meta = Meta.get();
+    const d = { ...s, rank: meta.rank, gfTotal: meta.gf, upgrades: Meta.totalLevels(), diff: this.D.label, mode: this.mode, time: this.simT, score: this.score, loopNo: this.loopNo, hadGhost: !!this.ghost, ghostWon: reason === 'ghost', pb: this.pb };
     let delay = 0;
     if (this.mode === 'survival') {
       this.survBest = Math.max(this.survBest, this.score);
@@ -377,7 +391,7 @@ export class Game {
       this.boss = null;
       if (r.i >= this.levelCfg.rush.length) { r.done = true; this.endRun('win'); return; }
       this.player.heal(40);
-      this.player.ammo = Math.min(CFG.PLAYER.maxAmmo, this.player.ammo + 4);
+      this.player.ammo = Math.min(this.player.maxAmmo, this.player.ammo + 4);
       this.hud.banner('BOSS DEFEATED', 'Patched up. The next boss approaches...', '#ffd23f', 3);
       for (let i = 0; i < 4; i++) this.pickups.spawn('droplet', b.x, b.y);
       r.t = 3.5;
@@ -431,7 +445,7 @@ export class Game {
       this.hud.rankUp(R[r][1], R[r][2]);
       this.sfx.play('rank');
       this.fx.addShake(6 + r * 2);
-      if (R[r][1] === CFG.FEEL.flourishRank) { this.hud.flourish(); this.sfx.play('ult'); this.achieve('srank'); }
+      if (R[r][1] === CFG.FEEL.flourishRank) { this.hud.flourish(); this.sfx.play('ult'); this.achieve('srank'); if (!this._srankPaid) { this._srankPaid = true; this.earn(CFG.META.gf.srank, 0); } }
       if (r > (st.best || 0)) { st.best = r; this.stats.bestRank = R[r][1]; }
     }
     st.rank = r;
@@ -451,14 +465,33 @@ export class Game {
     if (!u) return;
     if (u.t > 0) return;
     const was = u.meter;
-    u.meter = Math.min(100, u.meter + amount * this.D.ult);
+    u.meter = Math.min(100, u.meter + amount * this.D.ult * this.player.up.ultGain);
     if (was < 100 && u.meter >= 100) { this.hud.flash('ULTIMATE READY', '#66ffcc'); this.sfx.play('rank'); }
   }
 
   onKillUlt(t) {
     const U = CFG.ULT, u = this.ult;
-    if (u.t > 0) { u.t = Math.min(U.maxTime, u.t + U.killExtend); return; }
+    if (u.t > 0) { u.t = Math.min(U.maxTime + this.player.up.ultDur, u.t + U.killExtend); return; }
     this.ultGain(t.isBoss ? U.bossKill : t.elite ? U.eliteKill : U.perKill);
+  }
+
+  ultDur() { return CFG.ULT.duration + (this.player.up ? this.player.up.ultDur : 0); }
+
+  // Toad Shop earnings for this run (flushed to the meta save when the run ends)
+  earn(gf, croak, x, y) {
+    const r = this.runEarn || (this.runEarn = { gf: 0, croak: 0 });
+    r.gf += gf; r.croak += croak;
+    if (gf > 0 && x != null) this.hud.worldLabel({ x, y, z: 0, radius: 10, dead: true }, `+${gf} GF`, '#ffd23f', 0.8);
+  }
+
+  flushEarnings(stats) {
+    const r = this.runEarn;
+    this.runEarn = { gf: 0, croak: 0 };
+    if (!r || (!r.gf && !r.croak)) return r;
+    const msgs = Meta.earn(r.gf, r.croak);
+    for (const m of msgs) this.hud.flash(m, '#7dff7d');
+    if (stats) { stats.gfEarned = r.gf; stats.croakEarned = r.croak; }
+    return r;
   }
 
   // ------------------------------------------------------------ ultimates (ASCII mode)
@@ -470,14 +503,14 @@ export class Game {
     if (u.t > 0) {
       // pressing the ult key again ends it early (ignored right after activation to avoid double-presses)
       if (this.simT - (u.startedAt || 0) < CFG.ULT.toggleGuard) return;
-      const refund = 100 * CFG.ULT.offRefund * (u.t / CFG.ULT.duration);
+      const refund = 100 * CFG.ULT.offRefund * (u.t / this.ultDur());
       this.endUlt(refund);
       this.hud.flash('ULT OFF', '#66ffcc');
       return;
     }
     if (u.meter < 100) { this.hud.flash('Ultimate not ready', '#99a'); return; }
     if (this.bossUlt) { this.hud.flash('Boss ult in progress!', '#ff5566'); return; }
-    u.t = CFG.ULT.duration;
+    u.t = this.ultDur();
     u.startedAt = this.simT;
     this.player.ultPoseT = 0.5;
     this.world.ascii.set(true, CFG.ULT.playerTint);
@@ -500,7 +533,7 @@ export class Game {
     const u = this.ult, p = this.player;
     if (u.t > 0) {
       u.t -= dt;
-      u.meter = Math.max(0, Math.min(100, 100 * u.t / CFG.ULT.duration));
+      u.meter = Math.max(0, Math.min(100, 100 * u.t / this.ultDur()));
       if (u.t <= 0) this.endUlt();
     }
     const b = this.boss;
@@ -608,6 +641,7 @@ export class Game {
     this.hud.parryStreak(streak);
     this.sfx.parry(streak, big);
     this.addStyle('parry');
+    this.earn(0, CFG.META.croak.parry);
     if (src && !proj && src.team !== 'player') {
       src.flashT = 0.18;
       if (!src.isBoss && src.knock) src.knock(ang, PA.knock);
@@ -653,7 +687,7 @@ export class Game {
     const p = this.player;
     if (type === 'droplet' || type === 'bullet' || type === 'ammo' || Settings.get('autoPower')) { this.activatePower(type); return; }
     const slots = this.powerSlots || (this.powerSlots = []);
-    if (slots.length >= CFG.POWERUP.slots) this.activatePower(slots.shift()); // full: the oldest one fires so nothing is lost
+    if (slots.length >= this.player.up.slots) this.activatePower(slots.shift()); // full: the oldest one fires so nothing is lost
     slots.push(type);
     const def = POWERUPS[type];
     this.hud.flash(`${def.label} stored - press ${keyNameOf(CFG.KEYS.power)} to use`, '#' + def.color.toString(16).padStart(6, '0'));
@@ -672,8 +706,8 @@ export class Game {
     const P = CFG.POWERUP;
     switch (type) {
       case 'droplet': p.heal(6); this.sfx.play('heal'); return;
-      case 'bullet': p.ammo = Math.min(CFG.PLAYER.maxAmmo, p.ammo + 2); this.sfx.play('pickup'); return;
-      case 'ammo': p.ammo = Math.min(CFG.PLAYER.maxAmmo, p.ammo + 6); break;
+      case 'bullet': p.ammo = Math.min(p.maxAmmo, p.ammo + 2 + p.up.ammoDrop); this.sfx.play('pickup'); return;
+      case 'ammo': p.ammo = Math.min(p.maxAmmo, p.ammo + 6 + 2 * p.up.ammoDrop); break;
       case 'firefly': p.pu.fire = P.duration; break;
       case 'dragon': p.pu.dragon = P.duration; break;
       case 'bigmouth': p.pu.big = P.duration; break;
@@ -719,7 +753,11 @@ export class Game {
       // Big ink banner only for boss deathblows; regular bugs get a small label over their head.
       if (wasBroken && mine) { if (t.isBoss) this.hud.ink('DEATHBLOW'); else this.hud.worldLabel(t, 'DEATHBLOW', '#ffcc33'); }
       t.die(o.team);
-      if (mine) { this.addStyle('kill'); this.onKillUlt(t); }
+      if (mine) {
+        this.addStyle('kill'); this.onKillUlt(t);
+        const M = CFG.META, k = t.isBoss ? 'boss' : t.elite ? 'elite' : 'bug';
+        this.earn(M.gf[k] + (k === 'bug' && t.big ? 1 : 0), M.croak[k] + (wasBroken ? M.croak.deathblow : 0), t.x, t.y);
+      }
     }
     else if (t.onDamaged) t.onDamaged(dmg);
   }
@@ -754,7 +792,7 @@ export class Game {
   swordStrike({ team, x, y, yaw, step, src, mult = 1 }) {
     const S = CFG.SWORD;
     const range = S.range[step], half = S.halfArc[step];
-    let dmg = S.dmg[step] * mult * (team === 'player' && this.playerUlt ? CFG.ULT.mult : 1);
+    let dmg = S.dmg[step] * mult * (team === 'player' && this.playerUlt ? CFG.ULT.mult : 1) * (team === 'player' && src.up ? src.up.sword : 1);
     const crit = team === 'player' && src.counterT > 0;
     const rip = crit && src.riposteT > 0;
     if (crit) {
