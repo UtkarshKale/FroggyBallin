@@ -365,3 +365,6 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 
 .ico.ring { width: 20px; height: 20px; border-radius: 50%; align-items: center; justify-content: center; padding: 2px; }
 .ico.ring svg { width: 13px; height: 13px; background: #0a0a0c; border-radius: 50%; padding: 1px; }
+
+/* ink words never wrap: tighter tracking and size on narrow screens */
+.ink b { white-space: nowrap; font-size: clamp(30px, 6.5vw, 96px); letter-spacing: .22em; padding-left: .22em; max-width: 96vw; }

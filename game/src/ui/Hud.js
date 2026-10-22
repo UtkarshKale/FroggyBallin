@@ -88,6 +88,15 @@ export class Hud {
     this.numI = 0;
   }
 
+  // Clear one-shot overlays and queued messages so nothing from the last run leaks into the next.
+  resetTransient() {
+    const e = this.el;
+    this.toastQ = []; this.toastT = 0; this._toastText = ''; e.toast.style.opacity = 0;
+    this.bannerT = 0; e.banner.style.opacity = 0;
+    for (const el of [e.ink, e.cutin, e.flourish, e.pslash, e.pwipe, e.streak]) { el.classList.remove('go', 'pop'); }
+    e.ink.className = 'abs ink';
+  }
+
   _replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
 
   // Tilted, outlined damage number popping at a world position.

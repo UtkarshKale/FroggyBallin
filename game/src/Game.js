@@ -241,6 +241,7 @@ export class Game {
 
   begin() {
     this.state = 'PLAYING';
+    this.hud.resetTransient();
     this.hud.show(true);
     this.screens.hide();
     this.input.clear();
