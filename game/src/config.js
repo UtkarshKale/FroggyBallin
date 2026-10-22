@@ -25,7 +25,7 @@ export const CFG = {
     turnRate: 18, armTurn: 22, aimMin: 320, aimMax: 900, recoil: 7, spread: 0.05, aimSpread: 0.008, equipTime: 0.28, bulletZ: 30 },
   // F: quick sword flurry from any weapon (auto-draws the sword in gun mode, then returns to the gun).
   FLURRY: { hits: 3, gap: 0.1, dmg: 0.7, cooldown: 1.1, speedMult: 0.75 },
-  // Sekiro-style posture: filling an enemy's bar breaks it (stunned, deathblow x3). Player has one too.
+  // Posture (stance-break): filling an enemy's bar breaks it (stunned, deathblow x3). Player has one too.
   POSTURE: { regen: 14, delay: 1.6, brokenTime: 2.5, deathblow: 3, sword: [8, 8, 16], critMult: 2, parryMin: 25, parryFrac: 0.5, reflectHit: 25, bossStun: 3.5 },
   PLAYER_POSTURE: { max: 100, regen: 18, delay: 1.0, blockMult: 1.6, blockAdd: 4, hitMult: 0.6, perfectRelief: 25, brokenTime: 1.4 },
   CAMERA: { dist: 270, gunDist: 300, aimDist: 235, fov: 55, gunFov: 52, aimFov: 42, shoulder: 70, gunLift: 22, gunPitchMin: 0.3 },

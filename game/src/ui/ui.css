@@ -88,7 +88,7 @@
 @keyframes slam { 0% { opacity: 0; transform: translateY(-50%) scale(3); } 60% { opacity: 1; transform: translateY(-50%) scale(.95); } 100% { opacity: 1; transform: translateY(-50%) scale(1); } }
 .skip { position: absolute; right: 20px; bottom: 16vh; font-size: 13px; opacity: .8; z-index: 7; }
 
-/* Sekiro-style posture / stance bars: fill from both edges toward the center */
+/* Posture (stance-break) / stance bars: fill from both edges toward the center */
 .stance { position: relative; width: min(320px, 55vw); height: 10px; background: rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.4); border-radius: 6px; overflow: hidden; }
 .stance i { position: absolute; top: 0; bottom: 0; width: 0; background: #e8e8e8; transition: width .06s linear; }
 .stance .sl { left: 0; } .stance .sr { right: 0; }

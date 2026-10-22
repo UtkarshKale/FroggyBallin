@@ -675,7 +675,7 @@ export class Game {
     else if (t.onDamaged) t.onDamaged(dmg);
   }
 
-  // Sekiro-style posture: fill the bar to break the target (stun + deathblow window).
+  // Posture (stance-break): fill the bar to break the target (stun + deathblow window).
   addPosture(t, amt) {
     if (!t || t.dead || !t.postureMax || t.broken > 0 || t.stunned) return;
     t.posture += amt;

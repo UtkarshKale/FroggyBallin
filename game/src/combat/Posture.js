@@ -1,4 +1,4 @@
-// Sekiro-style posture helpers shared by bugs, bosses and the ghost.
+// Posture (stance-break) helpers shared by bugs, bosses and the ghost.
 export function initPosture(e, max) {
   e.postureMax = max;
   e.posture = 0;
