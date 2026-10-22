@@ -393,3 +393,7 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 .cutin b { font-size: clamp(30px, 6vw, 72px); line-height: 1.15; padding: 0 .25em 0 .1em; white-space: nowrap; max-width: 80vw; }
 .cutin small { white-space: normal; max-width: 70vw; }
 #ui { overflow: hidden; }
+
+.tipline { margin-top: 12px; font-size: 13px; color: #ddd; text-align: left; max-width: 520px; }
+.tipline b { color: #ffd23f; margin-right: 6px; font-family: Consolas, monospace; }
+#boot .boottip { max-width: min(560px, 86vw); text-align: center; font: 600 14px 'Segoe UI', Arial, sans-serif; color: #ddd; min-height: 20px; }

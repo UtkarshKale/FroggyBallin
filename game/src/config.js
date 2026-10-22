@@ -48,10 +48,17 @@ export const CFG = {
   // Ultimate (ASCII mode). Player ult: G when the meter is full (G again ends it early, refunding part of the rest).
   // Moderate buffs: damage x mult, posture x postureMult, tongue range x tongueMult, stamina regen, move/attack speed. Bosses ult once per phase; never overlaps the player's.
   // Ult meter fills from kills (elites/bosses more), a little from parries and boss damage; kills during the ult extend it.
-  ULT: { perKill: 9, eliteKill: 22, bossKill: 40, parryGain: 3, bossDmgGain: 0.08, killExtend: 0.5, maxTime: 10, toggleGuard: 0.4, offRefund: 0.3, cell: 9, glitchTime: 0.35, fadeNear: 380, fadeFar: 900, black: 0.42, cutoff: 0.07, actorMin: 0.65, gain: 0, duration: 8, mult: 1.6, postureMult: 1.5, tongueMult: 1.4, staminaRegen: 2, moveMult: 1.25, atkSpeed: 1.3,
+  ULT: { perKill: 9, eliteKill: 22, bossKill: 40, parryGain: 3, bossDmgGain: 0.08, killExtend: 0.5, maxTime: 10, toggleGuard: 0.4, offRefund: 0.3, cell: 9, glitchTime: 0.35, fadeNear: 380, fadeFar: 900, black: 0.42, cutoff: 0.07, gain: 0, duration: 8, mult: 1.6, postureMult: 1.5, tongueMult: 1.4, staminaRegen: 2, moveMult: 1.25, atkSpeed: 1.3,
     bossWindup: 1.0, bossDuration: 8, bossDelay: [5, 10], bossSpeed: 1.5, bossDmg: 2.5,
     playerTint: 0x66ffcc, bossTint: 0xff3344,
     bossEffects: { hornet: 'noRegen', stag: 'reverse', mantis: 'tightParry', moth: 'shift', spider: 'webs' } },
+  // ASCII ult view brightness layers. Enemies, bosses, the ghost and every attack are the brightest things
+  // on screen; Tode a notch below; scenery capped low so it recedes. *Min = lowest glyph density (0..1),
+  // plain keys = colour brightness. halo/haloTone = glow ring of glyphs around enemies and attacks,
+  // glow = faint cell fill behind them, bold = glyph thickening in atlas pixels for enemies and attacks,
+  // area/areaMin = telegraph marker fills (their outline rings stay full danger).
+  ASCII: { scene: 0.45, sceneTone: 0.7, player: 0.9, playerMin: 0.78, enemy: 1.0, enemyMin: 0.9, danger: 1.0, dangerMin: 0.94,
+    fx: 1.0, fxMin: 0.78, heal: 1.0, halo: 0.4, haloTone: 0.55, glow: 0.1, bold: 1.6, area: 0.5, areaMin: 0.32, dangerColor: 0xff1a12 },
   // Perilous attacks. 'dodge': can't be parried, dodge (or jump sweeps); hits hard. 'counter': dodge it to open a RIPOSTE.
   PERIL: { dmgMult: 1.3, postureMult: 1.2, dodgeRelief: 20, riposte: 0.6, ripostePosture: 3, riposteLunge: 110, slow: 0.12, glyphTime: 0.9 },
   // Art/feel pass: floating damage numbers, kill flash, CRT overlay hit fringe.
@@ -69,6 +76,8 @@ export const CFG = {
   META: { rankBase: 120, maxRank: 30,
     gf: { bug: 2, elite: 8, boss: 60, clear: 100, srank: 40 },
     croak: { bug: 5, elite: 15, boss: 100, parry: 3, deathblow: 6, clear: 150 } },
+  // Extra reach per enemy toughness, on top of DIFFICULTY.attackRange
+  REACH: { gnat: 1, juicebug: 1, spiderling: 1, echo: 1, ant: 1.1, wasp: 1.1, shellback: 1.15, bomber: 1.15, leech: 1.15, elite: 1.2, boss: 1.25 },
   SAMPLE_DT: 0.05,
 
   KEYS: {
@@ -98,14 +107,15 @@ export const POWERUPS = {
 // posture: posture gained by the frog; heal: drop rate; ult: ult meter gain; bossUlt: boss ult frequency (repeat: re-arm
 // after each ult); tele: telegraph length; perilMix: share of perilous attacks; fakeOut: chance of a delayed wind-up;
 // random: attack types are rolled at random every attack (only the glyph colour tells you).
+// attackRange: enemy/boss melee reach, lunge distance, blast/impact radius and telegraph marker size (markers match).
 // hitCap: no single hit can take more than this share of max HP (stacked ult x perilous x difficulty can't one-shot).
 export const DIFFICULTY = {
-  baby: { label: 'BABY', hitCap: 0.3, hp: 0.9, bossHp: 0.9, ghostHp: 0.85, dmg: 0.7, speed: 0.9, parry: 1.35, posture: 0.8, heal: 1.3, ult: 1.3, bossUlt: 0.6, tele: 1.45, perilMix: 0.1, fakeOut: 0, random: false, repeat: false,
+  baby: { label: 'BABY', attackRange: 0.9, hitCap: 0.3, hp: 0.9, bossHp: 0.9, ghostHp: 0.85, dmg: 0.7, speed: 0.9, parry: 1.35, posture: 0.8, heal: 1.3, ult: 1.3, bossUlt: 0.6, tele: 1.45, perilMix: 0.1, fakeOut: 0, random: false, repeat: false,
     desc: 'For anyone who just wants to hop around and eat bugs. Gentle bugs, a wider parry window and long, clear warnings, but bugs still bite.' },
-  normal: { label: 'NORMAL', hitCap: 0.4, hp: 1, bossHp: 1, ghostHp: 1, dmg: 1, speed: 1, parry: 1, posture: 1, heal: 1, ult: 1, bossUlt: 1, tele: 1, perilMix: 0.3, fakeOut: 0, random: false, repeat: false,
+  normal: { label: 'NORMAL', attackRange: 1, hitCap: 0.4, hp: 1, bossHp: 1, ghostHp: 1, dmg: 1, speed: 1, parry: 1, posture: 1, heal: 1, ult: 1, bossUlt: 1, tele: 1, perilMix: 0.3, fakeOut: 0, random: false, repeat: false,
     desc: 'The intended way to play.' },
-  mayhem: { label: 'MAYHEM', hitCap: 0.5, hp: 1.2, bossHp: 1.2, ghostHp: 1.2, dmg: 1.4, speed: 1.15, parry: 0.8, posture: 1.2, heal: 0.8, ult: 0.9, bossUlt: 1.6, tele: 0.8, perilMix: 0.55, fakeOut: 0.3, random: false, repeat: false,
-    desc: 'Faster, meaner bugs, tight parries, more perilous attacks and fake-outs. You asked for it.' },
-  torture: { label: 'TORTURE', hitCap: 0.65, hp: 1.4, bossHp: 1.4, ghostHp: 1.4, dmg: 2, speed: 1.25, parry: 0.65, posture: 1.4, heal: 0.6, ult: 0.8, bossUlt: 2.5, tele: 0.6, perilMix: 0.6, fakeOut: 0.35, random: true, repeat: true,
-    desc: 'Only for people who love challenges. Bugs hit hard, bosses ult constantly, attack types are random and only the glyph colour warns you.' },
+  mayhem: { label: 'MAYHEM', attackRange: 1.2, hitCap: 0.5, hp: 1.2, bossHp: 1.2, ghostHp: 1.2, dmg: 1.4, speed: 1.15, parry: 0.8, posture: 1.2, heal: 0.8, ult: 0.9, bossUlt: 1.6, tele: 0.8, perilMix: 0.55, fakeOut: 0.3, random: false, repeat: false,
+    desc: 'Faster, meaner bugs with longer reach, tight parries, more perilous attacks and fake-outs. You asked for it.' },
+  torture: { label: 'TORTURE', attackRange: 1.4, hitCap: 0.65, hp: 1.4, bossHp: 1.4, ghostHp: 1.4, dmg: 2, speed: 1.25, parry: 0.65, posture: 1.4, heal: 0.6, ult: 0.8, bossUlt: 2.5, tele: 0.6, perilMix: 0.6, fakeOut: 0.35, random: true, repeat: true,
+    desc: 'Only for people who love challenges. Bugs hit hard from far away, bosses ult constantly, attack types are random and only the glyph colour warns you.' },
 };

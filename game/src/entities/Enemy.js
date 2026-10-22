@@ -315,7 +315,7 @@ export class Enemy {
 
   // Explosion when a bomber dies. 'player' blasts hurt bugs/bosses/ghost; 'bug' blasts hurt the frog.
   _boom(team) {
-    const g = this.g, B = CFG.BOMBER, R = B.radius;
+    const g = this.g, B = CFG.BOMBER, R = B.radius * g.reachK(this);
     g.fx.ring(this.x, this.y, 6, 0xff7a1a, 10, R, 0.35);
     g.fx.disc(this.x, this.y, 8, 0xffcc66, 10, R * 0.8, 0.2, 0.7);
     g.fx.burst(this.x, this.y, 20, 0xff7a1a, 26, 320, 0.5, 4, 200);
@@ -351,7 +351,7 @@ export class Enemy {
         this._face(ang, 10, dt);
         const wob = Math.sin(this.t * 6 + this.x) * 0.5;
         this._go(ang + wob, this.speed, dt);
-        if (d < this.radius + p.radius + 8 && this.atkCd <= 0) {
+        if (d < this.radius + p.radius + 8 * this.g.reachK(this) && this.atkCd <= 0) {
           this.atkCd = 0.9;
           p.takeHit(5, this, { parryable: true });
         }
@@ -376,7 +376,7 @@ export class Enemy {
             this.shotCd = 2.2 + Math.random() * 0.6;
             this.g.projectiles.spawn({ x: this.x, y: this.y, z: 36, angle: Math.atan2(p.y - this.y, p.x - this.x), speed: 320, dmg: 12, team: 'bug', radius: 9, color: 0x99ff33, owner: this });
           }
-        } else if (this.shotCd <= 0 && d < 700) {
+        } else if (this.shotCd <= 0 && d < 700 * this.g.reachK(this)) {
           this.atk = { k: 'wind', t: 0 };
           this.g.sfx.play('warn');
         }
@@ -386,7 +386,7 @@ export class Enemy {
         if (!this.atk) {
           this._face(ang, 5, dt);
           this._go(ang, this.speed, dt);
-          if (d < 90 && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0, type: this.g.rollEnemyType() }; this.g.perilTelegraph(this, this.atk.type, 0.6 * this.g.D.tele); }
+          if (d < 90 * this.g.reachK(this) && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0, type: this.g.rollEnemyType() }; this.g.perilTelegraph(this, this.atk.type, 0.6 * this.g.D.tele); }
         } else {
           this.atk.t += dt;
           if (this.atk.t >= 0.55 * this.g.D.tele) {
@@ -394,8 +394,8 @@ export class Enemy {
             this.atk = null;
             this.atkCd = 1.8;
             const front = Math.abs(angDiff(this.yaw, Math.atan2(p.y - this.y, p.x - this.x))) < 1.1;
-            if (d < 105 && front) p.takeHit(16, this, hitOpts(this.atk ? this.atk.type : this._lastType, { sweep: true }));
-            this.g.fx.ring(this.x + Math.cos(this.yaw) * 50, this.y + Math.sin(this.yaw) * 50, 5, 0xaaaaff, 10, 55, 0.25);
+            if (d < 105 * this.g.reachK(this) && front) p.takeHit(16, this, hitOpts(this.atk ? this.atk.type : this._lastType, { sweep: true }));
+            this.g.fx.ring(this.x + Math.cos(this.yaw) * 50, this.y + Math.sin(this.yaw) * 50, 5, 0xaaaaff, 10, 55 * this.g.reachK(this), 0.25);
           }
         }
         break;
@@ -405,7 +405,7 @@ export class Enemy {
         if (!this.atk) {
           this._face(ang, 7, dt);
           this._go(ang, this.speed, dt);
-          if (d < 180 && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0 }; this.g.sfx.play('fuse'); }
+          if (d < 180 * this.g.reachK(this) && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0 }; this.g.sfx.play('fuse'); }
         } else if (this.atk.k === 'wind') {
           // Fuse burning: stands still, spark flickers, then hops at the frog.
           this.atk.t += dt;
@@ -414,7 +414,7 @@ export class Enemy {
           if (this.atk.t >= B.fuse) this.atk = { k: 'hop', t: 0, yaw: ang, hit: false };
         } else {
           this.atk.t += dt;
-          this._go(this.atk.yaw, B.hopSpeed, dt);
+          this._go(this.atk.yaw, B.hopSpeed * this.g.reachK(this), dt);
           if (!this.atk.hit && d < this.radius + p.radius + 10) {
             this.atk.hit = true;
             const res = p.takeHit(B.dmg, this, { parryable: true });
@@ -430,7 +430,7 @@ export class Enemy {
       case 'leech': {
         this._face(ang, 5, dt);
         this._go(ang + Math.sin(this.t * 5) * 0.4, this.speed, dt);
-        if (d < this.radius + p.radius + 8 && this.atkCd <= 0) {
+        if (d < this.radius + p.radius + 8 * this.g.reachK(this) && this.atkCd <= 0) {
           this.atkCd = 1.0;
           const res = p.takeHit(CFG.LEECH.latchDmg, this, { parryable: true });
           if (res === 'hit') {
@@ -446,7 +446,7 @@ export class Enemy {
         if (!this.atk) {
           this._face(ang, 9, dt);
           this._go(ang, this.speed, dt);
-          if (d < 110 && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0, yaw: ang, type: this.g.rollEnemyType() }; this.g.perilTelegraph(this, this.atk.type, 0.5 * this.g.D.tele); }
+          if (d < 110 * this.g.reachK(this) && this.atkCd <= 0) { this.atk = { k: 'wind', t: 0, yaw: ang, type: this.g.rollEnemyType() }; this.g.perilTelegraph(this, this.atk.type, 0.5 * this.g.D.tele); }
         } else if (this.atk.k === 'wind') {
           this.atk.t += dt;
           const tl = this.g.D.tele;
@@ -455,8 +455,8 @@ export class Enemy {
           if (this.atk.t >= 0.45 * tl) this.atk = { k: 'dash', t: 0, yaw: this.atk.yaw, hit: false, type: this.atk.type };
         } else {
           this.atk.t += dt;
-          this._go(this.atk.yaw, 720, dt);
-          if (!this.atk.hit && d < this.radius + p.radius + 14) {
+          this._go(this.atk.yaw, 720 * this.g.reachK(this), dt);
+          if (!this.atk.hit && d < this.radius + p.radius + 14 * this.g.reachK(this)) {
             this.atk.hit = true;
             p.takeHit(14, this, hitOpts(this.atk.type));
             if (!this.atk) break; // a perfect parry (onParried) cancels the dash
@@ -483,7 +483,7 @@ export class Enemy {
     const sk = sp * this.sizeK;
     this.root.scale.set(sk * (1 + Math.abs(w) * 0.4), sk * (1 + Math.abs(w) * 0.4), sk * (1 - Math.abs(w) * 0.3));
     // ASCII-ult semantics: juicebugs are health, attacking / armed bugs are danger.
-    this.g.world.tag(this.root, this.type === 'juicebug' ? 'heal' : (this.atk || this.launch || this.latched || this.type === 'bomber') ? 'danger' : 'actor');
+    this.g.world.tag(this.root, this.type === 'juicebug' ? 'heal' : (this.atk || this.launch || this.latched || this.type === 'bomber') ? 'danger' : 'enemy');
     const p = this.g.player;
     const near = Math.hypot(p.x - this.x, p.y - this.y) < CFG.TONGUE.range * (p.pu.big > 0 ? 2 : 1) + 40;
     this.overhead.update(this.g.world.camera, this.x, this.y, zz + this.radius * 2 + 14, this.hp / this.maxHp, this.posture / this.postureMax, this.broken > 0, this.eatable && near);

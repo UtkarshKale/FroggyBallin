@@ -203,7 +203,8 @@ export class World {
 
   snapCamera() { this.cam.init = false; }
 
-  // Semantic tag for the ASCII ult view: 'danger' (red), 'heal' (green), 'actor' (always bright) or null.
+  // Semantic tag for the ASCII ult view: 'danger' (red), 'heal' (green), 'enemy' (brightest white: bugs, bosses,
+  // ghost), 'fx' (bright effects: slashes, rings, sparks), 'actor' (Tode and friendly things) or null (scenery, dimmed).
   tag(root, kind) {
     if (!root || root.userData.tag === kind) return;
     root.userData.tag = kind;
@@ -213,6 +214,8 @@ export class World {
       if (kind === 'danger') o.layers.enable(1);
       else if (kind === 'heal') o.layers.enable(2);
       else if (kind === 'actor') o.layers.enable(4);
+      else if (kind === 'enemy') o.layers.enable(6);
+      else if (kind === 'fx') o.layers.enable(7);
     });
     if (kind) this.tagged.add(root); else this.tagged.delete(root);
     if (this.tagged.size > 400) for (const r of this.tagged) if (!r.parent) this.tagged.delete(r);

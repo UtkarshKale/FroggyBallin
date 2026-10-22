@@ -32,6 +32,7 @@ export const UNLOCK_BUNDLES = [
   { ach: 'boss', label: 'CHAMPION SET', per: 'Crown, glowing eyes, gold gun', cost: 250 },
   { ach: 'srank', label: 'GOLDEN SET', per: 'Gold skin and gold blade', cost: 300 },
   { ach: 'allbosses', label: 'HALO', per: 'The halo hat', cost: 400 },
+  { ach: 'kasa', label: 'SAMURAI HAT', per: 'A big conical straw hat', cost: 150 },
 ];
 
 const fresh = () => ({ gf: 0, croak: 0, rank: 1, lp: 0, spentLp: 0, ups: {}, cons: {} });

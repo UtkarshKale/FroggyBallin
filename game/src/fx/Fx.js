@@ -16,6 +16,17 @@ function pmat(color) {
 const arcCache = new Map();
 const HEAL = new Set([0x55ff55, 0x66ff66, 0x7dff6a, 0x9dff8a]);
 
+// ASCII tag for an effect by colour: heal colours green, enemy-attack hues (red/orange, violet) danger, rest bright fx.
+const DANGER_FX = new Set([0xaaaaff, 0xff88aa]);
+function fxKind(color) {
+  if (HEAL.has(color)) return 'heal';
+  if (DANGER_FX.has(color)) return 'danger';
+  const r = (color >> 16 & 255) / 255, g = (color >> 8 & 255) / 255, b = (color & 255) / 255;
+  if (r > 0.85 && g < 0.55 && b < 0.6) return 'danger';
+  if (b > 0.85 && r > 0.55 && g < 0.75) return 'danger';
+  return 'fx';
+}
+
 export class Fx {
   constructor(scene) {
     this.scene = scene;
@@ -32,7 +43,7 @@ export class Fx {
     for (let i = 0; i < n; i++) {
       if (this.parts.length > 350) return;
       const m = new THREE.Mesh(sphere, pmat(color));
-      if (this.tagger && HEAL.has(color)) this.tagger(m, 'heal');
+      if (this.tagger) this.tagger(m, fxKind(color));
       const a = Math.random() * TAU;
       const el = Math.random() * 1.2;
       const v = speed * (0.4 + Math.random() * 0.6);
@@ -44,6 +55,7 @@ export class Fx {
   }
 
   _flat(mesh, mat, life, s0, s1, op) {
+    if (this.tagger && !mesh.userData.tag) this.tagger(mesh, fxKind(mat.color.getHex()));
     this.scene.add(mesh);
     const f = { m: mesh, mat, life, max: life, s0, s1, op };
     this.flats.push(f);
@@ -85,6 +97,7 @@ export class Fx {
   marker(x, y, r, color = 0xff2200) {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.5, depthWrite: false, side: THREE.DoubleSide });
     const m = new THREE.Mesh(discGeo, mat);
+    m.userData.softMask = true; // ASCII: fill drawn as soft red, the outline ring stays full danger
     m.position.set(x, y, 2);
     m.scale.setScalar(r);
     // Neon outline ring on top of the fill so boss telegraphs read at a glance.
@@ -114,6 +127,7 @@ export class Fx {
       const m = new THREE.Mesh(boxGeo, mat);
       m.quaternion.setFromUnitVectors(X_AXIS, d);
       m.position.set(x, y, z);
+      if (this.tagger) this.tagger(m, fxKind(color));
       this.scene.add(m);
       this.streakList.push({ m, mat, d, x, y, z, len: len * (0.6 + Math.random() * 0.7), life, max: life });
     }
@@ -129,6 +143,7 @@ export class Fx {
     m.quaternion.setFromUnitVectors(X_AXIS, d);
     m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
     m.scale.set(len, 1.6, 1.6);
+    if (this.tagger) this.tagger(m, fxKind(color));
     this.scene.add(m);
     this.streakList.push({ m, mat, d, x: x0, y: y0, z: z0, len, life, max: life, tracer: true });
   }
@@ -146,6 +161,7 @@ export class Fx {
     const s = new THREE.Sprite(mat);
     s.position.set(x, y, z);
     s.material.rotation = Math.random() * 3;
+    if (this.tagger) this.tagger(s, fxKind(color));
     this.scene.add(s);
     this.flats.push({ m: s, mat, life, max: life, s0: size * 0.6, s1: size * 1.4, op: 1 });
   }
@@ -156,6 +172,7 @@ export class Fx {
     const m = new THREE.Mesh(sphere, pmat(color));
     m.position.set(x, y, z);
     m.scale.setScalar(size);
+    if (this.tagger) this.tagger(m, fxKind(color));
     this.scene.add(m);
     this.parts.push({ m, vx: 0, vy: 0, vz: 0, life, max: life, grav: 0 });
   }

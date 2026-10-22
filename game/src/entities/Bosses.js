@@ -96,7 +96,7 @@ class Boss {
     this.lean = (this.lean || 0) + (target - (this.lean || 0)) * (1 - Math.exp(-CFG.ANIM.bossLean * dt));
     this.root.rotation.order = 'ZYX';
     this.root.rotation.y = this.lean;
-    this.g.world.tag(this.root, this.telegraph || (this.state !== 'move' && this.state !== 'stunned') ? 'danger' : 'actor');
+    this.g.world.tag(this.root, this.telegraph || (this.state !== 'move' && this.state !== 'stunned') ? 'danger' : 'enemy');
     if (this.flashT > 0) setFlash(this.flashList, 0xffffff);
     else if (this.stunned) setFlash(this.flashList, Math.floor(this.t * 12) % 2 ? 0xaaaa00 : 0x333300);
     else if (this.telegraph) { const c = TELE_COLORS[this.atkType] || TELE_COLORS.normal; setFlash(this.flashList, Math.floor(this.t * 18) % 2 ? c[0] : c[1]); }
@@ -235,7 +235,7 @@ export class HornetQueen extends Boss {
         this.z = lerp(this.z, 230, 1 - Math.exp(-6 * dt));
         this.yaw = lerpAngle(this.yaw, ang, 1 - Math.exp(-8 * dt));
         const lockAt = ph2 ? 0.6 : 0.8;
-        if (!this.marker) this.marker = g.fx.marker(p.x, p.y, 130, 0xff2200);
+        if (!this.marker) this.marker = g.fx.marker(p.x, p.y, 130 * g.reachK(this), 0xff2200);
         if (this.st < lockAt) { this.mx = p.x; this.my = p.y; this.marker.m.position.set(this.mx, this.my, 2); }
         this.telegraph = true;
         if (this.st >= lockAt + 0.35) { this.state = 'diveFall'; this.st = 0; this.sx = this.x; this.sy = this.y; this.sz = this.z; g.sfx.play('buzz'); }
@@ -312,7 +312,7 @@ export class HornetQueen extends Boss {
     g.fx.addShake(12);
     g.sfx.play('slam');
     const d = Math.hypot(p.x - this.x, p.y - this.y);
-    if (d < 130 + p.radius && p.z < 60) {
+    if (d < 130 * g.reachK(this) + p.radius && p.z < 60) {
       const res = p.takeHit(24, this, this.hitOpts());
       if (res === 'perfect') { this.stun(3); return; }
     }
@@ -409,10 +409,10 @@ export class StagBeetleKing extends Boss {
         this.yaw = lerpAngle(this.yaw, ang, 1 - Math.exp(-6 * dt));
         if (!this.fired && this.st >= 0.5) {
           this.fired = true;
-          g.fx.slash(this.x, this.y, 18, this.yaw, 230, 1.0, 0xff6633);
+          g.fx.slash(this.x, this.y, 18, this.yaw, 230 * g.reachK(this), 1.0, 0xff6633);
           g.sfx.play('slash');
           const front = Math.abs(angDiff(this.yaw, ang)) < 1.1;
-          if (d < 230 + p.radius && front) {
+          if (d < 230 * g.reachK(this) + p.radius && front) {
             const res = p.takeHit(22, this, this.hitOpts());
             if (res === 'perfect') { this.hp -= 20; this.flashT = 0.15; this.stagger = 1.5; this.state = 'recover'; this.st = 0; return; }
           }
@@ -640,10 +640,10 @@ export class MantisDuelist extends Boss {
           if (cs.t >= wt) {
             this.strikeT = 0.15;
             this.x += Math.cos(this.yaw) * 55; this.y += Math.sin(this.yaw) * 55;
-            g.fx.slash(this.x, this.y, 18, this.yaw, 190, 1.0, 0xff7733);
+            g.fx.slash(this.x, this.y, 18, this.yaw, 190 * g.reachK(this), 1.0, 0xff7733);
             g.sfx.play('slash');
             const dd = Math.hypot(p.x - this.x, p.y - this.y);
-            if (dd < 190 + p.radius && Math.abs(angDiff(this.yaw, Math.atan2(p.y - this.y, p.x - this.x))) < 1.0) {
+            if (dd < 190 * g.reachK(this) + p.radius && Math.abs(angDiff(this.yaw, Math.atan2(p.y - this.y, p.x - this.x))) < 1.0) {
               p.takeHit(15, this, hitOpts(cs.type));
               if (this.state !== 'combo') return;
             }
@@ -670,7 +670,7 @@ export class MantisDuelist extends Boss {
           g.fx.addShake(10);
           g.sfx.play('slam');
           const dd = Math.hypot(p.x - this.x, p.y - this.y);
-          if (dd < 110 + p.radius && p.z < 50) {
+          if (dd < 110 * g.reachK(this) + p.radius && p.z < 50) {
             const res = p.takeHit(22, this, this.hitOpts());
             if (res === 'perfect') { this.stun(3); return; }
           }
@@ -825,7 +825,7 @@ export class ChronoMoth extends Boss {
       case 'diveMark': {
         this.z = lerp(this.z, 230, 1 - Math.exp(-6 * dt));
         const lockAt = ph2 ? 0.6 : 0.8;
-        if (!this.marker) this.marker = g.fx.marker(p.x, p.y, 130, 0xaa66ff);
+        if (!this.marker) this.marker = g.fx.marker(p.x, p.y, 130 * g.reachK(this), 0xaa66ff);
         if (this.st < lockAt) { this.mx = p.x; this.my = p.y; this.marker.m.position.set(this.mx, this.my, 2); }
         this.telegraph = true;
         if (this.st >= lockAt + 0.35) { this.state = 'diveFall'; this.st = 0; this.sx = this.x; this.sy = this.y; this.sz = this.z; g.sfx.play('buzz'); }
@@ -912,7 +912,7 @@ export class ChronoMoth extends Boss {
     g.fx.addShake(12);
     g.sfx.play('slam');
     const d = Math.hypot(p.x - this.x, p.y - this.y);
-    if (d < 130 + p.radius && p.z < 60) {
+    if (d < 130 * g.reachK(this) + p.radius && p.z < 60) {
       const res = p.takeHit(24, this, this.hitOpts());
       if (res === 'perfect') { this.stun(3); return; }
     }
@@ -1061,7 +1061,7 @@ export class SpiderMatriarch extends Boss {
       }
       case 'dropMark': {
         const lockAt = ph2 ? 0.65 : 0.9;
-        if (!this.marker) this.marker = g.fx.marker(p.x, p.y, 135, 0xaa44ff);
+        if (!this.marker) this.marker = g.fx.marker(p.x, p.y, 135 * g.reachK(this), 0xaa44ff);
         if (this.st < lockAt) { this.mx = p.x; this.my = p.y; this.x = lerp(this.x, p.x, 1 - Math.exp(-6 * dt)); this.y = lerp(this.y, p.y, 1 - Math.exp(-6 * dt)); this.marker.m.position.set(this.mx, this.my, 2); }
         this.telegraph = true;
         if (this.st >= lockAt + 0.35) { this.state = 'dropFall'; this.st = 0; this.sx = this.x; this.sy = this.y; this.sz = this.z; g.sfx.play('buzz'); }
@@ -1085,10 +1085,10 @@ export class SpiderMatriarch extends Boss {
         if (!this.fired && this.st >= 0.45) {
           this.fired = true;
           this.x += Math.cos(this.yaw) * 80; this.y += Math.sin(this.yaw) * 80;
-          g.fx.slash(this.x, this.y, 20, this.yaw, 170, 0.9, 0xd8b0ff);
+          g.fx.slash(this.x, this.y, 20, this.yaw, 170 * g.reachK(this), 0.9, 0xd8b0ff);
           g.sfx.play('slash');
           const dd = Math.hypot(p.x - this.x, p.y - this.y);
-          if (dd < 170 + p.radius && Math.abs(angDiff(this.yaw, Math.atan2(p.y - this.y, p.x - this.x))) < 1.0) p.takeHit(18, this, this.hitOpts());
+          if (dd < 170 * g.reachK(this) + p.radius && Math.abs(angDiff(this.yaw, Math.atan2(p.y - this.y, p.x - this.x))) < 1.0) p.takeHit(18, this, this.hitOpts());
         }
         if (this.st >= 0.9) this.endAttack();
         break;
@@ -1168,7 +1168,7 @@ export class SpiderMatriarch extends Boss {
     g.sfx.play('slam');
     g.webs.add(this.x, this.y, CFG.WEB.r * 1.3);
     const d = Math.hypot(p.x - this.x, p.y - this.y);
-    if (d < 135 + p.radius && p.z < 60) {
+    if (d < 135 * g.reachK(this) + p.radius && p.z < 60) {
       const res = p.takeHit(26, this, this.hitOpts());
       if (res === 'perfect') { this.stun(3); return; }
     }

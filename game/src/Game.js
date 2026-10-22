@@ -27,6 +27,7 @@ import { Settings } from './core/Settings.js';
 import { Cosmetics, unlock, ACH } from './entities/Cosmetics.js';
 import { Keybinds, keyName as keyNameOf } from './core/Keybinds.js';
 import { Meta } from './core/Meta.js';
+import { tip } from './ui/Tips.js';
 import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
 
 const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null, maxCombo: 0, bestRank: 'D' });
@@ -65,6 +66,7 @@ export class Game {
 
   async init() {
     const bp = document.querySelector('#boot .bp i'), bs = document.querySelector('#boot small');
+    const bt = document.querySelector('#boot .boottip'); if (bt) bt.textContent = 'TIP: ' + tip();
     await preload(['tode', 'enemy', 'small_house'], (f, n) => { if (bp) bp.style.width = `${Math.round(f * 85)}%`; if (bs) bs.textContent = `LOADING ${n.toUpperCase()}...`; });
     this.world = new World(this.canvas);
     this.fx = new Fx(this.world.scene);
@@ -473,6 +475,13 @@ export class Game {
     const U = CFG.ULT, u = this.ult;
     if (u.t > 0) { u.t = Math.min(U.maxTime + this.player.up.ultDur, u.t + U.killExtend); return; }
     this.ultGain(t.isBoss ? U.bossKill : t.elite ? U.eliteKill : U.perKill);
+  }
+
+  // Attack reach multiplier for an enemy or boss: difficulty x toughness (elites / bosses reach further).
+  reachK(e) {
+    const R = CFG.REACH;
+    const t = e.isBoss ? R.boss : e.elite ? R.elite : R[e.type] || 1;
+    return this.D.attackRange * t;
   }
 
   ultDur() { return CFG.ULT.duration + (this.player.up ? this.player.up.ultDur : 0); }

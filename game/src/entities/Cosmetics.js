@@ -9,13 +9,14 @@ export const ACH = {
   allbosses: 'Clear Boss Rush',
   srank: 'Reach S rank',
   torture: 'Win a run on TORTURE',
+  kasa: 'Buy it in the Toad Shop',
 };
 
 export const SLOTS = {
   skin: { label: 'SKIN', opts: [['classic', 'CLASSIC', null], ['crimson', 'CRIMSON', 0xd23a3a], ['midnight', 'MIDNIGHT', 0x3a4cc8], ['ivory', 'IVORY', 0xf0ead8], ['toxic', 'TOXIC', 0xb6ff3a], ['coral', 'CORAL', 0xff8a6a], ['violet', 'VIOLET', 0x9a5cff], ['gold', 'GOLD', 0xffcc33, 'srank']] },
   glow: { label: 'PATTERN GLOW', opts: [['none', 'NONE', 0x000000], ['ember', 'EMBER', 0x441000], ['frost', 'FROST', 0x003344], ['venom', 'VENOM', 0x113300], ['void', 'VOID', 0x220033, 'torture']] },
   eyes: { label: 'EYES', opts: [['normal', 'NORMAL'], ['angry', 'ANGRY'], ['sleepy', 'SLEEPY'], ['shades', 'SHADES'], ['glow', 'GLOWING', null, 'boss']] },
-  hat: { label: 'HAT', opts: [['none', 'NONE'], ['bandana', 'BANDANA'], ['headband', 'HEADBAND'], ['party', 'PARTY HAT'], ['flower', 'FLOWER'], ['tophat', 'TOP HAT'], ['cape', 'CAPE'], ['crown', 'CROWN', null, 'boss'], ['halo', 'HALO', null, 'allbosses']] },
+  hat: { label: 'HAT', opts: [['none', 'NONE'], ['bandana', 'BANDANA'], ['headband', 'HEADBAND'], ['party', 'PARTY HAT'], ['flower', 'FLOWER'], ['tophat', 'TOP HAT'], ['cape', 'CAPE'], ['crown', 'CROWN', null, 'boss'], ['halo', 'HALO', null, 'allbosses'], ['kasa', 'SAMURAI HAT', null, 'kasa']] },
   blade: { label: 'BLADE', opts: [['silver', 'SILVER', 0xdfe8f0], ['crimson', 'CRIMSON', 0xff3344], ['neon', 'NEON CYAN', 0x55ffee], ['obsidian', 'OBSIDIAN', 0x2a2630], ['gold', 'GOLD', 0xffd23f, 'srank']] },
   hilt: { label: 'HILT', opts: [['gold', 'GOLD GUARD', 0xffc400], ['red', 'RED GUARD', 0xc8101e], ['black', 'BLACK GUARD', 0x1a1a1a], ['jade', 'JADE GUARD', 0x2fbf71]] },
   trail: { label: 'SLASH TRAIL', opts: [['white', 'WHITE', 0xffffff], ['red', 'RED', 0xff2a3a], ['cyan', 'CYAN', 0x66ddff], ['gold', 'GOLD', 0xffd23f], ['violet', 'VIOLET', 0xb48cff]] },
@@ -118,6 +119,21 @@ export function buildHat(id) {
       cape.rotation.y = Math.PI / 2 - 0.25; cape.position.set(-18, 0, -24);
       g.userData.cape = cape;
       g.add(cape, blob(0xffcc33, 2.5, 1, 1, 1, -6, 12, -12), blob(0xffcc33, 2.5, 1, 1, 1, -6, -12, -12));
+      break;
+    }
+    case 'kasa': {
+      // Big conical straw hat: a short band sits on the head top, the wide brim floats just above it so
+      // nothing pokes through the frog; chin cords hang down the sides.
+      const straw = stdMat(0xd9b25f, { roughness: 0.95 }), dark = stdMat(0x8a6a2a);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(9, 10, 5, 16), dark);
+      band.rotation.x = Math.PI / 2; band.position.z = 4.5;
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(34, 15, 24, 1, false), straw);
+      cone.rotation.x = Math.PI / 2; cone.position.z = 13.5;
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(33.5, 1.2, 6, 32), dark);
+      rim.position.z = 6.2;
+      const knob = blob(0x8a6a2a, 2.2, 1, 1, 1, 0, 0, 21.5);
+      for (const s of [1, -1]) { const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 18, 4), stdMat(0xc8101e)); cord.position.set(4, s * 16, -3); cord.rotation.x = s * 0.25; g.add(cord); }
+      g.add(band, cone, rim, knob);
       break;
     }
     case 'halo': {

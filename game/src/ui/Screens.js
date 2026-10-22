@@ -5,6 +5,7 @@ import { DIFFICULTY } from '../config.js';
 import { Settings } from '../core/Settings.js';
 import { ACTIONS, Keybinds, keyName } from '../core/Keybinds.js';
 import { CFG } from '../config.js';
+import { tip } from './Tips.js';
 
 // Menu, pause, stats, comic cutscenes, boss prelude. All DOM overlays.
 export class Screens {
@@ -159,7 +160,7 @@ export class Screens {
   }
 
   showPause() {
-    this._set(`<div class="card pausecard"><h2>Paused</h2><p>Resume locks the mouse again. ${keyName(CFG.KEYS.pause)} or Esc pauses.</p>
+    this._set(`<div class="card pausecard"><h2>Paused</h2><p>Resume locks the mouse again. ${keyName(CFG.KEYS.pause)} or Esc pauses.</p><p class="tipline"><b>TIP</b> ${tip()}</p>
       <div class="vbtns"><button class="menu-btn" id="b-res">Resume</button><button class="menu-btn alt" id="b-restart">Restart</button>
       <button class="menu-btn alt" id="b-set">Settings</button><button class="menu-btn alt" id="b-keys">Keybinds</button><button class="menu-btn alt" id="b-menu">Main Menu</button></div></div>`);
     this._btn('b-res', () => this.g.resume());
@@ -219,6 +220,7 @@ export class Screens {
     this._set(`<div class="card" style="min-width:min(520px,90vw)">
       <div class="stats-head"><h1 class="${d.win ? 'win' : 'lose'}">${d.title}</h1><div class="why">${d.why}${d.newPB ? ' <span class="newpb">NEW PERSONAL BEST!</span>' : ''}</div></div>
       <table>${rows.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('')}</table>
+      <p class="tipline"><b>TIP</b> ${tip()}</p>
       <div class="btnrow"><button class="menu-btn" id="b-again">${d.mode === 'timeloop' ? 'Next Iteration (R)' : 'Try Again (R)'}</button><button class="menu-btn alt" id="b-menu">Main Menu</button></div></div>`);
     this._btn('b-again', () => this.g.restart());
     this._btn('b-menu', () => this.g.toMenu());

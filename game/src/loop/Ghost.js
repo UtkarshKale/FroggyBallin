@@ -55,7 +55,7 @@ export class Ghost {
     this.mat = ghostify(this.root, 0x66ddff, 0.5);
     this.root.add(makeLabel(`ITERATION ${loopNo - 1}`));
     game.world.scene.add(this.root);
-    game.world.tag(this.root, 'actor');
+    game.world.tag(this.root, 'enemy');
     this.sync();
   }
 

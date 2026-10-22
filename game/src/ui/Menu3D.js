@@ -10,6 +10,7 @@ import { CFG } from '../config.js';
 import { ACTIONS, Keybinds, keyName } from '../core/Keybinds.js';
 import { Meta, UPGRADES, CONSUMABLES, UNLOCK_BUNDLES } from '../core/Meta.js';
 import { unlock } from '../entities/Cosmetics.js';
+import { tip } from './Tips.js';
 
 // The menu as a 3D diorama: Tode on a lily pad at dusk, fireflies, and the options as in-world neon panels.
 // The camera glides between "rooms". Mouse hover = raycast; click / Enter activates; arrows / WASD navigate;
@@ -174,6 +175,15 @@ export class Menu3D {
             const pb = Storage.get(g.sk('pb', l.id), null);
             return { kind: 'button', label: l.name.toUpperCase(), sub: `${l.blurb}  ${pb ? `Best ${fmtTime(pb.best)} (${pb.wins} wins)` : 'No record yet'}`, act: () => g.screens.wipe(() => g.startRun('timeloop', l.id)) };
           }),
+          // Reset iterations: clears every level's ghost and best time on the current difficulty (asks to confirm)
+          { kind: 'button', label: this._resetArmed ? 'PRESS AGAIN TO CONFIRM' : 'RESET ITERATIONS', sub: `Delete all ghosts and best times on ${g.D.label}`,
+            act: () => {
+              if (!this._resetArmed) { this._resetArmed = true; setTimeout(() => { this._resetArmed = false; }, 4000); this.go('levels', true); return; }
+              this._resetArmed = false;
+              for (const l of [...LEVELS, { id: 'bossrush' }]) { Storage.set(g.sk('ghost', l.id), null); Storage.set(g.sk('pb', l.id), null); }
+              g.sfx.play('rewind');
+              this.go('levels', true);
+            } },
           back,
         ],
       }),
@@ -210,12 +220,35 @@ export class Menu3D {
       next: () => { Settings.set(k, Math.min(hi, +(Settings.get(k) + step).toFixed(2))); after && after(); }, prev: () => { Settings.set(k, Math.max(lo, +(Settings.get(k) - step).toFixed(2))); after && after(); } });
     const apply = () => g.applySettings();
     const self = this;
-    const TIPS = { '3D MENUS': 'Menus as a 3D diorama. Off: classic flat menus.', 'IN-WORLD DMG NUMBERS': 'Damage numbers float in the scene instead of on the screen.', 'CRT OVERLAY': 'Scanlines, vignette and a colour fringe on big hits.', 'CRT STRENGTH': 'How strong the CRT overlay is (0-100%).',
-      'REDUCE FLASHING': 'No screen flashes, softer shake, short wipes.', 'MOUSE SENS': 'Camera turn speed.', 'AIM SENS (ADS)': 'Multiplier while aiming the gun (hold aim).', 'VERTICAL SENS': 'Multiplier for up/down camera movement.',
-      'AIM ASSIST': 'Soft magnetism toward a bug near the crosshair (0% = shots go exactly where you aim).', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'AUTO-USE POWER-UPS': 'Off: power-ups wait in two slots until you press the power key. On: they fire the moment you pick them up.', 'OBJECTIVE ARROW': 'Small arrow at your feet pointing to the next swarm, the boss arena or the goal.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
-    const tipCard = { kind: 'card', label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || 'Left/Right or click to change. Changes apply immediately and are saved.'; } };
+    const TIPS = {
+      '3D MENUS': 'Menus as a 3D diorama (default ON). OFF switches to the classic flat menus.',
+      'IN-WORLD DMG NUMBERS': 'Damage numbers float in the 3D scene (ON) or sit on the screen overlay (OFF).',
+      'HUD SCALE': 'Size of the bottom-left HUD cluster, 70% to 160% (default 100%).',
+      'HUD OPACITY': 'Transparency of the HUD cluster, 30% to 100% (default 100%).',
+      'HUD CORNER': 'Puts the HUD cluster in the bottom-left (default) or top-left corner.',
+      'CRT OVERLAY': 'Retro scanlines, vignette and a colour fringe on big hits (default OFF).',
+      'CRT STRENGTH': 'How strong the CRT overlay is, 0% to 100% (default 30%). Only used when CRT is ON.',
+      'REDUCE FLASHING': 'No screen flashes, softer camera shake and short wipes. Recommended if flashes bother you.',
+      'DAMAGE NUMBERS': 'Show or hide the floating damage numbers when you hit something.',
+      'OBJECTIVE ARROW': 'Small arrow at your feet pointing to the next swarm, the boss arena, the ghost or the goal.',
+      'AUTO-USE POWER-UPS': 'OFF (default): power-ups wait in your slots until you press the power key. ON: they fire on pickup.',
+      'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.',
+      'INVERT Y': 'Flips vertical mouse look (default OFF).',
+      'MOUSE SENS': 'Camera turn speed, 0.10 to 3.00 (default 1.00).',
+      'AIM SENS (ADS)': 'Multiplier on mouse speed while aiming the gun, 0.10 to 2.00 (default 0.55). Lower = steadier aim.',
+      'VERTICAL SENS': 'Multiplier for up/down camera movement, 0.20 to 2.00 (default 1.00).',
+      'RESET SENSITIVITY': 'Puts mouse, aim and vertical sensitivity back to their defaults.',
+      'FOV': 'Field of view in degrees, 40 to 90 (default 55). Gun and aim views stay a little narrower.',
+      'CAMERA DIST': 'How far the camera sits behind Tode, 180 to 420 (default 270).',
+      'AIM ASSIST': 'Soft pull of your shots toward a bug near the crosshair, 0% to 100% (default 25%). 0% = exactly where you aim.',
+      'MASTER VOL': 'Overall volume, 0% to 100% (default 60%).',
+      'SFX VOL': 'Sound effects volume, 0% to 100% (default 100%).',
+      'MUSIC VOL': 'Music volume, 0% to 100% (default 100%).',
+      'BACK': 'Return to the main menu. Settings are saved automatically.',
+    };
+    const tipCard = { kind: 'card', compact: true, label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || self._roomTip || 'Left/Right or click to change a setting. Changes apply at once and are saved.'; } };
     return {
-      card: { at: V(110, -150, 552), w: 440, h: 30, item: tipCard },
+      card: { at: V(110, -150, 556), w: 440, h: 40, item: tipCard },
       cam: V(560, -150, 420), look: V(40, -150, 422),
       grid: { at: V(110, -300, 490), w: 140, h: 22, cols: 3, dx: 150, dz: 27 }, rows: 6,
       items: [
@@ -367,10 +400,11 @@ export class Menu3D {
     return {
       cam: V(390, 40, 150), look: V(0, -70, 100), orbit: true,
       title: { label: d.title, at: V(60, -150, 218), w: 200, h: 36, accent: d.win ? '#33ff77' : '#ff2a3a' },
-      card: { at: V(60, -150, 135), w: 170, h: 122, item: { kind: 'card', label: d.why, body: rows.map((r) => `${r[0]}: ${r[1]}`).join('\n') + (d.newPB ? '\n*NEW PERSONAL BEST!' : '') } },
+      card: { at: V(60, -150, 135), w: 170, h: 122, item: { kind: 'card', label: d.why, body: rows.map((r) => `${r[0]}: ${r[1]}`).join('\n') + (d.newPB ? '\n*NEW PERSONAL BEST!' : '') + `\n\n*TIP: ${tip()}` } },
       list: { at: V(60, -150, 58), w: 130, h: 24, gap: 29 },
       items: [
         { kind: 'button', label: d.mode === 'timeloop' ? 'NEXT ITERATION (R)' : 'TRY AGAIN (R)', act: () => g.restart() },
+        ...(d.mode === 'timeloop' ? [{ kind: 'button', label: 'RESTART FROM ITERATION 1', act: () => { const id = g.levelCfg.id; Storage.set(g.sk('ghost', id), null); Storage.set(g.sk('pb', id), null); g.restart(); } }] : []),
         { kind: 'button', label: 'TOAD SHOP', act: () => g.screens.wipe(() => { g.toMenu(); this.go('shop'); }) },
         { kind: 'button', label: 'MAIN MENU', act: () => g.screens.wipe(() => g.toMenu()) },
       ],
@@ -387,6 +421,7 @@ export class Menu3D {
 
   go(name, keepSel) {
     const prevSel = this.sel;
+    if (!keepSel) this._roomTip = tip();
     this._clearPanels();
     this.roomName = name;
     const R = name === 'stats' ? this._statsRoom() : (this.rooms()[name] || this.rooms().main)();

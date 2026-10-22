@@ -574,8 +574,9 @@ export class Player {
       this.dashT -= dt;
       const dk = clamp(this.dashT / CFG.DODGE.dur, 0, 1); // 1 -> 0 over the dash
       const ease = 0.35 + 1.3 * dk * (2 - dk) * 0.75; // ease-out burst, ~same distance
-      tvx = Math.cos(this.dashDir) * speed * CFG.DODGE.speedMult * ease;
-      tvy = Math.sin(this.dashDir) * speed * CFG.DODGE.speedMult * ease;
+      const rk = 1 + (g.D.attackRange - 1) * 0.5; // roll a bit further where enemies reach further
+      tvx = Math.cos(this.dashDir) * speed * CFG.DODGE.speedMult * ease * rk;
+      tvy = Math.sin(this.dashDir) * speed * CFG.DODGE.speedMult * ease * rk;
       this.vx = tvx; this.vy = tvy;
     } else {
       const k = 1 - Math.exp(-CFG.PLAYER.accel * dt);
