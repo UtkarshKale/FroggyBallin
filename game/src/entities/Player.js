@@ -281,7 +281,9 @@ export class Player {
     const g = this.g, P = CFG.PLAYER_POSTURE;
     dmg *= g.D.dmg;
     if (src && src === g.boss && g.bossUltOn()) dmg *= CFG.ULT.bossDmg;
-    if (opts.peril) return this._perilHit(dmg, src, opts);
+    const cap = CFG.PLAYER.hp * g.D.hitCap;
+    if (opts.peril) return this._perilHit(Math.min(dmg, cap / CFG.PERIL.dmgMult), src, opts);
+    dmg = Math.min(dmg, cap);
     if (this.iframes > 0 || this.parryGrace > 0) return 'dodged';
     if (opts.parryable !== false && this.parryActive && this.broken <= 0) {
       if (this.parryT < this.perfectLen) {

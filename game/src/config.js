@@ -90,13 +90,14 @@ export const POWERUPS = {
 // posture: posture gained by the frog; heal: drop rate; ult: ult meter gain; bossUlt: boss ult frequency (repeat: re-arm
 // after each ult); tele: telegraph length; perilMix: share of perilous attacks; fakeOut: chance of a delayed wind-up;
 // random: attack types are rolled at random every attack (only the glyph colour tells you).
+// hitCap: no single hit can take more than this share of max HP (stacked ult x perilous x difficulty can't one-shot).
 export const DIFFICULTY = {
-  baby: { label: 'BABY', hp: 0.9, bossHp: 0.9, ghostHp: 0.85, dmg: 0.7, speed: 0.9, parry: 1.35, posture: 0.8, heal: 1.3, ult: 1.3, bossUlt: 0.6, tele: 1.45, perilMix: 0.1, fakeOut: 0, random: false, repeat: false,
+  baby: { label: 'BABY', hitCap: 0.3, hp: 0.9, bossHp: 0.9, ghostHp: 0.85, dmg: 0.7, speed: 0.9, parry: 1.35, posture: 0.8, heal: 1.3, ult: 1.3, bossUlt: 0.6, tele: 1.45, perilMix: 0.1, fakeOut: 0, random: false, repeat: false,
     desc: 'For anyone who just wants to hop around and eat bugs. Gentle bugs, a wider parry window and long, clear warnings, but bugs still bite.' },
-  normal: { label: 'NORMAL', hp: 1, bossHp: 1, ghostHp: 1, dmg: 1, speed: 1, parry: 1, posture: 1, heal: 1, ult: 1, bossUlt: 1, tele: 1, perilMix: 0.3, fakeOut: 0, random: false, repeat: false,
+  normal: { label: 'NORMAL', hitCap: 0.4, hp: 1, bossHp: 1, ghostHp: 1, dmg: 1, speed: 1, parry: 1, posture: 1, heal: 1, ult: 1, bossUlt: 1, tele: 1, perilMix: 0.3, fakeOut: 0, random: false, repeat: false,
     desc: 'The intended way to play.' },
-  mayhem: { label: 'MAYHEM', hp: 1.2, bossHp: 1.2, ghostHp: 1.2, dmg: 1.4, speed: 1.15, parry: 0.8, posture: 1.2, heal: 0.8, ult: 0.9, bossUlt: 1.6, tele: 0.8, perilMix: 0.55, fakeOut: 0.3, random: false, repeat: false,
+  mayhem: { label: 'MAYHEM', hitCap: 0.5, hp: 1.2, bossHp: 1.2, ghostHp: 1.2, dmg: 1.4, speed: 1.15, parry: 0.8, posture: 1.2, heal: 0.8, ult: 0.9, bossUlt: 1.6, tele: 0.8, perilMix: 0.55, fakeOut: 0.3, random: false, repeat: false,
     desc: 'Faster, meaner bugs, tight parries, more perilous attacks and fake-outs. You asked for it.' },
-  torture: { label: 'TORTURE', hp: 1.4, bossHp: 1.4, ghostHp: 1.4, dmg: 2, speed: 1.25, parry: 0.65, posture: 1.4, heal: 0.6, ult: 0.8, bossUlt: 2.5, tele: 0.6, perilMix: 0.6, fakeOut: 0.35, random: true, repeat: true,
+  torture: { label: 'TORTURE', hitCap: 0.65, hp: 1.4, bossHp: 1.4, ghostHp: 1.4, dmg: 2, speed: 1.25, parry: 0.65, posture: 1.4, heal: 0.6, ult: 0.8, bossUlt: 2.5, tele: 0.6, perilMix: 0.6, fakeOut: 0.35, random: true, repeat: true,
     desc: 'Only for people who love challenges. Bugs hit hard, bosses ult constantly, attack types are random and only the glyph colour warns you.' },
 };

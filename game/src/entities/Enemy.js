@@ -459,6 +459,7 @@ export class Enemy {
           if (!this.atk.hit && d < this.radius + p.radius + 14) {
             this.atk.hit = true;
             p.takeHit(14, this, hitOpts(this.atk.type));
+            if (!this.atk) break; // a perfect parry (onParried) cancels the dash
           }
           if (this.atk.t >= 0.22) { this.atk = null; this.atkCd = 1.4; }
         }
