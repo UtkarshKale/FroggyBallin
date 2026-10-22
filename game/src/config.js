@@ -36,7 +36,8 @@ export const CFG = {
   // Phase 2 bosses run their attack timers faster; all boss cooldowns are scaled by cdMult.
   BOSS: { ph2Speed: 1.3, cdMult: 0.8, preludeDur: 4.2 },
   GHOST: { hp: 150, echoEvery: 4, echoRange: 900, echoDmg: 10 },
-  POWERUP: { duration: 12, snail: 6, dropChance: 0.16, shard: 3, ricochet: 2, ricochetRange: 420, thornReflect: 0.6, thornReduce: 0.75, magnetRange: 460, magnetTongue: 1.5 },
+  // Picked-up power-ups go into up to `slots` hold slots and are used with the power key (X) unless auto-activate is on.
+  POWERUP: { slots: 2, duration: 12, snail: 6, dropChance: 0.16, shard: 3, ricochet: 2, ricochetRange: 420, thornReflect: 0.6, thornReduce: 0.75, magnetRange: 460, magnetTongue: 1.5 },
   // Style meter (D..S): rewards hits, kills, parries, deathblows; decays when idle, drops when hurt.
   STYLE: { hit: 4, kill: 12, parry: 30, deathblow: 35, counter: 20, eat: 10, perilDodge: 25, riposte: 40, hurt: -60, decay: 16, idle: 2.0, comboWindow: 2.5, max: 460,
     ranks: [[0, 'D', '#9aa'], [50, 'C', '#7dff7d'], [120, 'B', '#66ddff'], [220, 'A', '#ffd23f'], [340, 'S', '#ff5a8a']] },
@@ -44,10 +45,10 @@ export const CFG = {
   BOMBER: { fuse: 1.0, hopSpeed: 420, hopTime: 0.4, radius: 120, dmg: 18, launchSpeed: 640, launchTime: 0.5, bugDmg: 45 },
   LEECH: { drain: 3, slowEach: 0.2, minSlow: 0.5, latchDmg: 4 },
   WEB: { r: 95, life: 9, slow: 0.45, shotSlow: 0.6, shotSlowTime: 1.2 },
-  // Ultimate (ASCII mode). Player ult: G when the meter is full. Every stat x mult; move/attack speed use their own
-  // multipliers (3x speed was unplayable in testing, tune here). Bosses ult once per phase; never overlaps the player's.
+  // Ultimate (ASCII mode). Player ult: G when the meter is full (G again ends it early, refunding part of the rest).
+  // Moderate buffs: damage x mult, posture x postureMult, tongue range x tongueMult, stamina regen, move/attack speed. Bosses ult once per phase; never overlaps the player's.
   // Ult meter fills from kills (elites/bosses more), a little from parries and boss damage; kills during the ult extend it.
-  ULT: { perKill: 9, eliteKill: 22, bossKill: 40, parryGain: 3, bossDmgGain: 0.08, killExtend: 0.6, cell: 9, glitchTime: 0.35, fadeNear: 380, fadeFar: 900, black: 0.42, cutoff: 0.07, actorMin: 0.65, gain: 0, duration: 14, mult: 3, moveMult: 2, atkSpeed: 2.2,
+  ULT: { perKill: 9, eliteKill: 22, bossKill: 40, parryGain: 3, bossDmgGain: 0.08, killExtend: 0.5, maxTime: 10, toggleGuard: 0.4, offRefund: 0.3, cell: 9, glitchTime: 0.35, fadeNear: 380, fadeFar: 900, black: 0.42, cutoff: 0.07, actorMin: 0.65, gain: 0, duration: 8, mult: 1.6, postureMult: 1.5, tongueMult: 1.4, staminaRegen: 2, moveMult: 1.25, atkSpeed: 1.3,
     bossWindup: 1.0, bossDuration: 8, bossDelay: [5, 10], bossSpeed: 1.5, bossDmg: 2.5,
     playerTint: 0x66ffcc, bossTint: 0xff3344,
     bossEffects: { hornet: 'noRegen', stag: 'reverse', mantis: 'tightParry', moth: 'shift', spider: 'webs' } },
@@ -69,7 +70,7 @@ export const CFG = {
   KEYS: {
     forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD',
     jump: 'Space', dodge: 'ShiftLeft', shoot: 'KeyF', tongue: 'KeyE', pause: 'KeyP', mute: 'KeyM',
-    weapon: 'KeyQ', sword: 'Digit1', gun: 'Digit2', ult: 'KeyG',
+    weapon: 'KeyQ', sword: 'Digit1', gun: 'Digit2', ult: 'KeyG', power: 'KeyX',
     slash: 'Mouse0', parry: 'Mouse2', restart: 'KeyR', // mouse buttons are bindable as 'MouseN'
   },
 };

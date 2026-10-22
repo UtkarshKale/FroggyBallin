@@ -193,7 +193,7 @@ export class Menu3D {
     const self = this;
     const TIPS = { '3D MENUS': 'Menus as a 3D diorama. Off: classic flat menus.', 'IN-WORLD DMG NUMBERS': 'Damage numbers float in the scene instead of on the screen.', 'CRT OVERLAY': 'Scanlines, vignette and a colour fringe on big hits.', 'CRT STRENGTH': 'How strong the CRT overlay is (0-100%).',
       'REDUCE FLASHING': 'No screen flashes, softer shake, short wipes.', 'MOUSE SENS': 'Camera turn speed.', 'AIM SENS (ADS)': 'Multiplier while aiming the gun (hold aim).', 'VERTICAL SENS': 'Multiplier for up/down camera movement.',
-      'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'OBJECTIVE ARROW': 'Small arrow at your feet pointing to the next swarm, the boss arena or the goal.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
+      'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'AUTO-USE POWER-UPS': 'Off: power-ups wait in two slots until you press the power key. On: they fire the moment you pick them up.', 'OBJECTIVE ARROW': 'Small arrow at your feet pointing to the next swarm, the boss arena or the goal.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
     const tipCard = { kind: 'card', label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || 'Left/Right or click to change. Changes apply immediately and are saved.'; } };
     return {
       card: { at: V(110, -150, 552), w: 440, h: 30, item: tipCard },
@@ -210,6 +210,7 @@ export class Menu3D {
         tog('reduce', 'REDUCE FLASHING', apply),
         tog('dmgNums', 'DAMAGE NUMBERS', apply),
         tog('guide', 'OBJECTIVE ARROW', apply),
+        tog('autoPower', 'AUTO-USE POWER-UPS', apply),
         tog('lowQ', 'LOW QUALITY', () => { apply(); g.world.buildLevel(g.levelCfg); if (this.active && g.state === 'MENU') { g.world.levelGroup.visible = false; } }),
         tog('invertY', 'INVERT Y', apply),
         num('sens', 'MOUSE SENS', 0.05, 0.1, 3, (v) => v.toFixed(2)),
@@ -510,7 +511,7 @@ export class Menu3D {
 const howto = () => { const K = CFG.KEYS, n = keyName; return `Beat a level and your run becomes a ghost that replays everything and hunts you. Kill it, beat the boss and reach the goal first.
 *${n(K.forward)}${n(K.left)}${n(K.back)}${n(K.right)} move, ${n(K.jump)} jump, ${n(K.dodge)} dodge, mouse aim (click to lock).
 *${n(K.slash)} sword combo, ${n(K.parry)} parry just before a hit. ${n(K.weapon)} / ${n(K.sword)} / ${n(K.gun)} swap sword and gun (gun: ${n(K.slash)} fire, hold ${n(K.parry)} to aim). ${n(K.shoot)} quick sword flurry from any weapon.
-*${n(K.tongue)} tongue (eat pink-marked bugs to heal), ${n(K.ult)} ultimate when the meter is full, ${n(K.pause)} pause, ${n(K.mute)} mute.
+*${n(K.tongue)} tongue (eat pink-marked bugs to heal), ${n(K.power)} use a stored power-up, ${n(K.ult)} ultimate when the meter is full (again to end it), ${n(K.pause)} pause, ${n(K.mute)} mute.
 Yellow flash = normal attack, parry it. Red glyph = perilous: can't be parried, dodge it (or jump shockwaves). Orange glyph = dodge through it to open a RIPOSTE: slash right away for a guaranteed crit.
 Posture: fill a bar to break the target (stunned, edible, deathblow x3). Your own bar fills when you block or get hit.`; };
 

@@ -480,7 +480,7 @@ export class Player {
 
     // Stamina regen
     this.staminaDelay -= dt;
-    if (this.staminaDelay <= 0) this.stamina = Math.min(100, this.stamina + CFG.TONGUE.regen * dt);
+    if (this.staminaDelay <= 0) this.stamina = Math.min(100, this.stamina + CFG.TONGUE.regen * (this.ultOn ? CFG.ULT.staminaRegen : 1) * dt);
 
     // Over-the-shoulder camera in gun mode: aim at the point under the crosshair, not parallel to it.
     const aimYaw = cam.yaw - (this.weapon === 'gun' ? Math.atan2(cam.shoulder || 0, 700) : 0);
@@ -756,7 +756,7 @@ export class Player {
     const tg = this.tongue;
     if (!tg) { this.tongueMesh.visible = false; this.tongueTip.visible = false; return; }
     const T = CFG.TONGUE;
-    const range = T.range * (this.pu.big > 0 ? 2 : 1) * (this.pu.mag > 0 ? CFG.POWERUP.magnetTongue : 1) * (this.ultOn ? CFG.ULT.mult : 1);
+    const range = T.range * (this.pu.big > 0 ? 2 : 1) * (this.pu.mag > 0 ? CFG.POWERUP.magnetTongue : 1) * (this.ultOn ? CFG.ULT.tongueMult : 1);
     tg.t += dt;
     if (!tg.resolved && tg.t >= T.resolveAt) {
       tg.resolved = true;

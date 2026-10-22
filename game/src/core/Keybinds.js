@@ -6,7 +6,7 @@ export const ACTIONS = [
   ['forward', 'MOVE FORWARD'], ['back', 'MOVE BACK'], ['left', 'MOVE LEFT'], ['right', 'MOVE RIGHT'],
   ['jump', 'JUMP'], ['dodge', 'DODGE'], ['slash', 'SWORD / FIRE'], ['parry', 'PARRY / AIM'],
   ['shoot', 'QUICK SLASH'], ['tongue', 'TONGUE'], ['weapon', 'SWAP WEAPON'], ['sword', 'SWORD'], ['gun', 'GUN'],
-  ['ult', 'ULTIMATE'], ['pause', 'PAUSE'], ['mute', 'MUTE'], ['restart', 'RESTART (STATS)'],
+  ['ult', 'ULTIMATE'], ['power', 'USE POWER-UP'], ['pause', 'PAUSE'], ['mute', 'MUTE'], ['restart', 'RESTART (STATS)'],
 ];
 
 export const DEFAULT_KEYS = { ...CFG.KEYS };

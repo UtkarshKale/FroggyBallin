@@ -134,7 +134,8 @@ export class Screens {
         <tr><td>Equip gun / sword</td><td>Q (or 1 / 2). Gun: LMB fire, hold RMB to aim</td></tr>
         <tr><td>Quick sword flurry (any weapon)</td><td>${keyName(CFG.KEYS.shoot)}</td></tr>
         <tr><td>Tongue: eat bugs, heals</td><td>E (pink E marker = edible)</td></tr>
-        <tr><td>Ultimate (when the meter is full)</td><td>G</td></tr>
+        <tr><td>Ultimate (when the meter is full; again to end it)</td><td>${keyName(CFG.KEYS.ult)}</td></tr>
+        <tr><td>Use a stored power-up (2 slots)</td><td>${keyName(CFG.KEYS.power)}</td></tr>
         <tr><td>Pause / Mute</td><td>P or Esc / M</td></tr>
       </table>
       <p><b>Posture:</b> every enemy has a stance bar. Hits and parries fill it; when it's full the enemy is <b>broken</b>: stunned, edible, and a hit becomes a <b>deathblow</b> (x3). Your own bar (bottom centre) fills when you block or get hit. Perfect-parrying something big freezes time for a moment.</p>

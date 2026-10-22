@@ -291,7 +291,8 @@ export class Hud {
     e.post.style.width = `${(p.broken > 0 ? 1 : Math.min(1, p.posture / 100)) * 100}%`;
     e.post.parentElement.classList.toggle('broken', p.broken > 0);
     e.stami.style.width = `${p.stamina}%`;
-    if (e.ultk.textContent !== keyName(CFG.KEYS.ult)) e.ultk.textContent = keyName(CFG.KEYS.ult);
+    const uk = g.ult && g.ult.t > 0 ? `${g.ult.t.toFixed(1)}s` : keyName(CFG.KEYS.ult);
+    if (e.ultk.textContent !== uk) e.ultk.textContent = uk;
     const setStance = (el, frac, broken) => {
       el.firstElementChild.style.width = el.lastElementChild.style.width = `${(broken ? 1 : Math.min(1, frac)) * 50}%`;
       el.classList.toggle('broken', !!broken);
@@ -355,7 +356,8 @@ export class Hud {
     let pr = '';
     if (p.riposteT > 0) pr = `<kbd>${keyName(K.slash)}</kbd> RIPOSTE!`;
     else if (p.counterT > 0 && p.weapon === 'sword') pr = `<kbd>${keyName(K.slash)}</kbd> COUNTER`;
-    else if (g.ult && g.ult.meter >= 100 && g.ult.t <= 0 && !g.bossUlt) pr = `<kbd>${keyName(K.ult)}</kbd> ULTIMATE READY`;
+        if (g.ult && g.ult.meter >= 100 && g.ult.t <= 0 && !g.bossUlt) pr = `<kbd>${keyName(K.ult)}</kbd> ULTIMATE READY`;
+    else if (g.powerSlots && g.powerSlots.length) pr = `<kbd>${keyName(K.power)}</kbd> USE ${POWERUPS[g.powerSlots[0]].label.toUpperCase()}`;
     else if ((this.equipHint = Math.max(0, (this.equipHint || 0) - dt)) > 0) pr = p.weapon === 'gun' ? `<kbd>${keyName(K.slash)}</kbd> FIRE  <kbd>${keyName(K.parry)}</kbd> AIM  <kbd>${keyName(K.shoot)}</kbd> QUICK SLASH` : `<kbd>${keyName(K.slash)}</kbd> SLASH  <kbd>${keyName(K.parry)}</kbd> PARRY`;
     if (pr !== this._pr) { this._pr = pr; e.prompt.innerHTML = pr; e.prompt.style.opacity = pr ? 1 : 0; e.prompt.classList.toggle('ult', pr.includes('ULTIMATE')); }
     // Floating COUNTER! prompt while the counter window is open
@@ -406,6 +408,11 @@ export class Hud {
     if (g.snailT > 0) chip('snail', 'Time Snail', g.snailT.toFixed(0) + 's', g.snailT / CFG.POWERUP.snail);
     if (p.pu.over > 0) chip('over', 'Overclock', p.pu.over.toFixed(0) + 's', p.pu.over / 8);
     if (p.counterT > 0) html += `<div class="chip" style="border-color:#fff"><span class="ico">${ICON.counter}</span>COUNTER READY</div>`;
+    // stored power-ups (hold slots) with the live use key
+    for (const [i, t] of (g.powerSlots || []).entries()) {
+      const def = POWERUPS[t], c = '#' + def.color.toString(16).padStart(6, '0');
+      html += `<div class="chip slot${i === 0 ? ' next' : ''}" style="border-color:${c}"><span class="ico" style="color:${c}">${ICON[t] || ICON.star}</span>${def.label} <kbd>${keyName(CFG.KEYS.power)}</kbd></div>`;
+    }
     if (html !== this.lastPow) { e.powers.innerHTML = html; this.lastPow = html; }
 
     if (this.toastT > 0) {

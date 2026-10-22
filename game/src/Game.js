@@ -25,7 +25,7 @@ import { Menu3D } from './ui/Menu3D.js';
 import { Hud3D } from './ui/Hud3D.js';
 import { Settings } from './core/Settings.js';
 import { Cosmetics, unlock, ACH } from './entities/Cosmetics.js';
-import { Keybinds } from './core/Keybinds.js';
+import { Keybinds, keyName as keyNameOf } from './core/Keybinds.js';
 import { INTRO_PANELS, GHOST_PANELS } from './ui/comics.js';
 
 const newStats = () => ({ kills: 0, ghostKills: 0, eaten: 0, perfectParries: 0, shots: 0, hits: 0, damageTaken: 0, ghostKilledAt: null, maxCombo: 0, bestRank: 'D' });
@@ -164,6 +164,7 @@ export class Game {
     this.hud.setBoss(null);
     this.snailT = 0;
     this.freezeT = 0;
+    this.powerSlots = [];
     this.bossUlt = null;
     if (this.ult) this.ult.t = 0;
     const a = this.world.ascii;
@@ -456,7 +457,7 @@ export class Game {
 
   onKillUlt(t) {
     const U = CFG.ULT, u = this.ult;
-    if (u.t > 0) { u.t = Math.min(U.duration, u.t + U.killExtend); return; }
+    if (u.t > 0) { u.t = Math.min(U.maxTime, u.t + U.killExtend); return; }
     this.ultGain(t.isBoss ? U.bossKill : t.elite ? U.eliteKill : U.perKill);
   }
 
@@ -466,21 +467,29 @@ export class Game {
 
   startUlt() {
     const u = this.ult;
-    if (u.t > 0) return;
+    if (u.t > 0) {
+      // pressing the ult key again ends it early (ignored right after activation to avoid double-presses)
+      if (this.simT - (u.startedAt || 0) < CFG.ULT.toggleGuard) return;
+      const refund = 100 * CFG.ULT.offRefund * (u.t / CFG.ULT.duration);
+      this.endUlt(refund);
+      this.hud.flash('ULT OFF', '#66ffcc');
+      return;
+    }
     if (u.meter < 100) { this.hud.flash('Ultimate not ready', '#99a'); return; }
     if (this.bossUlt) { this.hud.flash('Boss ult in progress!', '#ff5566'); return; }
     u.t = CFG.ULT.duration;
+    u.startedAt = this.simT;
     this.player.ultPoseT = 0.5;
     this.world.ascii.set(true, CFG.ULT.playerTint);
-    this.hud.cutIn('ULTIMATE', 'Everything x3. Go.', 'player');
+    this.hud.cutIn('ULTIMATE', `Stronger, faster. ${keyNameOf(CFG.KEYS.ult)} again to end it.`, 'player');
     this.sfx.play('ult');
     this.fx.ring(this.player.x, this.player.y, 10, 0x66ffcc, 20, 400, 0.6);
     this.fx.addShake(14);
     this.fovPunch(10);
   }
 
-  endUlt() {
-    this.ult.t = 0; this.ult.meter = 0;
+  endUlt(refund = 0) {
+    this.ult.t = 0; this.ult.meter = Math.min(99, refund);
     const a = this.world.ascii;
     a.set(false); a.kick(0.6);
     this.hud.screenFlash();
@@ -491,8 +500,7 @@ export class Game {
     const u = this.ult, p = this.player;
     if (u.t > 0) {
       u.t -= dt;
-      u.meter = Math.max(0, 100 * u.t / CFG.ULT.duration);
-      p.stamina = 100;
+      u.meter = Math.max(0, Math.min(100, 100 * u.t / CFG.ULT.duration));
       if (u.t <= 0) this.endUlt();
     }
     const b = this.boss;
@@ -640,7 +648,26 @@ export class Game {
     this.pickups.spawn(types[Math.floor(Math.random() * types.length)], x, y);
   }
 
+  // Pickups: droplets / bullets / ammo apply at once; power-ups go into hold slots, used with the power key.
   collect(type) {
+    const p = this.player;
+    if (type === 'droplet' || type === 'bullet' || type === 'ammo' || Settings.get('autoPower')) { this.activatePower(type); return; }
+    const slots = this.powerSlots || (this.powerSlots = []);
+    if (slots.length >= CFG.POWERUP.slots) this.activatePower(slots.shift()); // full: the oldest one fires so nothing is lost
+    slots.push(type);
+    const def = POWERUPS[type];
+    this.hud.flash(`${def.label} stored - press ${keyNameOf(CFG.KEYS.power)} to use`, '#' + def.color.toString(16).padStart(6, '0'));
+    this.sfx.play('pickup');
+    this.fx.ring(p.x, p.y, 20, def.color, 10, 60, 0.3);
+  }
+
+  usePower() {
+    const slots = this.powerSlots;
+    if (!slots || !slots.length) { this.hud.flash('No power-up stored', '#99a'); return; }
+    this.activatePower(slots.shift());
+  }
+
+  activatePower(type) {
     const p = this.player;
     const P = CFG.POWERUP;
     switch (type) {
@@ -759,7 +786,7 @@ export class Game {
       } else {
         const wasBug = t.team === 'bug';
         this.damageTarget(t, dmg, { team, knock: true, ang: a, crit });
-        if (team === 'player' && !t.dead) this.addPosture(t, CFG.POSTURE.sword[step] * (crit ? CFG.POSTURE.critMult : 1) * (rip ? CFG.PERIL.ripostePosture : 1) * (this.playerUlt ? CFG.ULT.mult : 1));
+        if (team === 'player' && !t.dead) this.addPosture(t, CFG.POSTURE.sword[step] * (crit ? CFG.POSTURE.critMult : 1) * (rip ? CFG.PERIL.ripostePosture : 1) * (this.playerUlt ? CFG.ULT.postureMult : 1));
         hits++;
         if (crit && wasBug && t.dead) this.pickups.spawn('bullet', t.x, t.y);
       }
@@ -979,6 +1006,7 @@ export class Game {
     }
     this.updateWaves(dt);
     if (inp.pressed(K.ult)) this.startUlt();
+    if (inp.pressed(K.power)) this.usePower();
     this.updateUlt(dt);
     if (this.mode === 'survival') this.survivalUpdate(dt);
     if (this.mode === 'bossrush') this.rushUpdate(dt);

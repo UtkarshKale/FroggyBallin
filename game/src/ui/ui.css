@@ -382,3 +382,14 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 .prompt.ult kbd { border-color: #66ffcc; }
 .ink .sub::after { content: attr(data-t); position: absolute; left: 50%; transform: translate(-50%, 6px); font: 800 15px Consolas, monospace; letter-spacing: 4px; color: #ffcc33; white-space: nowrap; }
 .ink .sub { position: relative; }
+
+/* Stored power-up slots */
+.chip.slot kbd { font: 900 11px Consolas, monospace; border: 1px solid currentColor; padding: 0 4px; margin-left: 4px; border-radius: 2px; }
+.chip.slot.next { animation: slotp .5s infinite alternate; }
+@keyframes slotp { from { filter: brightness(1); } to { filter: brightness(1.5); } }
+/* Cut-in text never clipped: room for italics / skew / shadow, clip only horizontally for the slide */
+.cutin { height: auto; min-height: 150px; overflow: visible; }
+.cutin .cpanel { position: relative; left: -10%; width: 120%; height: auto; min-height: 150px; box-sizing: border-box; padding: 18px 0 18px 16%; overflow: visible; }
+.cutin b { font-size: clamp(30px, 6vw, 72px); line-height: 1.15; padding: 0 .25em 0 .1em; white-space: nowrap; max-width: 80vw; }
+.cutin small { white-space: normal; max-width: 70vw; }
+#ui { overflow: hidden; }
