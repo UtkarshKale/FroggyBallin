@@ -20,9 +20,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-Froggy Ballin additions (everything under game/src/ not derived from the course)
-Copyright (c) 2026 Utkarsh Kale (github.com/UtkarshKale)
-Released under the same MIT terms as above.
+Froggy Ballin additions (everything under game/ not derived from the course)
+Copyright (c) 2026 Utkarsh Kale (github.com/UtkarshKale). All rights reserved.
+NOT covered by the MIT terms above. Licensed for evaluation and playtesting only;
+no public or other use is allowed. See LICENSE-FROGGY-BALLIN.md.
 
 Jam attribution notice:
 [TO FILL IN BEFORE SUBMISSION: paste the exact attribution notice text required by the JetBrains game jam here]
