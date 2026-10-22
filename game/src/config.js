@@ -28,7 +28,9 @@ export const CFG = {
   // Posture (stance-break): filling an enemy's bar breaks it (stunned, deathblow x3). Player has one too.
   POSTURE: { regen: 14, delay: 1.6, brokenTime: 2.5, deathblow: 3, sword: [8, 8, 16], critMult: 2, parryMin: 25, parryFrac: 0.5, reflectHit: 25, bossStun: 3.5 },
   PLAYER_POSTURE: { max: 100, regen: 18, delay: 1.0, blockMult: 1.6, blockAdd: 4, hitMult: 0.6, perfectRelief: 25, brokenTime: 1.4 },
-  CAMERA: { dist: 270, gunDist: 300, aimDist: 235, fov: 55, gunFov: 52, aimFov: 42, shoulder: 70, gunLift: 22, gunPitchMin: 0.3 },
+  CAMERA: { dist: 270, gunDist: 300, aimDist: 235, fov: 55, gunFov: 52, aimFov: 42, shoulder: 70, gunLift: 22,
+    // pitch range; below 0 the camera hugs the floor and tilts up (lookUp) so flying bosses can be aimed at
+    pitchMin: -0.45, pitchMax: 1.25, lookUp: 1.5 },
   TONGUE: { range: 200, cost: 25, regen: 35, regenDelay: 0.4, dur: 0.3, resolveAt: 0.12, halfArc: 0.45 },
   DODGE: { dur: 0.22, speedMult: 3.2, iframes: 0.3, cooldown: 0.55, roll: 0.07 },
   // Zones spawn in quick waves: the next wave arrives after waveGap s or when few bugs are left.

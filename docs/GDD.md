@@ -252,3 +252,6 @@ Cut order if late: stretch → Level 2 → power-ups beyond Time Snail/Firefly/B
 - Upgrades apply to the frog at run start; the ghost replays the recorded run. The stats screen shows GF/Croak earned, rank and the number of upgrade levels used.
 - **Ultimate** (revised): 8 s (kills +0.5 s, cap 10 s), damage x1.6, posture x1.5, tongue range x1.4, stamina regen x2, move x1.25, attack speed x1.3; press the ult key again to end early (30% of the remaining time refunded). The meter fills from kills.
 - **Power-ups** go into hold slots (2, +1 from the shop) and are used with X; 'Auto-use power-ups' setting restores instant activation.
+
+## Aiming at flying bosses
+The camera can tilt up (pitch below level, `CAMERA.pitchMin`), the aim point follows the view ray and locks to a target's body height, and bullets climb to that height. Hits stay 2D in XY like all gameplay.

@@ -195,7 +195,9 @@ export class World {
       this.camera.position.y += (Math.random() - 0.5) * shake;
       this.camera.position.z += (Math.random() - 0.5) * shake;
     }
-    this.camera.lookAt(tx, ty, tz);
+    // Negative pitch: the camera sits low and tilts up past the frog (aiming at flying bosses).
+    const up = c.pitch < 0 ? -sp * dist * CFG.CAMERA.lookUp : 0;
+    this.camera.lookAt(tx, ty, tz + up);
     if (c.roll) this.camera.rotateZ(c.roll);
   }
 

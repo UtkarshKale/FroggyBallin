@@ -10,7 +10,7 @@ export class Projectiles {
     this.list = [];
   }
 
-  spawn({ x, y, z = 26, angle, speed, dmg, team, radius = 9, life = 2.6, color = 0xffffff, owner = null, fromBoss = false, burn = false, tag = '', bounces = 0 }) {
+  spawn({ x, y, z = 26, angle, speed, dmg, team, radius = 9, life = 2.6, color = 0xffffff, owner = null, fromBoss = false, burn = false, tag = '', bounces = 0, vz = 0, zTo = z }) {
     const mat = new THREE.MeshBasicMaterial({ color });
     const mesh = new THREE.Mesh(geo, mat);
     mesh.scale.setScalar(radius);
@@ -20,7 +20,7 @@ export class Projectiles {
     mesh.add(glow);
     this.g.world.scene.add(mesh);
     this.g.world.tag(mesh, team !== 'player' ? 'danger' : 'actor');
-    const p = { x, y, z, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg, team, radius, life, mesh, mat, owner, fromBoss, burn, reflected: false, dead: false, tag, color, bounces, hitSet: null };
+    const p = { x, y, z, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, dmg, team, radius, life, mesh, mat, owner, fromBoss, burn, reflected: false, dead: false, tag, color, bounces, hitSet: null, vz, zTo };
     this.list.push(p);
     return p;
   }
@@ -58,6 +58,7 @@ export class Projectiles {
       const k = p.team === 'player' ? 1 : esc;
       p.x += p.vx * dt * k;
       p.y += p.vy * dt * k;
+      if (p.vz) { p.z += p.vz * dt * k; if (p.z >= p.zTo) { p.z = p.zTo; p.vz = 0; } }
       p.life -= dt;
       p.mesh.position.set(p.x, p.y, p.z);
       // Boss 'shift' ult: hostile shots are drawn off from where they really are.

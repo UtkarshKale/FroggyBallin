@@ -615,12 +615,20 @@ export class Game {
       const d = r.distanceToPoint(tv);
       if (d < t.radius * 1.2 + 8 && along < bd) { bd = along; best = t; }
     }
-    if (best) { pt.set(best.x, best.y, z); this.aimTarget = best; return; }
+    // aim point at the target's body height, so flying bosses get a raised crosshair, arm, laser and bullet path
+    if (best) { pt.set(best.x, best.y, (best.z || 0) + Math.min(40, best.radius)); this.aimTarget = best; return; }
     this.aimTarget = null;
     // No target: aim along the camera's heading from the frog; camera pitch sets the distance (clamped).
     const p = this.player, G = CFG.GUN;
     const dz = r.direction.z;
     const t = Math.abs(dz) > 1e-4 ? (z - r.origin.z) / dz : -1;
+    if (t <= 0 || dz > -0.02) {
+      // Looking level or up: keep the aim point on the view ray (crosshair stays put on airborne targets).
+      const h = Math.hypot(r.direction.x, r.direction.y) || 1;
+      pt.copy(r.origin).addScaledVector(r.direction, G.aimMax / h);
+      pt.z = clamp(pt.z, 0, 600);
+      return;
+    }
     let dist = G.aimMax;
     if (t > 0) { const hx = r.origin.x + r.direction.x * t, hy = r.origin.y + r.direction.y * t; dist = Math.hypot(hx - p.x, hy - p.y); }
     dist = clamp(dist, G.aimMin, G.aimMax);
@@ -997,11 +1005,11 @@ export class Game {
     // Mouse sensitivity, separate aim (ADS) multiplier and vertical multiplier from Settings
     const sens = Settings.get('sens') * (pl0.aiming ? Settings.get('aimSens') : 1);
     cam.yaw -= mdx * 0.0024 * sens;
-    cam.pitch = clamp(cam.pitch + mdy * 0.002 * sens * Settings.get('ySens') * (Settings.get('invertY') ? -1 : 1), 0.15, 1.25);
+    cam.pitch = clamp(cam.pitch + mdy * 0.002 * sens * Settings.get('ySens') * (Settings.get('invertY') ? -1 : 1), CFG.CAMERA.pitchMin, CFG.CAMERA.pitchMax);
     if (inp.down('ArrowLeft')) cam.yaw += 2.2 * raw;
     if (inp.down('ArrowRight')) cam.yaw -= 2.2 * raw;
-    if (inp.down('ArrowUp')) cam.pitch = clamp(cam.pitch - 1.2 * raw, 0.15, 1.25);
-    if (inp.down('ArrowDown')) cam.pitch = clamp(cam.pitch + 1.2 * raw, 0.15, 1.25);
+    if (inp.down('ArrowUp')) cam.pitch = clamp(cam.pitch - 1.2 * raw, CFG.CAMERA.pitchMin, CFG.CAMERA.pitchMax);
+    if (inp.down('ArrowDown')) cam.pitch = clamp(cam.pitch + 1.2 * raw, CFG.CAMERA.pitchMin, CFG.CAMERA.pitchMax);
 
     if (inp.pressed(K.pause)) { this.pause(); return; }
 

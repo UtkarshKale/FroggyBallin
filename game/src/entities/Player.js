@@ -739,12 +739,15 @@ export class Player {
     this.faceHold = 0.3;
     const fire = this.pu.fire > 0;
     const range = ap ? Math.hypot(ap.x - mz.x, ap.y - mz.y) : 400;
-    g.fx.tracer(mz.x, mz.y, mz.z, mz.x + Math.cos(ang) * Math.min(range, 520), mz.y + Math.sin(ang) * Math.min(range, 520), CFG.GUN.bulletZ, fire ? 0xff9a3a : 0xffee88);
+    // Bullets climb toward a raised aim point (flying bosses); hits stay 2D in XY like all gameplay.
+    const zTo = ap ? Math.max(CFG.GUN.bulletZ, ap.z) : CFG.GUN.bulletZ;
+    const tl = Math.min(range, 520);
+    g.fx.tracer(mz.x, mz.y, mz.z, mz.x + Math.cos(ang) * tl, mz.y + Math.sin(ang) * tl, CFG.GUN.bulletZ + (zTo - CFG.GUN.bulletZ) * Math.min(1, tl / Math.max(1, range)), fire ? 0xff9a3a : 0xffee88);
     // recoil + shell sparks ejected to the right
     this.gunKick = CFG.GUN.recoil;
     g.fx.burst(mz.x - Math.cos(ang) * 30 + Math.sin(ang) * 6, mz.y - Math.sin(ang) * 30 - Math.cos(ang) * 6, mz.z, 0xffcc55, 3, 90, 0.35, 1.4, 500);
     g.projectiles.spawn({
-      x: mz.x, y: mz.y, z: CFG.GUN.bulletZ,
+      x: mz.x, y: mz.y, z: CFG.GUN.bulletZ, zTo, vz: (zTo - CFG.GUN.bulletZ) * CFG.GUN.speed * (aimed ? CFG.GUN.aimSpeedMult : 1) / Math.max(60, range),
       angle: ang, speed: CFG.GUN.speed * (aimed ? CFG.GUN.aimSpeedMult : 1),
       dmg: CFG.GUN.dmg * (fire ? 1.4 : 1) * (aimed ? CFG.GUN.aimMult : 1) * (ult ? CFG.ULT.mult : 1) * this.up.gun, team: 'player', radius: CFG.GUN.radius,
       color: fire ? 0xff7a1a : this.pu.rico > 0 ? 0x55ffaa : 0xffee66, owner: this, burn: fire, bounces: this.pu.rico > 0 ? CFG.POWERUP.ricochet : 0,

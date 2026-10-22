@@ -72,5 +72,8 @@ THIRD_PARTY_ASSETS.md, which keep their own licenses.
 For any other use, contact the author via github.com/UtkarshKale.
 
 ==========================================================================================
-Jam attribution notice:
-[TO FILL IN BEFORE SUBMISSION: paste the exact attribution notice text required by the JetBrains game jam here]
+Attribution: Froggy Ballin is built on the "Build a Game with an AI Coding Agent" course
+baseline by JetBrains Academy, which is licensed under the MIT License (notice above,
+retained in full). Everything added on top of that baseline (Froggy Ballin) is
+(c) 2026 Utkarsh Kale, all rights reserved, and may not be copied, redistributed or
+reused; it is provided for evaluation and playtesting only.
