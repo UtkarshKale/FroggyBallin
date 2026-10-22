@@ -161,7 +161,7 @@ export class AsciiPass {
       for (const [o, m] of swapped) o.material = m;
     }
     r.autoClear = auto;
-    camera.layers.set(0); camera.layers.enable(3);
+    camera.layers.set(0); camera.layers.enable(3); camera.layers.enable(5);
     scene.background = bg; scene.fog = fog;
     r.setClearColor(this._cc, ca);
   }
@@ -171,9 +171,18 @@ export class AsciiPass {
     if (tagged) this.renderMask(scene, camera, tagged);
     this.mat.uniforms.amount.value = this.amount;
     this.mat.uniforms.glitch.value = this.glitch;
+    camera.layers.disable(5); // UI panels (layer 5) stay out of the ASCII image...
     r.setRenderTarget(this.rt);
     r.render(scene, camera);
     r.setRenderTarget(null);
     r.render(this.qScene, this.qCam);
+    // ...and are drawn normally on top, so menus / stats stay readable while the world is ASCII.
+    const auto = r.autoClear, bg = scene.background, fog = scene.fog;
+    r.autoClear = false; scene.background = null; scene.fog = null;
+    r.clearDepth();
+    camera.layers.set(5);
+    r.render(scene, camera);
+    r.autoClear = auto; scene.background = bg; scene.fog = fog;
+    camera.layers.set(0); camera.layers.enable(3); camera.layers.enable(5);
   }
 }

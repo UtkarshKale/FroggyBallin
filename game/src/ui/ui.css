@@ -369,3 +369,16 @@ body.reduce .perilv, body.reduce .sflash { display: none; }
 
 /* ink words never wrap: tighter tracking and size on narrow screens */
 .ink b { white-space: nowrap; font-size: clamp(30px, 6.5vw, 96px); letter-spacing: .22em; padding-left: .22em; max-width: 96vw; }
+
+/* INCOMING above the head, world labels, ability prompt */
+.incomingp { display: none; transform: translate(-50%, -100%); font: italic 900 15px 'Arial Black', Impact, sans-serif; letter-spacing: 2px; color: #ff2a3a; -webkit-text-stroke: 1px #000; text-shadow: 0 0 8px rgba(255,0,30,.8); animation: incp .18s infinite alternate; pointer-events: none; }
+.incomingp.counter { color: #ff9a1a; text-shadow: 0 0 8px rgba(255,140,20,.8); }
+@keyframes incp { from { transform: translate(-50%, -100%) scale(1); } to { transform: translate(-50%, -100%) scale(1.12); } }
+.labels { inset: 0; pointer-events: none; }
+.wlabel { position: absolute; transform: translate(-50%, -100%); font: italic 900 13px 'Arial Black', Impact, sans-serif; letter-spacing: 1px; -webkit-text-stroke: 1px #000; white-space: nowrap; }
+.prompt { left: 50%; bottom: 70px; transform: translateX(-50%); font: 900 15px 'Arial Black', Impact, sans-serif; letter-spacing: 1px; opacity: 0; transition: opacity .15s; white-space: nowrap; text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 0 0 6px #000; }
+.prompt kbd { display: inline-block; min-width: 22px; padding: 1px 6px; margin: 0 4px 0 10px; border: 2px solid #fff; border-radius: 3px; background: rgba(0,0,0,.6); font: 900 13px Consolas, monospace; }
+.prompt.ult { color: #66ffcc; animation: blink .4s infinite alternate; }
+.prompt.ult kbd { border-color: #66ffcc; }
+.ink .sub::after { content: attr(data-t); position: absolute; left: 50%; transform: translate(-50%, 6px); font: 800 15px Consolas, monospace; letter-spacing: 4px; color: #ffcc33; white-space: nowrap; }
+.ink .sub { position: relative; }

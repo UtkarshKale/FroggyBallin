@@ -18,6 +18,7 @@ export class World {
     this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 9000);
     this.camera.up.set(0, 0, 1);
     this.camera.layers.enable(3); // layer 3: sprites kept out of the ASCII mask's depth pass
+    this.camera.layers.enable(5); // layer 5: 3D UI panels (drawn normally over the ASCII view)
     this.tagged = new Set();
 
     this.scene.add(new THREE.AmbientLight(0xffffff, 1.3));

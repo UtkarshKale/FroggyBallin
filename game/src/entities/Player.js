@@ -149,7 +149,12 @@ export class Player {
         return P({ pz: hop, ry: f * A.leanFwd * clamp(s, 0, 1.2) + (c.gun ? -0.05 : 0), rx: -sd * A.leanSide * clamp(s, 0, 1.2), sz: 1 + br + hop * 0.01, sx: 1 - br * 0.5, sy: 1 - br * 0.5 });
       },
       air: (t, c) => (c.vz > 60 ? P({ sz: 1.12, sx: 0.93, sy: 0.93, ry: -0.06 }) : c.vz < -60 ? P({ sz: 1.05, ry: 0.1 }) : P({ sz: 1.02 })),
-      dodge: () => { const k = 1 - this.dashT / CFG.DODGE.dur; return P({ ry: TAU * clamp(k, 0, 1), sz: 0.85, pz: Math.sin(clamp(k, 0, 1) * Math.PI) * 6 }); },
+      // Forward roll on its own visual timer (longer than the dash), eased in/out; ends at exactly 0 so blending out never flips.
+      dodge: () => {
+        const k = clamp(1 - this.rollT / A.rollTime, 0, 1);
+        const e = k * k * (3 - 2 * k);
+        return P({ ry: k >= 1 ? 0 : TAU * e, sz: 1 - 0.18 * Math.sin(k * Math.PI), sx: 1 + 0.08 * Math.sin(k * Math.PI), sy: 1 + 0.08 * Math.sin(k * Math.PI), pz: Math.sin(k * Math.PI) * 8 });
+      },
       attack: () => {
         const sw = this.swing;
         if (!sw) return P({});
@@ -184,7 +189,7 @@ export class Player {
     let st = 'loco';
     if (this.dead) st = 'death';
     else if (this.broken > 0) st = 'broken';
-    else if (this.dashT > 0) st = 'dodge';
+    else if (this.rollT > 0) st = 'dodge';
     else if (this.hurtT > 0) st = 'hit';
     else if (this.swing || this.flurry) st = 'attack';
     else if (this.parryT >= 0) st = 'parry';
@@ -237,7 +242,7 @@ export class Player {
     this.parryGrace = 0;
     this.hurtT = 0; this.gulpT = 0; this.ultPoseT = 0; this.ppT = 0; this.deadT = 0;
     // Fresh animation state every run: the run clock restarts at 0, so the sync timestamp must too.
-    this._lastSyncT = undefined; this.phase = 0; this.sq = 0; this.gunKick = 0; this.armYaw = 0; this.armPitch = 0;
+    this._lastSyncT = undefined; this.phase = 0; this.rollT = 0; this.sq = 0; this.gunKick = 0; this.armYaw = 0; this.armPitch = 0;
     if (this.anim) this.anim.reset('loco');
     this.parryStreak = 0;
     this.streakT = 0;
@@ -437,6 +442,7 @@ export class Player {
     for (const k of Object.keys(this.pu)) if (k !== 'shell') this.pu[k] = Math.max(0, this.pu[k] - dt);
     this.iframes = Math.max(0, this.iframes - dt);
     this.parryGrace = Math.max(0, this.parryGrace - dt);
+    this.rollT = Math.max(0, (this.rollT || 0) - dt);
     this.hurtT = Math.max(0, this.hurtT - dt); this.gulpT = Math.max(0, this.gulpT - dt); this.ultPoseT = Math.max(0, this.ultPoseT - dt); this.ppT = Math.max(0, this.ppT - dt);
     this.webbedT = Math.max(0, this.webbedT - dt);
     this.riposteT = Math.max(0, this.riposteT - dt);
@@ -496,6 +502,7 @@ export class Player {
         this.weapon = want;
         this.equipT = CFG.GUN.equipTime;
         this.swing = null; this.parryT = -1; this.slashBuf = 0;
+        g.hud.equipHint = 1.6;
         g.sfx.play('equip');
         g.hud.flash(want === 'gun' ? 'GUN EQUIPPED: LMB fire, hold RMB to aim' : 'SWORD EQUIPPED', '#fff');
       }
@@ -520,6 +527,7 @@ export class Player {
       if (input.pressed(K.dodge) && this.dodgeCd <= 0 && this.dashT <= 0) {
         if (this.flurry) this._endFlurry(); // flurry cancels into dodge
         this.dashT = CFG.DODGE.dur;
+        this.rollT = CFG.ANIM.rollTime;
         this.dodgeCd = CFG.DODGE.cooldown * (this.pu.dragon > 0 ? 0.6 : 1);
         this.iframes = CFG.DODGE.iframes;
         this.dashDir = this.moving ? Math.atan2(my, mx) : this.yaw;
@@ -549,8 +557,10 @@ export class Player {
     let tvx = locked ? 0 : mx * speed, tvy = locked ? 0 : my * speed;
     if (this.dashT > 0) {
       this.dashT -= dt;
-      tvx = Math.cos(this.dashDir) * speed * CFG.DODGE.speedMult;
-      tvy = Math.sin(this.dashDir) * speed * CFG.DODGE.speedMult;
+      const dk = clamp(this.dashT / CFG.DODGE.dur, 0, 1); // 1 -> 0 over the dash
+      const ease = 0.35 + 1.3 * dk * (2 - dk) * 0.75; // ease-out burst, ~same distance
+      tvx = Math.cos(this.dashDir) * speed * CFG.DODGE.speedMult * ease;
+      tvy = Math.sin(this.dashDir) * speed * CFG.DODGE.speedMult * ease;
       this.vx = tvx; this.vy = tvy;
     } else {
       const k = 1 - Math.exp(-CFG.PLAYER.accel * dt);

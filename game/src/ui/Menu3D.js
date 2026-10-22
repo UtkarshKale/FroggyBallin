@@ -26,6 +26,7 @@ export class Menu3D {
     this.mouse = new THREE.Vector2(0, 0);
     this.hasMouse = false;
     this.ray = new THREE.Raycaster();
+    this.ray.layers.set(5); // only UI panels are pickable
     this.t = 0;
     this.orbit = 0;
     this.scroll = 0; this.scrollT = 0; this.scrollV = 0; this.maxScroll = 0;
@@ -192,7 +193,7 @@ export class Menu3D {
     const self = this;
     const TIPS = { '3D MENUS': 'Menus as a 3D diorama. Off: classic flat menus.', 'IN-WORLD DMG NUMBERS': 'Damage numbers float in the scene instead of on the screen.', 'CRT OVERLAY': 'Scanlines, vignette and a colour fringe on big hits.', 'CRT STRENGTH': 'How strong the CRT overlay is (0-100%).',
       'REDUCE FLASHING': 'No screen flashes, softer shake, short wipes.', 'MOUSE SENS': 'Camera turn speed.', 'AIM SENS (ADS)': 'Multiplier while aiming the gun (hold aim).', 'VERTICAL SENS': 'Multiplier for up/down camera movement.',
-      'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
+      'AIM ASSIST': 'How strongly shots snap to targets near the crosshair.', 'HUD SCALE': 'Size of the bottom-left HUD cluster.', 'HUD OPACITY': 'Transparency of the HUD cluster.', 'HUD CORNER': 'Where the HUD cluster sits.', 'OBJECTIVE ARROW': 'Small arrow at your feet pointing to the next swarm, the boss arena or the goal.', 'LOW QUALITY': 'Fewer decorations, no particles or light rays, 1x pixel ratio. For slower machines.' };
     const tipCard = { kind: 'card', label: 'TIP', get body() { const p = self.panels[self.sel]; return (p && TIPS[p.item.label]) || 'Left/Right or click to change. Changes apply immediately and are saved.'; } };
     return {
       card: { at: V(110, -150, 552), w: 440, h: 30, item: tipCard },
@@ -208,6 +209,7 @@ export class Menu3D {
         num('crtStrength', 'CRT STRENGTH', 0.1, 0, 1, (v) => Math.round(v * 100) + '%', apply),
         tog('reduce', 'REDUCE FLASHING', apply),
         tog('dmgNums', 'DAMAGE NUMBERS', apply),
+        tog('guide', 'OBJECTIVE ARROW', apply),
         tog('lowQ', 'LOW QUALITY', () => { apply(); g.world.buildLevel(g.levelCfg); if (this.active && g.state === 'MENU') { g.world.levelGroup.visible = false; } }),
         tog('invertY', 'INVERT Y', apply),
         num('sens', 'MOUSE SENS', 0.05, 0.1, 3, (v) => v.toFixed(2)),
@@ -369,6 +371,7 @@ export class Menu3D {
       this.barTrack = new THREE.Mesh(new THREE.PlaneGeometry(3, top - bottom + L.h), new THREE.MeshBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.6, depthWrite: false }));
       this.barThumb = new THREE.Mesh(new THREE.PlaneGeometry(4, Math.max(10, (top - bottom + L.h) * this.visRows / rowsTotal)), new THREE.MeshBasicMaterial({ color: 0xff2a3a, depthWrite: false }));
       this.barTrack.position.set(x, y, (top + bottom) / 2); this.barThumb.position.set(x + 0.5, y, top);
+      this.barTrack.layers.set(5); this.barThumb.layers.set(5);
       this.barSpan = [top + L.h / 2, bottom - L.h / 2];
       this.rig.add(this.barTrack, this.barThumb);
     }

@@ -32,6 +32,7 @@ export class Panel3D {
     this.mat = new THREE.MeshBasicMaterial({ map: this.tex, transparent: true, depthWrite: false, depthTest: false, side: THREE.DoubleSide, fog: false });
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), this.mat);
     this.mesh.renderOrder = 20;
+    this.mesh.layers.set(5);
     this.mesh.userData.panel = this;
     this.hover = false;
     this.pop = 0;

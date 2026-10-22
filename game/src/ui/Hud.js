@@ -59,6 +59,9 @@ export class Hud {
       <div class="abs help panel-shadow" id="h-help"></div>
       <div class="abs stylebox panel-shadow" id="h-style"><div class="rank" id="h-rank">D</div><div class="bar srank"><i id="h-srank"></i></div><div class="combo" id="h-combo"></div></div>
       <div class="abs counterp panel-shadow" id="h-counter">COUNTER!</div>
+      <div class="abs incomingp" id="h-incoming">INCOMING</div>
+      <div class="abs labels" id="h-labels"></div>
+      <div class="abs prompt" id="h-prompt"></div>
       <div class="abs pstreak panel-shadow" id="h-streak"></div>
       <div class="abs ink" id="h-ink"><b></b><i class="sub"></i></div>
       <div class="abs pslash" id="h-pslash"></div>
@@ -75,7 +78,7 @@ export class Hud {
       ghostbox: q('h-ghostbox'), ghosttag: q('h-ghosttag'), ghp: q('h-ghp'), gprog: q('h-gprog'),
       boss: q('h-boss'), bossname: q('h-bossname'), bosshp: q('h-bosshp'), cross: q('h-cross'),
       stance: q('h-stance'), bossstance: q('h-bossstance'), gstance: q('h-gstance'), wpn: q('h-wpn'), sflash: q('h-sflash'),
-      pdim: q('h-pdim'), pslash: q('h-pslash'), flourish: q('h-flourish'), pwipe: q('h-pwipe'), dmgs: q('h-dmgs'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
+      pdim: q('h-pdim'), incoming: q('h-incoming'), labels: q('h-labels'), prompt: q('h-prompt'), pslash: q('h-pslash'), flourish: q('h-flourish'), pwipe: q('h-pwipe'), dmgs: q('h-dmgs'), perilv: q('h-perilv'), ink: q('h-ink'), ult: q('h-ult'), ultbox: q('h-ultbox'), cutin: q('h-cutin'), style: q('h-style'), rank: q('h-rank'), srank: q('h-srank'), combo: q('h-combo'), counter: q('h-counter'), streak: q('h-streak'), stami: q('h-stami'), powers: q('h-powers'), banner: q('h-banner'), toast: q('h-toast'),
     };
     this.vig = this.root.querySelector('.vignette');
     this.low = this.root.querySelector('.lowhp');
@@ -88,9 +91,29 @@ export class Hud {
     this.numI = 0;
   }
 
+  // Short 'INCOMING' above Tode's head while a perilous (unparryable) attack winds up.
+  incoming(type) {
+    const el = this.el.incoming;
+    el.className = `abs incomingp ${type}`;
+    this.incT = CFG.ANIM.incoming;
+  }
+
+  // Small floating label that follows an entity (posture broken / deathblow on regular bugs).
+  worldLabel(ent, text, color = '#fff', dur = 1.1) {
+    this.lbls = this.lbls || [];
+    const d = document.createElement('div');
+    d.className = 'wlabel'; d.textContent = text; d.style.color = color;
+    this.el.labels.appendChild(d);
+    this.lbls.push({ d, ent, t: dur, max: dur, x: ent.x, y: ent.y, z: (ent.z || 0) + (ent.radius || 20) * 2 + 28 });
+    if (this.lbls.length > 8) { const o = this.lbls.shift(); o.d.remove(); }
+  }
+
   // Clear one-shot overlays and queued messages so nothing from the last run leaks into the next.
   resetTransient() {
     const e = this.el;
+    this.incT = 0; e.incoming.style.display = 'none';
+    for (const l of this.lbls || []) l.d.remove();
+    this.lbls = [];
     this.toastQ = []; this.toastT = 0; this._toastText = ''; e.toast.style.opacity = 0;
     this.bannerT = 0; e.banner.style.opacity = 0;
     for (const el of [e.ink, e.cutin, e.flourish, e.pslash, e.pwipe, e.streak]) { el.classList.remove('go', 'pop'); }
@@ -192,7 +215,8 @@ export class Hud {
   ink(word, kind = '', sub = '') {
     const el = this.el.ink;
     el.querySelector('b').textContent = word;
-    el.querySelector('.sub').textContent = sub;
+    el.querySelector('.sub').textContent = '';
+    el.querySelector('.sub').dataset.t = sub;
     el.className = `abs ink ${kind}`;
     void el.offsetWidth;
     el.classList.add('go');
@@ -304,6 +328,36 @@ export class Hud {
 
     // Floating stamina bar above the frog's head
     tmp.set(p.x, p.y, p.z + CFG.PLAYER.height + 24).project(g.world.camera);
+    // INCOMING over the head
+    this.incT = Math.max(0, (this.incT || 0) - dt);
+    tmp.set(p.x, p.y, p.z + CFG.PLAYER.height + 34).project(g.world.camera);
+    if (this.incT > 0 && tmp.z < 1 && !p.dead) {
+      const zm = this.zoom || 1;
+      e.incoming.style.display = 'block';
+      e.incoming.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth / zm}px`;
+      e.incoming.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight / zm}px`;
+    } else e.incoming.style.display = 'none';
+    // world labels follow their entity (or stay where it died)
+    for (let i = (this.lbls || []).length - 1; i >= 0; i--) {
+      const l = this.lbls[i];
+      l.t -= dt;
+      if (l.t <= 0) { l.d.remove(); this.lbls.splice(i, 1); continue; }
+      if (!l.ent.dead) { l.x = l.ent.x; l.y = l.ent.y; }
+      tmp.set(l.x, l.y, l.z + 14 * (1 - l.t / l.max)).project(g.world.camera);
+      const zm = this.zoom || 1;
+      l.d.style.display = tmp.z < 1 ? 'block' : 'none';
+      l.d.style.left = `${(tmp.x * 0.5 + 0.5) * window.innerWidth / zm}px`;
+      l.d.style.top = `${(-tmp.y * 0.5 + 0.5) * window.innerHeight / zm}px`;
+      l.d.style.opacity = Math.min(1, l.t / 0.25);
+    }
+    // Ability prompt: what you can press right now (live key names)
+    const K = CFG.KEYS;
+    let pr = '';
+    if (p.riposteT > 0) pr = `<kbd>${keyName(K.slash)}</kbd> RIPOSTE!`;
+    else if (p.counterT > 0 && p.weapon === 'sword') pr = `<kbd>${keyName(K.slash)}</kbd> COUNTER`;
+    else if (g.ult && g.ult.meter >= 100 && g.ult.t <= 0 && !g.bossUlt) pr = `<kbd>${keyName(K.ult)}</kbd> ULTIMATE READY`;
+    else if ((this.equipHint = Math.max(0, (this.equipHint || 0) - dt)) > 0) pr = p.weapon === 'gun' ? `<kbd>${keyName(K.slash)}</kbd> FIRE  <kbd>${keyName(K.parry)}</kbd> AIM  <kbd>${keyName(K.shoot)}</kbd> QUICK SLASH` : `<kbd>${keyName(K.slash)}</kbd> SLASH  <kbd>${keyName(K.parry)}</kbd> PARRY`;
+    if (pr !== this._pr) { this._pr = pr; e.prompt.innerHTML = pr; e.prompt.style.opacity = pr ? 1 : 0; e.prompt.classList.toggle('ult', pr.includes('ULTIMATE')); }
     // Floating COUNTER! prompt while the counter window is open
     tmp.set(p.x, p.y, p.z + CFG.PLAYER.height + 46).project(g.world.camera);
     if (tmp.z < 1 && p.counterT > 0) {

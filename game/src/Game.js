@@ -17,6 +17,7 @@ import { Recorder } from './loop/Recorder.js';
 import { Ghost } from './loop/Ghost.js';
 import { Webs } from './world/Webs.js';
 import { PerilFx } from './fx/Peril.js';
+import { Guide } from './world/Guide.js';
 import { LEVELS, SURVIVAL_LEVEL, BOSSRUSH_LEVEL } from './levels/levels.js';
 import { Hud } from './ui/Hud.js';
 import { Screens } from './ui/Screens.js';
@@ -72,6 +73,7 @@ export class Game {
     this.pickups = new Pickups(this);
     this.webs = new Webs(this);
     this.perilFx = new PerilFx(this);
+    this.guide = new Guide(this);
     this.recorder = new Recorder();
     this.hud = new Hud(this.uiRoot);
     this.screens = new Screens(this.uiRoot, this);
@@ -190,6 +192,7 @@ export class Game {
     this.surv = { t: 0, spawnT: 1.5, ammoT: 20 };
     this.atkRng = new Rng(level.seed * 13 + 7);
     this._perilSlowAt = -9;
+    this._incAt = -9;
     this.slowT = 0; this.hitstopT = 0; this.freezeGap = 0; this.punchT = 0; this.baseFov = CFG.CAMERA.fov;
     this.sfx.intensity = 0;
     this.deathVig.classList.remove('on');
@@ -293,6 +296,7 @@ export class Game {
     this.perilFx.show(ent, type, dur, ent.isBoss ? ent.radius * 2 + 70 : 60);
     this.sfx.play(type === 'dodge' ? 'peril' : 'perilC');
     this.hud.perilFlash(type);
+    if (this.simT - (this._incAt ?? -9) > 1.2) { this._incAt = this.simT; this.hud.incoming(type); }
     if (ent.isBoss && type === 'dodge' && this.simT - (this._perilInkAt || -9) > 2.5) { this._perilInkAt = this.simT; this.hud.ink('PERILOUS', 'peril'); }
     if (this.simT - this._perilSlowAt > 1.5) { this._perilSlowAt = this.simT; this.slowmo(CFG.PERIL.slow); }
   }
@@ -412,11 +416,7 @@ export class Game {
     st.pts = clamp(st.pts + v, 0, S.max);
     if (v > 0) {
       st.idle = 0;
-      if (this.ult.t <= 0) {
-        const was = this.ult.meter;
-        this.ult.meter = Math.min(100, this.ult.meter + v * CFG.ULT.gain * this.D.ult);
-        if (was < 100 && this.ult.meter >= 100) { this.hud.flash('ULTIMATE READY - press G', '#66ffcc'); this.sfx.play('rank'); }
-      }
+      if (kind === 'parry') this.ultGain(CFG.ULT.parryGain);
       if (kind !== 'eat') { st.combo++; st.comboT = S.comboWindow; this.stats.maxCombo = Math.max(this.stats.maxCombo, st.combo); }
     } else { st.combo = 0; st.comboT = 0; }
     this._rankCheck();
@@ -442,6 +442,22 @@ export class Game {
     if (st.idle > S.idle) st.pts = Math.max(0, st.pts - S.decay * dt);
     if (st.comboT > 0) { st.comboT -= dt; if (st.comboT <= 0) st.combo = 0; }
     this._rankCheck();
+  }
+
+  // Ult meter: kills fill it (elites / bosses more); kills during an active ult extend it a little.
+  ultGain(amount) {
+    const u = this.ult;
+    if (!u) return;
+    if (u.t > 0) return;
+    const was = u.meter;
+    u.meter = Math.min(100, u.meter + amount * this.D.ult);
+    if (was < 100 && u.meter >= 100) { this.hud.flash('ULTIMATE READY', '#66ffcc'); this.sfx.play('rank'); }
+  }
+
+  onKillUlt(t) {
+    const U = CFG.ULT, u = this.ult;
+    if (u.t > 0) { u.t = Math.min(U.duration, u.t + U.killExtend); return; }
+    this.ultGain(t.isBoss ? U.bossKill : t.elite ? U.eliteKill : U.perKill);
   }
 
   // ------------------------------------------------------------ ultimates (ASCII mode)
@@ -656,7 +672,7 @@ export class Game {
     if (t.dead) return;
     if (t.stunned) dmg *= 1.5;
     const mine = o.team === 'player';
-    if (t.broken > 0) { dmg *= CFG.POSTURE.deathblow; this.hud.flash('DEATHBLOW!', '#ffcc33'); this.fx.addShake(8); if (mine) this.addStyle('deathblow'); }
+    if (t.broken > 0) { dmg *= CFG.POSTURE.deathblow; this.fx.addShake(8); if (mine) this.addStyle('deathblow'); }
     if (mine) this.addStyle('hit');
     t.hp -= dmg;
     t.flashT = 0.1;
@@ -671,7 +687,13 @@ export class Game {
     this.fx.burst(t.x, t.y, 30, 0xffffff, 5, 150, 0.25, 2);
     this.fx.spark(t.x, t.y, (t.z || 0) + Math.min(40, (t.radius || 20) * 1.2), o.crit || t.broken > 0 ? 0xffd23f : 0xffffff, o.crit ? 46 : 30);
     this.sfx.play(o.crit ? 'crit' : 'hit');
-    if (t.hp <= 0) { if (wasBroken && mine) this.hud.ink('DEATHBLOW'); t.die(o.team); if (mine) this.addStyle('kill'); }
+    if (mine && t.isBoss && !t.dead) this.ultGain(dmg * CFG.ULT.bossDmgGain);
+    if (t.hp <= 0) {
+      // Big ink banner only for boss deathblows; regular bugs get a small label over their head.
+      if (wasBroken && mine) { if (t.isBoss) this.hud.ink('DEATHBLOW'); else this.hud.worldLabel(t, 'DEATHBLOW', '#ffcc33'); }
+      t.die(o.team);
+      if (mine) { this.addStyle('kill'); this.onKillUlt(t); }
+    }
     else if (t.onDamaged) t.onDamaged(dmg);
   }
 
@@ -693,8 +715,9 @@ export class Game {
     this.fx.burst(t.x, t.y, 30, 0xffcc44, 20, 280, 0.5, 3);
     this.fx.addShake(t.big ? 16 : 8);
     this.hitstop(t.big ? CFG.PARRY.bigBreakHitstop : CFG.PARRY.breakHitstop);
-    this.hud.ink('POSTURE BROKEN');
-    this.hud.postureSlash();
+    // Crucial moments (a boss open for a deathblow) get the big banner + slash; everything else a label over its head.
+    if (t.isBoss) { this.hud.ink('POSTURE BROKEN', '', 'DEATHBLOW READY'); this.hud.postureSlash(); }
+    else this.hud.worldLabel(t, 'POSTURE BROKEN', '#ffaa33');
     if (t.isBoss && this.bossUlt && this.bossUlt.b === t) { this.endBossUlt('broken'); t.stun(CFG.POSTURE.bossStun * 1.6); this.fx.addShake(22); }
     else if (t.isBoss) t.stun(CFG.POSTURE.bossStun);
     else if (t.stun) t.stun(3);
@@ -869,6 +892,7 @@ export class Game {
     }
     this.hud3d.setOn(!!Settings.get('hud3d') && (this.state === 'PLAYING' || this.state === 'PAUSED'));
     this.hud3d.update(raw);
+    this.guide.update(raw);
     this.world.updateAmbient(raw);
     this.world.ascii.center.set(this.player.x, this.player.y);
     this.world.render(raw);

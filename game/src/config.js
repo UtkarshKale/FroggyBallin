@@ -46,7 +46,8 @@ export const CFG = {
   WEB: { r: 95, life: 9, slow: 0.45, shotSlow: 0.6, shotSlowTime: 1.2 },
   // Ultimate (ASCII mode). Player ult: G when the meter is full. Every stat x mult; move/attack speed use their own
   // multipliers (3x speed was unplayable in testing, tune here). Bosses ult once per phase; never overlaps the player's.
-  ULT: { cell: 9, glitchTime: 0.35, fadeNear: 380, fadeFar: 900, black: 0.42, cutoff: 0.07, actorMin: 0.65, gain: 0.25, duration: 10, mult: 3, moveMult: 2, atkSpeed: 2.2,
+  // Ult meter fills from kills (elites/bosses more), a little from parries and boss damage; kills during the ult extend it.
+  ULT: { perKill: 9, eliteKill: 22, bossKill: 40, parryGain: 3, bossDmgGain: 0.08, killExtend: 0.6, cell: 9, glitchTime: 0.35, fadeNear: 380, fadeFar: 900, black: 0.42, cutoff: 0.07, actorMin: 0.65, gain: 0, duration: 14, mult: 3, moveMult: 2, atkSpeed: 2.2,
     bossWindup: 1.0, bossDuration: 8, bossDelay: [5, 10], bossSpeed: 1.5, bossDmg: 2.5,
     playerTint: 0x66ffcc, bossTint: 0xff3344,
     bossEffects: { hornet: 'noRegen', stag: 'reverse', mantis: 'tightParry', moth: 'shift', spider: 'webs' } },
@@ -56,11 +57,13 @@ export const CFG = {
   FEEL: { dmgNumbers: 24, hitFringe: 0.09, flourishRank: 'S' },
   // Animation blending (seconds per cross-fade) and pose amounts.
   ANIM: {
-    blend: { loco: 0.16, air: 0.12, dodge: 0.06, attack: 0.08, parry: 0.08, hit: 0.07, broken: 0.15, tongue: 0.1, ult: 0.1, death: 0.12,
+    blend: { loco: 0.16, air: 0.12, dodge: 0.08, attack: 0.08, parry: 0.08, hit: 0.07, broken: 0.15, tongue: 0.1, ult: 0.1, death: 0.12,
       idle: 0.2, move: 0.15, wind: 0.08, strike: 0.06, stagger: 0.08 },
     leanFwd: 0.14, leanSide: 0.18, walkFreq: 9, runFreq: 14, walkHop: 2.5, runHop: 6, breath: 0.025,
-    flinch: 0.32, recoil: 0.012, mixFade: 0.15, bossLean: 8,
+    flinch: 0.32, recoil: 0.012, mixFade: 0.15, bossLean: 8, rollTime: 0.36, incoming: 0.9,
   },
+  // Objective arrow at Tode's feet
+  GUIDE: { radius: 78, height: 4, clearRadius: 420, scale: 1.6 },
   SAMPLE_DT: 0.05,
 
   KEYS: {
